@@ -1,0 +1,64 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AuroraMart Admin{% endblock %}</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'css/admin_styles.css' %}"> 
+</head>
+<body>
+
+    <header class="top-navbar">
+        <div class="logo-container">
+            <div class="text-logo">A</div>
+        <img src="{% static 'images/AuroraMart Logo.png' %}" alt="AuroraMart Logo" class="logo-image">            <h1 class="panel-title">Admin Panel</h1>
+        </div>
+
+        <nav class="main-nav">
+            <a href="{% url 'admin_dashboard_home' %}" 
+               class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard_home' %}active{% endif %}">
+               Dashboard
+            </a>
+            
+            <a href="{% url 'customer_list' %}" 
+               class="nav-link {% if request.resolver_match.url_name == 'customer_list' %}active{% endif %}">
+               Customers
+            </a>
+            
+            <a href="{% url 'product_list' %}" 
+               class="nav-link {% if request.resolver_match.url_name == 'product_list' %}active{% endif %}">
+               Products
+            </a>
+            
+            <a href="{% url 'order_list' %}" 
+               class="nav-link {% if request.resolver_match.url_name == 'order_list' %}active{% endif %}">
+               Orders
+            </a>
+        </nav>
+        <div class="user-info">
+            <i class="fas fa-user-circle"></i>
+            <span>{{ request.user.username|default:"Admin1101" }}</span>
+        </div>
+    </header>
+    
+    <div class="main-content-wrapper">
+        {% block content %}{% endblock content %}
+    </div>
+
+    <script>
+        // This script adds the 'scrolled' class to the navbar
+        // when the user scrolls, creating the background effect.
+        document.addEventListener('scroll', function() {
+            var navbar = document.querySelector('.top-navbar');
+            if (window.scrollY > 10) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+        });
+    </script>
+    </body>
+</html>

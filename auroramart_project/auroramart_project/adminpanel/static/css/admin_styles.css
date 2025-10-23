@@ -1,0 +1,700 @@
+/* auroramart_project/adminpanel/static/css/admin_styles.css */
+/* --- Refactored for Apple-like Monochrome Theme --- */
+
+/* --- Base & Fonts --- */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: #f5f5f7; /* Lighter gray */
+    color: #1d1d1f; /* Apple's primary text color */
+    margin: 0;
+    padding: 0;
+}
+
+/* --- Top Navigation Bar (with Translucent Effect) --- */
+.top-navbar {
+    background-color: rgba(255, 255, 255, 0.7); /* Translucent base */
+    -webkit-backdrop-filter: blur(20px); /* Safari blur */
+    backdrop-filter: blur(20px); /* Frosted glass effect */
+    border-bottom: 1px solid rgba(0,0,0,0.1); /* Subtle divider */
+    padding: 0 2rem;
+    height: 72px; /* --- UPDATED: Was 64px --- */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* New class added by JavaScript on scroll */
+.top-navbar.scrolled {
+    background-color: #ffffff;
+    border-bottom: 1px solid #d2d2d7; /* Solid divider */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+}
+
+.top-navbar .logo-container {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.top-navbar .text-logo {
+    font-size: 1.75rem; /* --- UPDATED: Was 1.5rem --- */
+    font-weight: bold;
+    color: #fff;
+    background-color: #1d1d1f; /* Black logo */
+    width: 48px;  /* --- UPDATED: Was 40px --- */
+    height: 48px; /* --- UPDATED: Was 40px --- */
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+}
+
+.top-navbar .logo-container img {
+    height: 48px; /* --- UPDATED: Was 40px --- */
+    width: auto;
+}
+
+.top-navbar .panel-title {
+    font-size: 1.5rem;
+    font-weight: 500; /* Lighter weight */
+    color: #1d1d1f;
+    margin: 0;
+}
+
+.top-navbar .user-info {
+    display: flex;
+    align-items: center;
+    font-weight: 500;
+    color: #333;
+    gap: 0.5rem;
+}
+
+.top-navbar .user-info i {
+    font-size: 1.5rem;
+    color: #888;
+}
+
+/* --- Main Navigation Links (in top bar) --- */
+.main-nav {
+    display: flex;
+    gap: 0.5rem;
+    margin-left: 2rem;
+    margin-right: auto; 
+}
+
+.nav-link {
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #333;
+    text-decoration: none;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.nav-link:hover {
+    background-color: #eee;
+    color: #111;
+}
+
+.nav-link.active {
+    background-color: #000000; /* Black active state */
+    color: #ffffff;
+}
+
+/* --- Main Content --- */
+
+/* --- UPDATED: Added @keyframes for fade-in effect --- */
+@keyframes fadeInContent {
+    from { 
+        opacity: 0;
+        transform: translateY(5px); /* Start slightly lower */
+    }
+    to { 
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.main-content-wrapper {
+    padding: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+    /* --- UPDATED: Apply the new animation --- */
+    animation: fadeInContent 0.4s ease-out forwards;
+}
+
+/* --- Content Panel (for tables, charts, etc.) --- */
+.content-panel {
+    background-color: #ffffff;
+    border: 1px solid #d2d2d7; /* Apple's divider color */
+    border-radius: 12px; /* Softer corners */
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 3px 6px rgba(0, 0, 0, 0.03); /* More subtle shadow */
+    margin-bottom: 2rem;
+    overflow: hidden;
+}
+
+.content-panel-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #e8e8ea; /* Lighter internal divider */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.content-panel-header h2 {
+    font-size: 1.25rem;
+    font-weight: 500; /* Lighter */
+    color: #1d1d1f;
+    margin: 0;
+}
+
+/* --- Data Table Styling --- */
+.content-panel-body {
+    padding: 1.5rem;
+}
+
+.content-panel-body.no-padding {
+    padding: 0;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+    padding: 1rem 1.5rem;
+    text-align: left;
+    border-bottom: 1px solid #e8e8ea;
+    vertical-align: middle;
+}
+
+.data-table thead th {
+    background-color: #fafafa;
+    font-size: 0.8rem;
+    font-weight: 500; /* Lighter */
+    color: #6e6e73; /* Apple's secondary text */
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.data-table tbody td {
+    font-size: 0.9rem;
+}
+
+.data-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.data-table tbody tr:hover {
+    background-color: #f5f5f7; /* Light gray hover */
+}
+
+.data-table .tools a {
+    color: #007bff; /* Apple's link blue */
+    text-decoration: none;
+    font-weight: 500;
+    margin-right: 0.75rem;
+}
+
+.data-table .tools a:last-child {
+    margin-right: 0;
+}
+
+.data-table .tools a.delete {
+    color: #dc3545; /* Red is standard for delete actions */
+}
+
+.data-table .tools a:hover {
+    text-decoration: underline;
+}
+
+/* --- Styles for index.html (Dashboard) --- */
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.kpi-card {
+    background: #fff;
+    border: 1px solid #d2d2d7;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 3px 6px rgba(0, 0, 0, 0.03);
+    transition: all 0.2s ease;
+}
+
+.kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+}
+
+.kpi-card .kpi-title {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #6e6e73; /* Monochrome: secondary text */
+    text-transform: uppercase;
+    margin: 0 0 0.25rem 0;
+}
+
+.kpi-card .kpi-value {
+    font-size: 2.25rem;
+    font-weight: 700; /* Bold value */
+    color: #1d1d1f;
+    margin: 0;
+}
+
+.kpi-card .kpi-context {
+    font-size: 0.8rem;
+    color: #6e6e73;
+    margin: 0.25rem 0 0 0;
+}
+/* Removed all .kpi-card.customers, .transactions, etc. color styles */
+
+/* Dashboard layout */
+.dashboard-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+@media (max-width: 1024px) {
+    .dashboard-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* List inside content panels (for segment summary) */
+.summary-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.summary-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background-color: #f5f5f7;
+    border-radius: 6px;
+}
+
+.summary-list .item-name {
+    font-weight: 500;
+    color: #333;
+}
+
+.summary-list .item-value {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1d1d1f; /* Monochrome: black */
+}
+
+/* Table Status Pills (Monochrome) */
+.status-pill {
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 9999px;
+    display: inline-flex;
+}
+
+.status-pill.active {
+    background-color: #e8e8ea; /* Gray pill */
+    color: #1d1d1f; /* Black text */
+}
+
+.status-pill.inactive {
+    background-color: #f5f5f7; /* Lighter gray */
+    color: #6e6e73; /* Secondary text */
+}
+
+/* Table text colors (Monochrome) */
+.text-danger {
+    color: #1d1d1f; /* Black */
+    font-weight: 600; /* Keep the weight to show importance */
+}
+
+/* --- Login Page Styles --- */
+.login-body {
+    display: grid;
+    place-items: center;
+    min-height: 100vh;
+    background-color: #f5f5f7;
+}
+
+.login-container {
+    width: 100%;
+    max-width: 420px;
+    padding: 2.5rem;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    border: 1px solid #d2d2d7;
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.login-header .logo {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #fff;
+    background-color: #1d1d1f; /* Black */
+    width: 50px;
+    height: 50px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    margin: 0 auto 1rem auto;
+}
+
+.login-header h2 {
+    font-size: 1.75rem;
+    color: #1d1d1f;
+    margin: 0;
+}
+
+.form-group {
+    margin-bottom: 1.25rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #333;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-sizing: border-box;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-control:focus {
+    border-color: #007bff; /* Apple blue focus */
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.25);
+}
+
+.error-message {
+    color: #dc3545;
+    background-color: #fbebee;
+    border: 1px solid #f5c6cb;
+    border-radius: 8px;
+    padding: 0.75rem 1.25rem;
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+/* --- Buttons --- */
+.btn-primary {
+    width: 100%;
+    padding: 0.85rem;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #fff;
+    background-color: #000000; /* Black */
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-primary:hover {
+    background-color: #333; /* Dark gray hover */
+}
+
+.btn-secondary {
+    padding: 0.85rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #1d1d1f;
+    background-color: #e8e8ea; /* Gray */
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color 0.2s;
+}
+
+.btn-secondary:hover {
+    background-color: #ddd;
+}
+/* This makes the form buttons not full-width */
+.form-actions .btn-primary {
+    width: auto;
+    padding: 0.85rem 1.5rem;
+}
+
+/* --- Form Styles --- */
+.create-form-panel {
+    background-color: #ffffff;
+    border: 1px solid #d2d2d7;
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 3px 6px rgba(0, 0, 0, 0.03);
+    margin-bottom: 2rem;
+    padding: 1.5rem 2rem;
+}
+.create-form-panel h3 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    font-weight: 500;
+    border-bottom: 1px solid #e8e8ea;
+    padding-bottom: 1rem;
+}
+
+/* --- UPDATED: Use CSS Grid for a multi-column layout --- */
+.form-container {
+    display: grid;
+    /* This creates auto-fitting columns that are at least 300px wide */
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem 1.5rem; /* 1rem row-gap, 1.5rem column-gap */
+}
+
+.form-container p {
+    margin: 0; /* Remove old margin, 'gap' will handle spacing */
+}
+
+/* --- NEW: Make specific fields span the full width --- */
+/* This CSS :has() selector checks if a <p> tag contains a <textarea> 
+   or file input and makes it span the full grid width. */
+.form-container p:has(textarea),
+.form-container p:has(input[type="file"]) {
+    grid-column: 1 / -1; /* Span from first to last column */
+}
+
+
+.form-container label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #333;
+}
+.form-container input[type="text"],
+.form-container input[type="email"],
+.form-container input[type="number"],
+.form-container input[type="file"],
+.form-container textarea,
+.form-container select {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-sizing: border-box; /* Important */
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+/* Focus styles for forms */
+.form-container input[type="text"]:focus,
+.form-container input[type="email"]:focus,
+.form-container input[type="number"]:focus,
+.form-container input[type="file"]:focus,
+.form-container textarea:focus,
+.form-container select:focus {
+    border-color: #007bff;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.25);
+}
+
+.form-container textarea {
+    min-height: 120px;
+}
+.form-container input[type="checkbox"] {
+    width: auto;
+    margin-right: 0.5rem;
+}
+
+.form-actions {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e8e8ea;
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+}
+
+/* --- Product Detail Page Layout --- */
+.product-detail-layout {
+    display: grid;
+    grid-template-columns: 1fr 2fr; /* 1/3 for image, 2/3 for form */
+    gap: 2rem;
+    align-items: flex-start;
+}
+
+/* Responsive layout for smaller screens */
+@media (max-width: 1024px) {
+    .product-detail-layout {
+        grid-template-columns: 1fr; /* Stack columns on mobile */
+    }
+}
+
+.product-image-container {
+    width: 100%;
+    aspect-ratio: 1 / 1; /* Make it a perfect square */
+    background-color: #f5f5f7;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+    border: 1px solid #e8e8ea;
+}
+
+.product-image-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.product-image-container .image-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #aeaeae;
+}
+
+.product-image-container .image-placeholder i {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+}
+
+.image-upload-field label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #333;
+}
+.image-upload-field input[type="file"] {
+    width: 100%;
+    font-size: 0.9rem;
+}
+.form-help-text {
+    display: block;
+    font-size: 0.8rem;
+    color: #6e6e73;
+    margin-top: 0.25rem;
+}
+
+/* --- Table Link Style --- */
+.data-table .table-link {
+    color: #1d1d1f;
+    font-weight: 500;
+    text-decoration: none;
+}
+.data-table .table-link:hover {
+    color: #007bff;
+    text-decoration: underline;
+}
+
+/* --- Header Actions --- */
+.form-actions-header {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+.form-actions-header .btn-primary,
+.form-actions-header .btn-secondary {
+    width: auto;
+    padding: 0.5rem 1.25rem; /* Smaller buttons for the header */
+    font-size: 0.9rem;
+}
+
+/* --- Delete Zone & Button --- */
+.btn-danger {
+    padding: 0.85rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #fff;
+    background-color: #dc3545; /* Red */
+    border: 1px solid #dc3545;
+    border-radius: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+.btn-danger:hover {
+    background-color: #c82333;
+    border-color: #bd2130;
+}
+
+.delete-zone {
+    border-color: #f5c6cb;
+}
+.delete-zone-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 2rem;
+}
+.delete-zone-content h4 {
+    margin: 0;
+    font-weight: 600;
+    color: #721c24;
+}
+.delete-zone-content p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #721c24;
+    flex-grow: 1;
+}
+
+/* --- Error Panel --- */
+.error-panel {
+    padding: 1rem 1.5rem;
+    background-color: #fbebee;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+.error-panel p {
+    margin: 0.5rem 0;
+}
+
+.error-field {
+    border-color: #dc3545 !important; /* Red border */
+    background-color: #fbebee; /* Light red background */
+}
+.error-field:focus {
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.25) !important;
+}
+
+/* This styles the error message (e.g., "This field is required.") */
+.form-field-error-list {
+    list-style: none;
+    padding: 0;
+    margin: 0.25rem 0 0 0;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #dc3545; /* Red text */
+}
+
+/* This targets the <p> tag wrapper for a field that has errors */
+.form-container p.has-error {
+    /* You could add a background color here if you wanted */
+    /* background-color: #fef8f8; */
+    /* padding: 1rem; */
+    /* border-radius: 8px; */
+}

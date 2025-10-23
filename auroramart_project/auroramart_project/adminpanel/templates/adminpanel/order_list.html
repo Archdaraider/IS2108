@@ -1,0 +1,91 @@
+{% extends "adminpanel/base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title|default:"Order List" }}{% endblock %}
+
+{% block content %}
+
+<div class="content-panel">
+    <div class="content-panel-header">
+        <h2>{{ page_title }}</h2>
+        <button id="toggle-form-btn" class="btn-primary" style="text-decoration: none;">
+            + New Order
+        </button>
+    </div>
+</div>
+
+<div id="create-form-container" class="create-form-panel" {% if not form.errors %}style="display: none;"{% endif %}>
+    <h3>Create New Order</h3>
+    <form method="post" action="{% url 'order_list' %}" novalidate>
+        {% csrf_token %}
+        <div class="form-container">
+            {{ form.as_p }}
+        </div>
+        <div class="form-actions">
+            <button type="button" id="cancel-btn" class="btn-secondary">Cancel</button>
+            <button type="submit" class="btn-primary">Save Order</button>
+        </div>
+    </form>
+</div>
+<div class="content-panel">
+    <div class="content-panel-body no-padding">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>oID</th>
+                    <th>Customer</th>
+                    <th>Placed At</th>
+                    <th>Status</th>
+                    <th>Total</th>
+                    <th>Tools</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <!-- === UPDATED: Make ID a link === -->
+                    <td>
+                        <a href="{% url 'order_detail' order.pk %}" class="table-link">
+                            {{ order.oID }}
+                        </a>
+                    </td>
+                    <td>{{ order.customer.name|default:"N/A" }}</td>
+                    <td>{{ order.placed_at|date:"Y-m-d H:i" }}</td>
+                    <td>{{ order.get_fulfillment_status_display }}</td>
+                    <td>${{ order.total_amount|floatformat:2 }}</td>
+                    <!-- === UPDATED: Changed tools column === -->
+                    <td class="tools">
+                        <a href="{% url 'order_detail' order.pk %}">View / Update</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center; color: #777;">No orders found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var formContainer = document.getElementById('create-form-container');
+        
+        // Toggle button shows/hides the form
+        document.getElementById('toggle-form-btn').addEventListener('click', function() {
+            if (formContainer.style.display === 'none') {
+                formContainer.style.display = 'block';
+            } else {
+                formContainer.style.display = 'none';
+            }
+        });
+
+        // Cancel button always hides the form
+        document.getElementById('cancel-btn').addEventListener('click', function() {
+            formContainer.style.display = 'none';
+        });
+    });
+</script>
+
+{% endblock content %}

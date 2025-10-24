@@ -1,10 +1,10 @@
-# auroramart_project/adminpanel/models.py
 
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator, MaxValueValidator 
 
-# --- Choices for Customer Model ---
+
 
 GENDER_CHOICES = [
     ('Female', 'Female'),
@@ -159,16 +159,20 @@ class Product(models.Model):
     sku = models.CharField(max_length=50, unique=True, verbose_name="SKU")
     name = models.CharField(max_length=255)
     description = models.TextField()
-    
-    # === UPDATED: Added 'choices' attribute ===
     category = models.CharField(max_length=100, choices=PRODUCT_CATEGORY_CHOICES)
     subcategory = models.CharField(max_length=100, choices=PRODUCT_SUBCATEGORY_CHOICES)
     
-    price = models.DecimalField(max_digits=10, decimal_places=2) # Renamed from unit_price
-    rating = models.DecimalField(max_digits=3, decimal_places=1)
-    stock = models.IntegerField(verbose_name="Stock") # Renamed from quantity_on_hand
-    reorder_threshold = models.IntegerField() # Renamed from reorder_quantity
-    
+    price = models.DecimalField(max_digits=10, decimal_places=2) 
+    rating = models.DecimalField(
+        max_digits=3, 
+        decimal_places=1,
+        validators=[
+            MinValueValidator(0.0),
+            MaxValueValidator(5.0)
+        ]
+    )
+    quantity_on_hand = models.IntegerField() # Renamed from stock
+    reorder_quantity = models.IntegerField() # Renamed from reorder_threshold
     image = models.ImageField(upload_to='products/', null=True, blank=True)
 
     def __str__(self):

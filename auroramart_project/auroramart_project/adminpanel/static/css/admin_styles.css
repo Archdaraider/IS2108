@@ -1,13 +1,14 @@
-/* auroramart_project/adminpanel/static/css/admin_styles.css */
-/* --- Refactored for Apple-like Monochrome Theme --- */
-
-/* --- Base & Fonts --- */
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background-color: #f5f5f7; /* Lighter gray */
     color: #1d1d1f; /* Apple's primary text color */
     margin: 0;
     padding: 0;
+}
+
+
+.hidden {
+    display: none;
 }
 
 /* --- Top Navigation Bar (with Translucent Effect) --- */
@@ -33,6 +34,18 @@ body {
     border-bottom: 1px solid #d2d2d7; /* Solid divider */
     box-shadow: 0 1px 3px rgba(0,0,0,0.03);
 }
+
+.login-container .logo-image {
+    /* Force the logo to a fixed, smaller size for the small form box */
+    max-height: 100px; /* Reduced from 48px to 50px for the full logo */
+    width: auto;
+}
+
+.logout-container .logo-image {
+            /* Force the logo to a fixed, smaller size for the small form box */
+            max-height: 150px; /* Reduced from 48px to 50px for the full logo */
+            width: auto;
+        }
 
 .top-navbar .logo-container {
     display: flex;
@@ -141,8 +154,9 @@ body {
     padding: 1.25rem 1.5rem;
     border-bottom: 1px solid #e8e8ea; /* Lighter internal divider */
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start; /* MODIFIED: Was space-between */
     align-items: center;
+    gap: 1.5rem; /* MODIFIED: Added gap */
 }
 
 .content-panel-header h2 {
@@ -413,7 +427,7 @@ body {
     font-size: 1rem;
     font-weight: 500;
     color: #fff;
-    background-color: #000000; /* Black */
+    background-color: #000000; 
     border: none;
     border-radius: 8px;
     cursor: pointer;
@@ -615,6 +629,7 @@ body {
     gap: 1rem;
     align-items: center;
 }
+
 .form-actions-header .btn-primary,
 .form-actions-header .btn-secondary {
     width: auto;
@@ -661,40 +676,279 @@ body {
     flex-grow: 1;
 }
 
-/* --- Error Panel --- */
-.error-panel {
-    padding: 1rem 1.5rem;
-    background-color: #fbebee;
-    border-color: #f5c6cb;
-    color: #721c24;
-}
-.error-panel p {
-    margin: 0.5rem 0;
-}
-
-.error-field {
-    border-color: #dc3545 !important; /* Red border */
-    background-color: #fbebee; /* Light red background */
-}
-.error-field:focus {
-    border-color: #dc3545 !important;
-    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.25) !important;
+/*
+This new rule targets the "+ New" buttons on list pages
+(e.g., "+ New Customer")
+*/
+.content-panel-header .btn-primary {
+    width: auto; /* Overrides the default width: 100% */
+    padding: 0.5rem 1.25rem; /* Smaller padding */
+    font-size: 0.9rem;      /* Smaller font */
 }
 
-/* This styles the error message (e.g., "This field is required.") */
-.form-field-error-list {
-    list-style: none;
-    padding: 0;
-    margin: 0.25rem 0 0 0;
+
+/* --- Form Error Styling --- */
+
+/* This styles the red error text below the field */
+.field-error-message {
+    display: block;
+    color: #dc3545; /* Red */
     font-size: 0.85rem;
     font-weight: 500;
-    color: #dc3545; /* Red text */
+    margin-top: 0.25rem;
 }
 
-/* This targets the <p> tag wrapper for a field that has errors */
-.form-container p.has-error {
-    /* You could add a background color here if you wanted */
-    /* background-color: #fef8f8; */
-    /* padding: 1rem; */
-    /* border-radius: 8px; */
+/* This styles the main error box at the top of the form */
+.form-non-field-errors {
+    grid-column: 1 / -1; /* Make it span the full width */
+    color: #721c24; /* Dark red text */
+    background-color: #fbebee;
+    border: 1px solid #f5c6cb;
+    border-radius: 8px;
+    padding: 0.75rem 1.25rem;
+    margin-bottom: 1rem;
+    list-style: none; /* Removes bullets if any */
+}
+
+/* This styles the input box itself to have a red border
+  It uses the 'error-field' class from your forms.py
+*/
+.form-container input.error-field,
+.form-container select.error-field,
+.form-container textarea.error-field {
+    border-color: #dc3545;
+    background-color: #fef7f7;
+}
+
+.form-container input.error-field:focus,
+.form-container select.error-field:focus,
+.form-container textarea.error-field:focus {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.25);
+}
+
+/* --- Order Formset Styling --- */
+
+.products-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e8e8ea;
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+}
+.products-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e8e8ea;
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+}
+.products-header h3 {
+    margin: 0;
+    font-weight: 500;
+}
+/* Style the + button */
+#add-item-btn, #add-product-btn { /* Style both IDs */
+    width: auto;
+    padding: 0.35rem 0.8rem; /* Smaller */
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+/* 3-Column grid for the "Update Order" page */
+.item-form-row {
+    display: grid;
+    /* Grid: 5 parts Product, 2 parts Qty, 1 part Delete */
+    grid-template-columns: 5fr 2fr 1fr; 
+    gap: 1.5rem;
+    align-items: center; /* Vertically align items */
+    margin-bottom: 1rem;
+}
+
+/* Style for the label row (used on both pages) */
+.item-form-row.header-row,
+.item-form-row-create.header-row {
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid #f0f0f0;
+    padding-bottom: 0.5rem;
+}
+.item-form-row.header-row label,
+.item-form-row-create.header-row label {
+    font-weight: 500;
+    color: #333;
+    font-size: 0.9rem;
+}
+
+/* Center the delete label */
+.item-form-row.header-row label:last-child {
+    text-align: center;
+}
+
+/* Remove default margins from <p> tags inside the form row */
+.item-form-row p,
+.item-form-row-create p {
+    margin: 0;
+}
+
+/* 2-Column grid for the "Create Order" page */
+.item-form-row-create {
+    display: grid;
+    /* Grid: 5 parts Product, 2 parts Qty */
+    grid-template-columns: 5fr 2fr; 
+    gap: 1.5rem;
+    align-items: center; /* Vertically align items */
+    margin-bottom: 1rem;
+}
+
+.logout-body {
+    display: grid;
+    place-items: center;
+    min-height: 100vh;
+    background-color: #f5f5f7;
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.logout-container {
+    width: 100%;
+    max-width: 420px;
+    padding: 2.5rem;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    border: 1px solid #d2d2d7;
+    text-align: center; /* Center the content inside */
+}
+
+.logout-header h2 {
+    font-size: 1.75rem;
+    color: #1d1d1f;
+    margin-bottom: 0.5rem;
+}
+
+.logout-message {
+    color: #6e6e73;
+    margin-bottom: 2rem;
+    font-size: 1rem;
+}
+
+.btn-group {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Apply full-width button styles */
+.btn-group .btn-primary,
+.btn-group .btn-secondary {
+    width: 100%; /* Override 'form-actions .btn-primary' width: auto */
+    box-sizing: border-box; /* Include padding in the element's total width */
+    text-align: center;
+    display: block; /* Make sure the link acts like a block button */
+}
+
+.btn-group a.btn-primary:hover {
+    background-color: #333; /* Dark gray hover */
+}
+
+.btn-group a.btn-secondary:hover {
+    background-color: #ddd; /* Light gray hover */
+}
+
+.user-info-dropdown {
+    position: relative;
+    display: flex; /* Keep it in line with the navbar */
+    align-items: center;
+    height: 100%; /* Important for centering in the navbar */
+}
+
+/* The clickable/hoverable display bar */
+.user-info {
+    display: flex;
+    align-items: center;
+    font-weight: 500;
+    color: #333;
+    gap: 0.5rem;
+    padding: 0.5rem 0.5rem; /* Give it a little padding for a better hover area */
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+}
+
+.user-info:hover, 
+.user-info.active {
+    background-color: #eee;
+    color: #111;
+}
+
+.user-info i {
+    font-size: 1.5rem;
+    color: #888;
+}
+
+.dropdown-caret {
+    font-size: 0.7rem !important; /* Smaller caret icon */
+    color: #333 !important;
+    margin-left: 0.25rem;
+}
+
+/* The actual dropdown box */
+.dropdown-content {
+    display: none; /* HIDE BY DEFAULT */
+    position: absolute;
+    top: 100%; /* Position it right below the .user-info bar */
+    right: 0;
+    margin-top: 10px; /* Space between the bar and the dropdown box */
+    background-color: #ffffff;
+    min-width: 200px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    border: 1px solid #d2d2d7;
+    z-index: 1000;
+    overflow: hidden;
+}
+
+/* Show on hover OR when the JavaScript adds the 'show' class */
+.user-info-dropdown:hover .dropdown-content,
+.dropdown-content.show {
+    display: block;
+}
+
+/* Styles for individual items */
+.dropdown-item {
+    display: block;
+    width: 100%;
+    padding: 10px 15px;
+    text-align: left;
+    text-decoration: none;
+    color: #333;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.dropdown-item:hover {
+    background-color: #f5f5f7; /* Light gray hover */
+    color: #1d1d1f;
+}
+
+.dropdown-item i {
+    margin-right: 8px;
+    width: 18px; /* Align icons vertically */
+}
+
+.dropdown-content .logout-btn {
+    /* Optional: Highlight the logout button */
+    border-top: 1px solid #eee;
+    color: #dc3545; /* Use a danger color for the text */
+}
+
+.dropdown-content .logout-btn:hover {
+    background-color: #fcebeb; /* Light red hover */
 }

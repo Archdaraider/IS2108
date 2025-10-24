@@ -20,7 +20,27 @@
         {% csrf_token %}
         <!-- Updated to use new grid layout -->
         <div class="form-container">
-            {{ form.as_p }}
+            <div class="form-container">
+    
+    {% if form.non_field_errors %}
+        <div class="form-non-field-errors">
+            {{ form.non_field_errors }}
+        </div>
+    {% endif %}
+
+    {% for field in form %}
+        <p>
+            {{ field.label_tag }}
+            {{ field }} {% if field.errors %}
+                <span class="field-error-message">{{ field.errors|striptags }}</span>
+            {% endif %}
+
+            {% if field.help_text %}
+                <small class="form-help-text">{{ field.help_text }}</small>
+            {% endif %}
+        </p>
+    {% endfor %}
+</div>
         </div>
         <div class="form-actions">
             <button type="button" id="cancel-btn" class="btn-secondary">Cancel</button>
@@ -56,7 +76,7 @@
                     <td>{{ product.category }}</td>
                     <td>${{ product.price|floatformat:2 }}</td>
                     <td {% if product.stock <= product.reorder_threshold %}class="text-danger"{% endif %}>
-                        {{ product.stock }}
+                        {{ product.quantity_on_hand }}
                     </td>
                     
                     <!-- === UPDATED: Changed tools column === -->

@@ -1,0 +1,50 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logged Out - AuroraMart Admin</title>
+    
+    <link rel="stylesheet" href="{% static 'css/admin_styles.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
+    <style>
+        /*
+         * Use the same styles as the login page for the main body and container
+         * .login-body sets the background and centers the content vertically/horizontally.
+         * .login-container provides the white, rounded, shadowed box.
+         */
+        
+        
+    </style>
+</head>
+<body class="logout-body">
+    
+    <div class="logout-container">
+        <div class="login-header">
+            <div class="logo-container">
+                <img src="{% static 'images/AuroraMart Logo.png' %}" alt="AuroraMart Logo" class="logo-image">
+            </div>
+
+            <h2>You Have Been Logged Out</h2>
+        </div>
+        
+        <p class="logout-message">
+            Your session has been securely ended. Choose an option to proceed.
+        </p>
+        
+        <div class="btn-group">
+            
+            <a href="{% url 'admin_login' %}" class="btn-primary">
+                <i class="fas fa-sign-in-alt"></i> Sign in as another Admin
+            </a>
+            
+            <a href="{% url 'customer_landing_page' %}" class="btn-secondary">
+                <i class="fas fa-shopping-bag"></i> Go to AuroraMart Shop
+            </a>
+            
+        </div>
+    </div>
+</body>
+</html>

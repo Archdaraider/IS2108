@@ -20,13 +20,8 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns = [
-    # Keep the default Django Admin for system management/superusers
-    path('django-admin/', admin.site.urls), 
-    
-    path('admin/', include('adminpanel.urls')), 
-    
-    # Placeholder for the customer-facing front end (e.g., homepage)
-    # path('', include('core.urls')), 
+    path('admin/', admin.site.urls), # The built-in Django admin
+    path('adminpanel/', include('adminpanel.urls')), # Your custom app
 ]
 
 if settings.DEBUG:

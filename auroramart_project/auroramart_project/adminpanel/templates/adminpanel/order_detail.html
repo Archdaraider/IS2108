@@ -1,13 +1,15 @@
 {% extends "adminpanel/base.html" %}
 {% load static %}
 
-{% block title %}Edit: {{ order.oID }}{% endblock %}
+{% block title %}Edit Order: {{ order.oID }}{% endblock %}
 
 {% block content %}
 
-<form method="post" novalidate>
+<!-- Use one form for the page, pointed at the detail view URL -->
+<form method="post" action="{% url 'order_detail' order.pk %}" novalidate>
     {% csrf_token %}
     
+    <!-- Header with Back and Save buttons -->
     <div class="content-panel">
         <div class="content-panel-header">
             <h2>{{ order.oID }}</h2>
@@ -18,37 +20,116 @@
         </div>
     </div>
 
-    {% if form.errors %}
-        <div class="content-panel error-panel">
-            <p><strong>Please correct the errors below:</strong></p>
-            {{ form.non_field_errors }}
-            {% for field in form %}
-                {% if field.errors %}
-                    <p><strong>{{ field.label }}:</strong> {{ field.errors|striptags }}</p>
-                {% endif %}
-            {% endfor %}
+    <!-- Main error panel for form and formset errors -->
+    {% if form.errors or formset.errors %}
+        <div class="content-panel" style="border-color: #f5c6cb;">
+            <div class="content-panel-body" style="background-color: #fbebee; color: #721c24;">
+                <p><strong>Please correct the errors below:</strong></p>
+                <!-- Main form non-field errors -->
+                {{ form.non_field_errors }}
+                <!-- Formset non-field errors -->
+                {{ formset.non_field_errors }}
+                <!-- Field-specific errors (optional, good for debugging) -->
+                {% for field in form %}{% if field.errors %}<p><strong>{{ field.label }}:</strong> {{ field.errors|striptags }}</p>{% endif %}{% endfor %}
+                {% for item_form in formset %}{% for field in item_form %}{% if field.errors %}<p><strong>Item {{ forloop.parentloop.counter }}:</strong> {{ field.errors|striptags }}</p>{% endif %}{% endfor %}{% endfor %}
+            </div>
         </div>
     {% endif %}
 
-    <!-- Main form panel -->
+    <!-- Main Order Details Panel -->
     <div class="content-panel">
         <div class="content-panel-header">
             <h3>Order Details</h3>
         </div>
         <div class="content-panel-body">
-            <!-- This grid layout will automatically arrange the fields -->
             <div class="form-container">
-                {{ form.as_p }}
+                <!-- Render main form fields (e.g., Customer, Shipping Address) -->
+                {% for field in form %}
+                    <p>
+                        {{ field.label_tag }}
+                        {{ field }}
+                        {% if field.errors %}
+                            <span class="field-error-message">{{ field.errors|striptags }}</span>
+                        {% endif %}
+                    </p>
+                {% endfor %}
             </div>
         </div>
     </div>
+
+    <!-- Products (OrderItems) Panel -->
+    <div class="content-panel">
+        <div class="content-panel-header products-header" style="border-bottom: 1px solid #e8e8ea;">
+            <h3>Products</h3>
+            <div style="display: flex; gap: 10px;">
+                <button type="submit" name="delete_selected_items" class="btn-secondary" style="border-color: #dc3545; color: #dc3545;">
+                    Delete Selected
+                </button>
+                <button type="button" id="add-item-btn" class="btn-secondary" style="background-color: #28a745; border-color: #28a745; color: white;">
+                    + Add Product
+                </button>
+            </div>
+        </div>
+        
+        <div id="order-items-container">
+    {{ formset.management_form }} 
+
+    {% for form in formset %}
+        <div class="item-form-row">
+            
+            <!-- Hidden Fields (MUST BE PRESENT) -->
+            {{ form.id }}
+            {{ form.order }}
+            {{ form.product.errors }}
+            {{ form.quantity.errors }}
+            
+            <!-- Product Selector (5fr column) -->
+            <div>
+                <label for="{{ form.product.id_for_label }}">Product</label>
+                {{ form.product }}
+            </div>
+
+            <!-- Quantity Field (2fr column) -->
+            <div>
+                <label for="{{ form.quantity.id_for_label }}">Quantity</label>
+                {{ form.quantity }}
+            </div>
+
+            <!-- Delete Checkbox (1fr column) -->
+            <div class="delete-col">
+                <label for="{{ form.DELETE.id_for_label }}" class="text-danger">Remove</label>
+                <!-- 🔑 CRITICAL FIX: The DELETE checkbox must be rendered here -->
+                <div style="text-align: center; margin-top: 5px;">
+                    {{ form.DELETE }}
+                </div>
+            </div>
+            
+        </div>
+    {% endfor %}
+</div>
+
+    </div>
 </form>
 
-<!-- Delete Button (at the bottom) -->
+<!-- This is the empty form template for adding new rows -->
+<template id="item-form-template">
+    <div class="item-form-row" style="display: grid; grid-template-columns: 3fr 1fr 100px; align-items: center; gap: 15px; padding: 10px; border: 1px solid #e8e8ea; margin-bottom: 10px; border-radius: 5px;">
+        <div>{{ formset.empty_form.product }}</div>
+        <div>{{ formset.empty_form.quantity }}</div>
+        <div style="text-align: center;">
+            <label style="display: flex; align-items: center; justify-content: center; gap: 5px; cursor: pointer;">
+                {{ formset.empty_form.DELETE }}
+                <span style="font-size: 12px; color: #dc3545;">Delete</span>
+            </label>
+        </div>
+    </div>
+</template>
+
+<!-- Delete Button (at the bottom) for the *ENTIRE ORDER* -->
 <div class="content-panel delete-zone">
     <div class="delete-zone-content">
-        <h4>Delete Order</h4>
-        <p>This action is permanent and cannot be undone. This will remove the order from the database.</p>
+        <h4>Delete Entire Order</h4>
+        <p>This action is permanent and cannot be undone.</p>
         
         <form id="delete-form" action="{% url 'order_delete' order.pk %}" method="post">
             {% csrf_token %}
@@ -57,13 +138,96 @@
     </div>
 </div>
 
+<!-- JavaScript for adding rows and confirming delete -->
 <script>
-    // Simple confirmation pop-up before deleting
-    document.getElementById('delete-btn-confirm').addEventListener('click', function(e) {
-        if (!confirm('Are you sure you want to permanently delete this order?')) {
-            e.preventDefault();
-        } else {
-            document.getElementById('delete-form').submit();
+    document.addEventListener('DOMContentLoaded', function() {
+        // --- SCRIPT FOR ADDING FORMSET ROWS ---
+        var addBtn = document.getElementById('add-item-btn');
+        var rowsContainer = document.getElementById('item-rows-container');
+        var template = document.getElementById('item-form-template');
+        // 'items' is the prefix we set. Check forms.py if this fails.
+        // It's the 'related_name' on the OrderItem model.
+        var totalFormsInput = document.querySelector('input[name="items-TOTAL_FORMS"]');
+
+        if (addBtn) {
+            addBtn.addEventListener('click', function() {
+                var currentFormCount = parseInt(totalFormsInput.value, 10);
+                var newRow = template.content.cloneNode(true);
+                var inputs = newRow.querySelectorAll('input, select');
+                
+                inputs.forEach(function(input) {
+                    if (input.name) {
+                        input.name = input.name.replace('__prefix__', currentFormCount);
+                    }
+                    if (input.id) {
+                        input.id = input.id.replace('__prefix__', currentFormCount);
+                    }
+                });
+                
+                rowsContainer.appendChild(newRow);
+                totalFormsInput.value = currentFormCount + 1;
+            });
+        }
+
+        // --- SCRIPT FOR DELETE SELECTED FUNCTIONALITY ---
+        var deleteSelectedBtn = document.querySelector('button[name="delete_selected_items"]');
+        if (deleteSelectedBtn) {
+            deleteSelectedBtn.addEventListener('click', function(e) {
+                // Check if any items are selected for deletion
+                var deleteCheckboxes = document.querySelectorAll('input[name$="-DELETE"]:checked');
+                console.log('Delete checkboxes found:', deleteCheckboxes.length);
+                
+                if (deleteCheckboxes.length === 0) {
+                    e.preventDefault();
+                    alert('Please select at least one item to delete.');
+                    return false;
+                }
+                
+                if (!confirm('Are you sure you want to delete the selected items?')) {
+                    e.preventDefault();
+                    return false;
+                }
+                
+                console.log('Proceeding with deletion of', deleteCheckboxes.length, 'items');
+            });
+        }
+
+        // --- SCRIPT FOR QUANTITY CHANGE HANDLING ---
+        // Add event listeners to quantity inputs for real-time validation
+        function addQuantityListeners() {
+            var quantityInputs = document.querySelectorAll('input[name$="-quantity"]');
+            quantityInputs.forEach(function(input) {
+                input.addEventListener('change', function() {
+                    var value = parseInt(this.value);
+                    if (value < 1) {
+                        this.value = 1;
+                        alert('Quantity must be at least 1.');
+                    }
+                });
+            });
+        }
+        
+        // Call the function initially and after adding new rows
+        addQuantityListeners();
+        
+        // Override the add button click to also add quantity listeners
+        if (addBtn) {
+            var originalAddClick = addBtn.onclick;
+            addBtn.addEventListener('click', function() {
+                setTimeout(addQuantityListeners, 100); // Add listeners after DOM update
+            });
+        }
+
+        // --- SCRIPT FOR DELETE CONFIRMATION ---
+        var deleteConfirmBtn = document.getElementById('delete-btn-confirm');
+        if (deleteConfirmBtn) {
+            deleteConfirmBtn.addEventListener('click', function(e) {
+                if (!confirm('Are you sure you want to permanently delete this entire order?')) {
+                    e.preventDefault();
+                } else {
+                    document.getElementById('delete-form').submit();
+                }
+            });
         }
     });
 </script>

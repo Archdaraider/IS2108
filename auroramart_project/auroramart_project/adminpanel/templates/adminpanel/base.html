@@ -13,7 +13,7 @@
 
     <header class="top-navbar">
         <div class="logo-container">
-            <div class="text-logo">A</div>
+            <!--<div class="text-logo">A</div> -->
         <img src="{% static 'images/AuroraMart Logo.png' %}" alt="AuroraMart Logo" class="logo-image">            <h1 class="panel-title">Admin Panel</h1>
         </div>
 
@@ -38,9 +38,26 @@
                Orders
             </a>
         </nav>
-        <div class="user-info">
-            <i class="fas fa-user-circle"></i>
-            <span>{{ request.user.username|default:"Admin1101" }}</span>
+
+        <div class="user-info-dropdown">
+    <div class="user-info" id="user-menu-trigger">
+        <i class="fas fa-user-circle"></i>
+        <span>{{ request.user.username|default:"Admin1101" }}</span>
+        <i class="fas fa-caret-down dropdown-caret"></i>
+    </div>
+
+    <div class="dropdown-content" id="user-menu-content">
+        
+        <form method="post" action="{% url 'admin_logout' %}" style="margin: 0;">
+            {% csrf_token %} 
+            <button type="submit" class="dropdown-item logout-btn">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        </form>
+    </div>
+</div>
+        
+</form>
         </div>
     </header>
     
@@ -59,6 +76,32 @@
                 navbar.classList.remove('scrolled');
             }
         });
+
+        // Functionality for the User Dropdown menu
+document.addEventListener('DOMContentLoaded', function() {
+    const trigger = document.getElementById('user-menu-trigger');
+    const content = document.getElementById('user-menu-content');
+
+    if (trigger && content) {
+        // Toggle the dropdown when the user clicks the trigger
+        trigger.addEventListener('click', function() {
+            // Toggle the 'show' class on the content
+            content.classList.toggle('show');
+            // Also toggle an 'active' class on the trigger for consistent styling
+            trigger.classList.toggle('active');
+        });
+
+        // Close the dropdown if the user clicks anywhere else on the page
+        document.addEventListener('click', function(event) {
+            // Check if the click was outside the dropdown area
+            const isClickInside = trigger.contains(event.target) || content.contains(event.target);
+            if (!isClickInside && content.classList.contains('show')) {
+                content.classList.remove('show');
+                trigger.classList.remove('active');
+            }
+        });
+    }
+});
     </script>
     </body>
 </html>

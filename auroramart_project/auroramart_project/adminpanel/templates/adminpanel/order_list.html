@@ -14,19 +14,96 @@
     </div>
 </div>
 
-<div id="create-form-container" class="create-form-panel" {% if not form.errors %}style="display: none;"{% endif %}>
+<div id="create-form-container" class="create-form-panel {% if not form.errors and not formset.errors %}hidden{% endif %}">
     <h3>Create New Order</h3>
-    <form method="post" action="{% url 'order_list' %}" novalidate>
+    <form method="post" action="{% url 'order_list' %}" enctype="multipart/form-data" novalidate>
         {% csrf_token %}
+        
+        <!-- --- 1. RENDER THE MAIN ORDER FORM --- -->
         <div class="form-container">
-            {{ form.as_p }}
+            <!-- Render any main form errors -->
+            {% if form.non_field_errors %}
+                <div class="form-non-field-errors">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            <!-- Render main form fields (e.g., Customer, Shipping Address) -->
+            {% for field in form %}
+                <p>
+                    {{ field.label_tag }}
+                    {{ field }}
+                    {% if field.errors %}
+                        <span class="field-error-message">{{ field.errors|striptags }}</span>
+                    {% endif %}
+                </p>
+            {% endfor %}
         </div>
+        
+        
+        
+        <div class="products-header">
+            <h3>Products</h3>
+            <button type="button" id="add-item-btn" class="btn-secondary">ADD PRODUCT</button>
+        </div>
+        
+        
+        <!-- This hidden form manages the collection of forms -->
+        {{ formset.management_form }}
+        
+        <!-- Render any formset-wide errors -->
+        {% if formset.non_field_errors %}
+            <div class="form-non-field-errors">{{ formset.non_field_errors }}</div>
+        {% endif %}
+
+        <!-- NEW: Container to hold all the rows -->
+        <div id="item-rows-container">
+            {% for item_form in formset %}
+            
+                <!-- This is for the initial row(s) -->
+                <div class="item-form-row">
+                    <p>
+                        <!-- Only show label for the first row -->
+                        {% if forloop.first %}{{ item_form.product.label_tag }}{% endif %}
+                        <br> <br>
+                        {{ item_form.product }}
+                        {% if item_form.product.errors %}
+                            <span class="field-error-message">{{ item_form.product.errors|striptags }}</span>
+                        {% endif %}
+                    </p>
+                    <p>
+                        {% if forloop.first %}{{ item_form.quantity.label_tag }}{% endif %}
+                        <br> <br>
+                        {{ item_form.quantity }}
+                        {% if item_form.quantity.errors %}
+                            <span class="field-error-message">{{ item_form.quantity.errors|striptags }}</span>
+                        {% endif %}
+                    </p>
+                </div>
+            {% endfor %}
+        </div>
+        
+        <!-- 
+          NEW: This is the empty form template.
+          It's not visible, but JavaScript will clone it.
+        -->
+        <template id="item-form-template">
+            <div class="item-form-row">
+                <p>
+                    {{ formset.empty_form.product }}
+                </p>
+                <p>
+                    {{ formset.empty_form.quantity }}
+                </p>
+            </div>
+        </template>
+        
+        <!-- --- 3. THE ACTION BUTTONS --- -->
         <div class="form-actions">
             <button type="button" id="cancel-btn" class="btn-secondary">Cancel</button>
             <button type="submit" class="btn-primary">Save Order</button>
         </div>
     </form>
 </div>
+
 <div class="content-panel">
     <div class="content-panel-body no-padding">
         <table class="data-table">
@@ -70,22 +147,60 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // --- Script for toggling the main form ---
         var formContainer = document.getElementById('create-form-container');
+        var toggleBtn = document.getElementById('toggle-form-btn');
+        var cancelBtn = document.getElementById('cancel-btn');
         
-        // Toggle button shows/hides the form
-        document.getElementById('toggle-form-btn').addEventListener('click', function() {
-            if (formContainer.style.display === 'none') {
-                formContainer.style.display = 'block';
-            } else {
-                formContainer.style.display = 'none';
-            }
-        });
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', function() {
+                formContainer.classList.toggle('hidden');
+            });
+        }
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', function() {
+                formContainer.classList.add('hidden');
+            });
+        }
 
-        // Cancel button always hides the form
-        document.getElementById('cancel-btn').addEventListener('click', function() {
-            formContainer.style.display = 'none';
-        });
+        // --- NEW SCRIPT FOR ADDING FORMSET ROWS ---
+        var addBtn = document.getElementById('add-item-btn');
+        var rowsContainer = document.getElementById('item-rows-container');
+        var template = document.getElementById('item-form-template');
+        // This is the management form field that tracks the total number of forms
+        var totalFormsInput = document.querySelector('input[name="items-TOTAL_FORMS"]');
+
+        if (addBtn) {
+            addBtn.addEventListener('click', function() {
+                // Get the current number of forms
+                var currentFormCount = parseInt(totalFormsInput.value, 10);
+                
+                // Clone the template's content
+                var newRow = template.content.cloneNode(true);
+                
+                // Find all inputs/selects in the new row
+                var inputs = newRow.querySelectorAll('input, select');
+                
+                // Update their names and IDs
+                // Django formsets use a __prefix__ placeholder
+                inputs.forEach(function(input) {
+                    if (input.name) {
+                        input.name = input.name.replace('__prefix__', currentFormCount);
+                    }
+                    if (input.id) {
+                        input.id = input.id.replace('__prefix__', currentFormCount);
+                    }
+                });
+                
+                // Append the new row to the container
+                rowsContainer.appendChild(newRow);
+                
+                // Increment the total form count in the management form
+                totalFormsInput.value = currentFormCount + 1;
+            });
+        }
     });
 </script>
+
 
 {% endblock content %}

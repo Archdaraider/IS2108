@@ -7,6 +7,7 @@ urlpatterns = [
     # Authentication
     path('login/', AdminLoginView.as_view(), name='admin_login'),
     path('logout/', AdminLogoutView.as_view(), name='admin_logout'),
+    path('customer-home/', views.customer_landing_page, name='customer_landing_page'),
 
     # Main page
     path('', views.admin_dashboard_home, name='admin_dashboard_home'),
@@ -23,6 +24,6 @@ urlpatterns = [
     path('orders/<int:pk>/', views.order_detail, name='order_detail'),
     path('orders/<int:pk>/delete/', views.order_delete, name='order_delete'),
     
-    path('reports/', views.custom_reports, name='custom_reports'),
+    #path('reports/', views.custom_reports, name='custom_reports'),
     path('ai-studio/', views.ai_studio_home, name='ai_studio_home'),
 ]

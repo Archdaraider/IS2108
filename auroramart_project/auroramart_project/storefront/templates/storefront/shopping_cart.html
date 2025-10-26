@@ -1,0 +1,295 @@
+{% extends 'storefront/base.html' %}
+{% load static %}
+
+{% block title %}Shopping Cart - AuroraMart{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Breadcrumbs -->
+    <nav class="breadcrumbs">
+        <a href="{% url 'homepage' %}">Home</a>
+        <span class="breadcrumb-separator">></span>
+        <span class="breadcrumb-current">My shopping cart</span>
+    </nav>
+
+    <!-- Cart Header -->
+    <div class="cart-header">
+        <h1>My shopping cart</h1>
+        <div class="cart-actions">
+            <div class="select-all">
+                <input type="checkbox" id="select-all" checked>
+                <label for="select-all">SELECT ALL ({{ cart_items.count }} ITEM(S))</label>
+            </div>
+            <button class="btn btn-danger" id="delete-selected">
+                <i class="fas fa-trash"></i>
+                DELETE
+            </button>
+        </div>
+    </div>
+
+    <div class="cart-layout">
+        <!-- Cart Items -->
+        <div class="cart-items">
+            {% for item in cart_items %}
+            <div class="cart-item" data-item-id="{{ item.id }}">
+                <div class="item-checkbox">
+                    <input type="checkbox" class="item-select" checked>
+                </div>
+                
+                <div class="item-image">
+                    {% if item.product.image %}
+                        <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}">
+                    {% else %}
+                        <div class="product-placeholder">
+                            <i class="fas fa-image"></i>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="item-details">
+                    <h3 class="item-name">{{ item.product.name }}</h3>
+                    <div class="item-category">{{ item.product.category }} {{ item.product.subcategory }}</div>
+                    <div class="item-price">${{ item.product.price|floatformat:2 }}</div>
+                </div>
+                
+                <div class="item-actions">
+                    <button class="action-btn wishlist-btn" data-product-id="{{ item.product.id }}">
+                        <i class="fas fa-heart"></i>
+                    </button>
+                    <button class="action-btn remove-btn" data-item-id="{{ item.id }}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+                
+                <div class="item-quantity">
+                    <div class="quantity-controls">
+                        <button class="quantity-btn minus" data-item-id="{{ item.id }}">-</button>
+                        <span class="quantity-value">{{ item.quantity }}</span>
+                        <button class="quantity-btn plus" data-item-id="{{ item.id }}">+</button>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="empty-cart">
+                <i class="fas fa-shopping-cart"></i>
+                <h3>Your cart is empty</h3>
+                <p>Add some items to get started</p>
+                <a href="{% url 'product_list' %}" class="btn btn-primary">Continue Shopping</a>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Order Summary -->
+        <div class="order-summary">
+            <div class="summary-card">
+                <h3>Order Summary</h3>
+                
+                <div class="summary-line">
+                    <span>Subtotal ({{ cart.total_items }} items)</span>
+                    <span class="subtotal-amount">${{ cart.total_price|floatformat:2 }}</span>
+                </div>
+                
+                <div class="summary-line">
+                    <span>Shipping Fee</span>
+                    <span class="shipping-fee">$4.00</span>
+                </div>
+                
+                <div class="summary-line total">
+                    <span>Total</span>
+                    <span class="total-amount">${{ cart.total_price|add:4|floatformat:2 }}</span>
+                </div>
+                
+                <button class="btn btn-primary checkout-btn" {% if not cart_items %}disabled{% endif %}>
+                    PROCEED TO CHECKOUT
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Complete the Set Section -->
+    <section class="complete-set-section">
+        <div class="section-header">
+            <h2>Complete the set</h2>
+            <p>Customers browsing this category also loved.</p>
+        </div>
+        
+        <div class="product-carousel">
+            <div class="product-grid">
+                <!-- This would be populated with recommended products -->
+                <div class="product-card">
+                    <div class="product-image">
+                        <div class="product-placeholder">
+                            <i class="fas fa-image"></i>
+                        </div>
+                        <div class="product-actions">
+                            <button class="action-btn wishlist-btn">
+                                <i class="fas fa-heart"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="product-info">
+                        <div class="product-price">$6.00</div>
+                        <h3 class="product-name">AuroraMart Pure Drinking Water</h3>
+                        <div class="product-category">Category Subcategory</div>
+                        <div class="product-rating">
+                            <div class="stars">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                            </div>
+                            <span class="rating-text">4.8 (2.8k)</span>
+                        </div>
+                        <button class="btn btn-primary add-to-cart-btn">
+                            Add to cart
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Repeat for more products -->
+                <div class="product-card">
+                    <div class="product-image">
+                        <div class="product-placeholder">
+                            <i class="fas fa-image"></i>
+                        </div>
+                        <div class="product-actions">
+                            <button class="action-btn wishlist-btn">
+                                <i class="fas fa-heart"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="product-info">
+                        <div class="product-price">$6.00</div>
+                        <h3 class="product-name">AuroraMart Pure Drinking Water</h3>
+                        <div class="product-category">Category Subcategory</div>
+                        <div class="product-rating">
+                            <div class="stars">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                            </div>
+                            <span class="rating-text">4.8 (2.8k)</span>
+                        </div>
+                        <button class="btn btn-primary add-to-cart-btn">
+                            Add to cart
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <button class="carousel-btn carousel-next">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Quantity controls
+document.querySelectorAll('.quantity-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const itemId = this.getAttribute('data-item-id');
+        const isPlus = this.classList.contains('plus');
+        const quantitySpan = this.parentElement.querySelector('.quantity-value');
+        const currentQuantity = parseInt(quantitySpan.textContent);
+        
+        let newQuantity = isPlus ? currentQuantity + 1 : Math.max(1, currentQuantity - 1);
+        
+        // Update quantity via AJAX
+        fetch('{% url "update_cart_item" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+                item_id: itemId,
+                quantity: newQuantity
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                quantitySpan.textContent = newQuantity;
+                updateCartTotals(data.cart_total, data.cart_price);
+            }
+        });
+    });
+});
+
+// Remove item
+document.querySelectorAll('.remove-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const itemId = this.getAttribute('data-item-id');
+        const cartItem = this.closest('.cart-item');
+        
+        if (confirm('Are you sure you want to remove this item?')) {
+            fetch('{% url "remove_from_cart" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({
+                    item_id: itemId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    cartItem.remove();
+                    updateCartTotals(data.cart_total, data.cart_price);
+                }
+            });
+        }
+    });
+});
+
+// Select all functionality
+document.getElementById('select-all').addEventListener('change', function() {
+    const isChecked = this.checked;
+    document.querySelectorAll('.item-select').forEach(checkbox => {
+        checkbox.checked = isChecked;
+    });
+});
+
+// Delete selected items
+document.getElementById('delete-selected').addEventListener('click', function() {
+    const selectedItems = document.querySelectorAll('.item-select:checked');
+    if (selectedItems.length === 0) {
+        alert('Please select items to delete');
+        return;
+    }
+    
+    if (confirm(`Are you sure you want to delete ${selectedItems.length} selected item(s)?`)) {
+        const promises = Array.from(selectedItems).map(checkbox => {
+            const itemId = checkbox.closest('.cart-item').getAttribute('data-item-id');
+            return fetch('{% url "remove_from_cart" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({
+                    item_id: itemId
+                })
+            });
+        });
+        
+        Promise.all(promises).then(() => {
+            location.reload();
+        });
+    }
+});
+
+function updateCartTotals(totalItems, totalPrice) {
+    document.getElementById('cart-count').textContent = totalItems;
+    document.querySelector('.subtotal-amount').textContent = `$${totalPrice.toFixed(2)}`;
+    document.querySelector('.total-amount').textContent = `$${(totalPrice + 4).toFixed(2)}`;
+}
+</script>
+{% endblock %}

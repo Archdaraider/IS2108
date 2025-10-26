@@ -1,0 +1,322 @@
+{% extends 'storefront/base.html' %}
+{% load static %}
+
+{% block title %}{{ product.name }} - AuroraMart{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Breadcrumbs -->
+    <nav class="breadcrumbs">
+        <a href="{% url 'homepage' %}">Home</a>
+        <span class="breadcrumb-separator">></span>
+        <a href="{% url 'category_products' product.category|lower|slugify %}">{{ product.category }}</a>
+        <span class="breadcrumb-separator">></span>
+        <span class="breadcrumb-current">{{ product.name }}</span>
+    </nav>
+
+    <!-- Product Detail Section -->
+    <div class="product-detail-layout">
+        <!-- Product Images -->
+        <div class="product-images">
+            <div class="main-image">
+                {% if product.image %}
+                    <img src="{{ product.image.url }}" alt="{{ product.name }}" id="main-product-image">
+                {% else %}
+                    <div class="product-placeholder large">
+                        <i class="fas fa-image"></i>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- Thumbnail Images -->
+            <div class="thumbnail-images">
+                {% if product.image %}
+                <div class="thumbnail active">
+                    <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                </div>
+                {% endif %}
+                <!-- Add more thumbnails here if you have multiple images -->
+            </div>
+        </div>
+
+        <!-- Product Information -->
+        <div class="product-info">
+            <div class="product-header">
+                <h1 class="product-title">{{ product.name }}</h1>
+                <div class="product-categories">
+                    <span class="category-tag">{{ product.category }}</span>
+                    <span class="category-tag">{{ product.subcategory }}</span>
+                </div>
+                <div class="product-actions-header">
+                    <button class="action-btn share-btn">
+                        <i class="fas fa-share"></i>
+                    </button>
+                    <button class="action-btn wishlist-btn" data-product-id="{{ product.id }}">
+                        <i class="fas fa-heart"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="product-rating-section">
+                <div class="rating-display">
+                    <span class="rating-value">{{ product.rating }}</span>
+                    <div class="stars">
+                        {% for i in "12345" %}
+                            {% if forloop.counter <= product.rating %}
+                                <i class="fas fa-star"></i>
+                            {% else %}
+                                <i class="far fa-star"></i>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                <span class="rating-count">| {{ product.rating|floatformat:1 }}k Ratings | 10k+ Sold</span>
+            </div>
+
+            <div class="product-description">
+                <p>{{ product.description }}</p>
+            </div>
+
+            <div class="product-price-section">
+                <div class="price">${{ product.price|floatformat:2 }}</div>
+            </div>
+
+            <div class="product-options">
+                <div class="quantity-selector">
+                    <label for="quantity">Quantity:</label>
+                    <div class="quantity-controls">
+                        <button class="quantity-btn minus" type="button">-</button>
+                        <input type="number" id="quantity" value="1" min="1" max="{{ product.stock }}">
+                        <button class="quantity-btn plus" type="button">+</button>
+                    </div>
+                </div>
+                
+                <div class="stock-info">
+                    <span class="stock-count">{{ product.stock }} pieces available</span>
+                </div>
+            </div>
+
+            <div class="product-actions">
+                {% if product.stock > 0 %}
+                    <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ product.id }}">
+                        Add to Cart
+                    </button>
+                {% else %}
+                    <button class="btn btn-secondary" disabled>
+                        Out of Stock
+                    </button>
+                {% endif %}
+                
+                <button class="btn btn-outline wishlist-btn" data-product-id="{{ product.id }}">
+                    <i class="fas fa-heart"></i>
+                    Favourite (2k)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Frequently Bought Together -->
+    {% if frequently_bought %}
+    <section class="related-products-section">
+        <div class="section-header">
+            <h2>Frequently bought together</h2>
+            <p>Customers browsing this category also loved.</p>
+        </div>
+        
+        <div class="product-carousel">
+            <div class="product-grid">
+                {% for related_product in frequently_bought %}
+                <div class="product-card">
+                    <div class="product-image">
+                        {% if related_product.image %}
+                            <img src="{{ related_product.image.url }}" alt="{{ related_product.name }}">
+                        {% else %}
+                            <div class="product-placeholder">
+                                <i class="fas fa-image"></i>
+                            </div>
+                        {% endif %}
+                        <div class="product-actions">
+                            <button class="action-btn wishlist-btn" data-product-id="{{ related_product.id }}">
+                                <i class="fas fa-heart"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="product-info">
+                        <div class="product-price">${{ related_product.price|floatformat:2 }}</div>
+                        <h3 class="product-name">{{ related_product.name }}</h3>
+                        <div class="product-category">{{ related_product.category }}</div>
+                        <div class="product-rating">
+                            <div class="stars">
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= related_product.rating %}
+                                        <i class="fas fa-star"></i>
+                                    {% else %}
+                                        <i class="far fa-star"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            <span class="rating-text">{{ related_product.rating }} (2.8k)</span>
+                        </div>
+                        <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ related_product.id }}">
+                            Add to cart
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <button class="carousel-btn carousel-next">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- You May Also Like -->
+    {% if related_products %}
+    <section class="related-products-section">
+        <div class="section-header">
+            <h2>You may also like</h2>
+        </div>
+        
+        <div class="product-carousel">
+            <div class="product-grid">
+                {% for related_product in related_products %}
+                <div class="product-card">
+                    <div class="product-image">
+                        {% if related_product.image %}
+                            <img src="{{ related_product.image.url }}" alt="{{ related_product.name }}">
+                        {% else %}
+                            <div class="product-placeholder">
+                                <i class="fas fa-image"></i>
+                            </div>
+                        {% endif %}
+                        <div class="product-actions">
+                            <button class="action-btn wishlist-btn" data-product-id="{{ related_product.id }}">
+                                <i class="fas fa-heart"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="product-info">
+                        <div class="product-price">${{ related_product.price|floatformat:2 }}</div>
+                        <h3 class="product-name">{{ related_product.name }}</h3>
+                        <div class="product-category">{{ related_product.category }}</div>
+                        <div class="product-rating">
+                            <div class="stars">
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= related_product.rating %}
+                                        <i class="fas fa-star"></i>
+                                    {% else %}
+                                        <i class="far fa-star"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            <span class="rating-text">{{ related_product.rating }} (2.8k)</span>
+                        </div>
+                        <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ related_product.id }}">
+                            Add to cart
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <button class="carousel-btn carousel-next">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Product Reviews -->
+    <section class="reviews-section">
+        <div class="section-header">
+            <h2>Customer Reviews</h2>
+            <div class="reviews-summary">
+                <div class="average-rating">
+                    <span class="rating-value">{{ avg_rating|floatformat:1 }}</span>
+                    <div class="stars">
+                        {% for i in "12345" %}
+                            {% if forloop.counter <= avg_rating %}
+                                <i class="fas fa-star"></i>
+                            {% else %}
+                                <i class="far fa-star"></i>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    <span class="rating-count">Based on {{ reviews.count }} reviews</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="reviews-list">
+            {% for review in reviews %}
+            <div class="review-item">
+                <div class="review-header">
+                    <div class="reviewer-info">
+                        <span class="reviewer-name">{{ review.user.username }}</span>
+                        <div class="review-rating">
+                            <div class="stars">
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= review.rating %}
+                                        <i class="fas fa-star"></i>
+                                    {% else %}
+                                        <i class="far fa-star"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <span class="review-date">{{ review.created_at|date:"M d, Y" }}</span>
+                </div>
+                <h4 class="review-title">{{ review.title }}</h4>
+                <p class="review-comment">{{ review.comment }}</p>
+                {% if review.is_verified_purchase %}
+                <span class="verified-badge">Verified Purchase</span>
+                {% endif %}
+            </div>
+            {% empty %}
+            <div class="no-reviews">
+                <p>No reviews yet. Be the first to review this product!</p>
+                <button class="btn btn-primary">Write a Review</button>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Quantity controls
+document.querySelector('.quantity-btn.minus').addEventListener('click', function() {
+    const quantityInput = document.getElementById('quantity');
+    const currentValue = parseInt(quantityInput.value);
+    if (currentValue > 1) {
+        quantityInput.value = currentValue - 1;
+    }
+});
+
+document.querySelector('.quantity-btn.plus').addEventListener('click', function() {
+    const quantityInput = document.getElementById('quantity');
+    const currentValue = parseInt(quantityInput.value);
+    const maxValue = parseInt(quantityInput.getAttribute('max'));
+    if (currentValue < maxValue) {
+        quantityInput.value = currentValue + 1;
+    }
+});
+
+// Image gallery functionality
+document.querySelectorAll('.thumbnail').forEach(thumbnail => {
+    thumbnail.addEventListener('click', function() {
+        const mainImage = document.getElementById('main-product-image');
+        const thumbnailImg = this.querySelector('img');
+        if (mainImage && thumbnailImg) {
+            mainImage.src = thumbnailImg.src;
+        }
+        
+        // Update active thumbnail
+        document.querySelectorAll('.thumbnail').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+    });
+});
+</script>
+{% endblock %}

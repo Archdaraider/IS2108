@@ -301,7 +301,7 @@ body {
     align-items: center;
     padding: 0.75rem 1rem;
     background-color: #f5f5f7;
-    border-radius: 6px;
+    border-radius: 1px;
 }
 
 .summary-list .item-name {
@@ -1036,3 +1036,8 @@ This new rule targets the "+ New" buttons on list pages
   .range-inputs { flex-direction: column; align-items: stretch; }
 }
 
+.date-range input[type="date"],
+.range-inputs input {
+  flex: 1 1 0;
+  min-width: 0;              /* critical: allows shrinking instead of overflow */
+}

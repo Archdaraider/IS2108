@@ -81,7 +81,7 @@
                         {% for product in inventory_alerts %}
                         <tr>
                             <td>{{ product.name }}</td>
-                            <td>{{ product.sku_code }}</td>
+                            <td>{{ product.sku }}</td>
                             <td class="text-danger">{{ product.quantity_on_hand }}</td>
                             <td>{{ product.reorder_quantity }}</td>
                         </tr>

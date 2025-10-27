@@ -15,7 +15,7 @@
 </div>
 
 <!-- Filter and Sort Panel -->
-<div class="content-panel filter-panel">
+<div class="content-panel filter-panel" style="background-color: lightgray;" >
     <div class="content-panel-header">
         <h3><i class="fas fa-filter"></i> Filter & Sort Customers</h3>
         <button id="toggle-filters-btn" class="btn-secondary">
@@ -23,18 +23,19 @@
         </button>
     </div>
     
-    <div id="filters-container" class="content-panel-body" style="display: none;">
-        <form method="get" class="filter-form">
-            <div class="filter-grid">
+    <div id="filters-container" class="content-panel-body" >
+        <form method="get" class="filter-form" >
+            <div class="filter-grid" >
                 <!-- Search -->
-                <div class="filter-group">
+                
+                <div class="filter-group" style="margin-bottom: 20px;">
                     <label for="search"><i class="fas fa-search"></i> Search:</label>
                     <input type="text" id="search" name="search" value="{{ search_query }}" 
                            placeholder="Name or email..." class="form-control">
                 </div>
                 
                 <!-- Category Filter -->
-                <div class="filter-group">
+                <div class="filter-group" style="margin-bottom: 20px;">
                     <label for="category"><i class="fas fa-tags"></i> Category:</label>
                     <select id="category" name="category" class="form-control">
                         <option value="">All Categories</option>
@@ -45,7 +46,7 @@
                 </div>
                 
                 <!-- Age Range -->
-                <div class="filter-group">
+                <div class="filter-group" style="margin-bottom: 20px;">
                     <label for="age_min"><i class="fas fa-birthday-cake"></i> Age Range:</label>
                     <div class="range-inputs">
                         <input type="number" id="age_min" name="age_min" value="{{ age_min }}" 
@@ -53,11 +54,11 @@
                         <span>to</span>
                         <input type="number" id="age_max" name="age_max" value="{{ age_max }}" 
                                placeholder="Max" class="form-control" min="0" max="120">
-                    </div>
+                    </div><br>
                 </div>
                 
                 <!-- Income Range -->
-                <div class="filter-group">
+                <div class="filter-group" style="margin-bottom: 20px;">
                     <label for="income_min"><i class="fas fa-dollar-sign"></i> Income Range (SGD):</label>
                     <div class="range-inputs">
                         <input type="number" id="income_min" name="income_min" value="{{ income_min }}" 
@@ -65,11 +66,11 @@
                         <span>to</span>
                         <input type="number" id="income_max" name="income_max" value="{{ income_max }}" 
                                placeholder="Max" class="form-control" min="0" step="100">
-                    </div>
+                    </div><br>
                 </div>
                 
-                <!-- Sort -->
-                <div class="filter-group">
+                <!-- Sorting -->
+                <div class="filter-group" style="margin-bottom: 20px;">
                     <label for="sort"><i class="fas fa-sort"></i> Sort by:</label>
                     <select id="sort" name="sort" class="form-control">
                         <option value="-id" {% if sort_by == '-id' %}selected{% endif %}>Newest First</option>
@@ -85,13 +86,13 @@
                         <option value="preferred_category" {% if sort_by == 'preferred_category' %}selected{% endif %}>Category A-Z</option>
                         <option value="-preferred_category" {% if sort_by == '-preferred_category' %}selected{% endif %}>Category Z-A</option>
                     </select>
-                </div>
+                </div><br>
             </div>
             
             <div class="filter-actions">
                 <button type="submit" class="btn-primary">
                     <i class="fas fa-search"></i> Apply Filters
-                </button>
+                </button> <br><br>
                 <a href="{% url 'customer_list' %}" class="btn-secondary">
                     <i class="fas fa-times"></i> Clear All
                 </a>

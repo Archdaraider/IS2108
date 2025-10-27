@@ -15,7 +15,7 @@
 </div>
 
 <!-- Filter and Sort Panel -->
-<div class="content-panel filter-panel">
+<div class="content-panel filter-panel" style="background-color: lightgray;" >
     <div class="content-panel-header">
         <h3><i class="fas fa-filter"></i> Filter & Sort Products</h3>
         <button id="toggle-filters-btn" class="btn-secondary">
@@ -27,14 +27,14 @@
         <form method="get" class="filter-form">
             <div class="filter-grid">
                 <!-- Search -->
-                <div class="filter-group">
+                <div class="filter-group" style ="margin-bottom: 20px;">
                     <label for="search"><i class="fas fa-search"></i> Search:</label>
                     <input type="text" id="search" name="search" value="{{ search_query }}" 
                            placeholder="Product name, SKU, or description..." class="form-control">
                 </div>
                 
                 <!-- Category Filter -->
-                <div class="filter-group">
+                <div class="filter-group" style ="margin-bottom: 20px;">
                     <label for="category"><i class="fas fa-tags"></i> Category:</label>
                     <select id="category" name="category" class="form-control">
                         <option value="">All Categories</option>
@@ -45,7 +45,7 @@
                 </div>
                 
                 <!-- Subcategory Filter -->
-                <div class="filter-group">
+                <div class="filter-group" style ="margin-bottom: 20px;">
                     <label for="subcategory"><i class="fas fa-tag"></i> Subcategory:</label>
                     <select id="subcategory" name="subcategory" class="form-control">
                         <option value="">All Subcategories</option>
@@ -56,7 +56,7 @@
                 </div>
                 
                 <!-- Price Range -->
-                <div class="filter-group">
+                <div class="filter-group" style ="margin-bottom: 20px;">
                     <label for="price_min"><i class="fas fa-dollar-sign"></i> Price Range:</label>
                     <div class="range-inputs">
                         <input type="number" id="price_min" name="price_min" value="{{ price_min }}" 
@@ -68,7 +68,7 @@
                 </div>
                 
                 <!-- Rating Filter -->
-                <div class="filter-group">
+                <div class="filter-group" style ="margin-bottom: 20px;">
                     <label for="rating_min"><i class="fas fa-star"></i> Minimum Rating:</label>
                     <select id="rating_min" name="rating_min" class="form-control">
                         <option value="">Any Rating</option>
@@ -81,7 +81,7 @@
                 </div>
                 
                 <!-- Stock Filter -->
-                <div class="filter-group">
+                <div class="filter-group" style ="margin-bottom: 20px;">
                     <label for="stock"><i class="fas fa-boxes"></i> Stock Status:</label>
                     <select id="stock" name="stock" class="form-control">
                         <option value="">All Stock Levels</option>
@@ -92,7 +92,7 @@
                 </div>
                 
                 <!-- Sort -->
-                <div class="filter-group">
+                <div class="filter-group" style ="margin-bottom: 20px;">
                     <label for="sort"><i class="fas fa-sort"></i> Sort by:</label>
                     <select id="sort" name="sort" class="form-control">
                         <option value="-id" {% if sort_by == '-id' %}selected{% endif %}>Newest First</option>
@@ -114,9 +114,9 @@
             </div>
             
             <div class="filter-actions">
-                <button type="submit" class="btn-primary">
+                <button type="submit" class="btn-primary" >
                     <i class="fas fa-search"></i> Apply Filters
-                </button>
+                </button><br><br>
                 <a href="{% url 'product_list' %}" class="btn-secondary">
                     <i class="fas fa-times"></i> Clear All
                 </a>

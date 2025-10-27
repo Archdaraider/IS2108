@@ -14,6 +14,99 @@
     </div>
 </div>
 
+<!-- Filter and Sort Panel -->
+<div class="content-panel filter-panel">
+    <div class="content-panel-header">
+        <h3><i class="fas fa-filter"></i> Filter & Sort Orders</h3>
+        <button id="toggle-filters-btn" class="btn-secondary">
+            <i class="fas fa-chevron-down" id="filter-chevron"></i> Toggle Filters
+        </button>
+    </div>
+    
+    <div id="filters-container" class="content-panel-body" style="display: none;">
+        <form method="get" class="filter-form">
+            <div class="filter-grid">
+                <!-- Search -->
+                <div class="filter-group">
+                    <label for="search"><i class="fas fa-search"></i> Search:</label>
+                    <input type="text" id="search" name="search" value="{{ search_query }}" 
+                           placeholder="Order ID, customer name, email, or address..." class="form-control">
+                </div>
+                
+                <!-- Status Filter -->
+                <div class="filter-group">
+                    <label for="status"><i class="fas fa-info-circle"></i> Status:</label>
+                    <select id="status" name="status" class="form-control">
+                        <option value="">All Statuses</option>
+                        {% for status_code, status_name in statuses %}
+                            <option value="{{ status_code }}" {% if status_filter == status_code %}selected{% endif %}>{{ status_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Customer Filter -->
+                <div class="filter-group">
+                    <label for="customer"><i class="fas fa-user"></i> Customer:</label>
+                    <select id="customer" name="customer" class="form-control">
+                        <option value="">All Customers</option>
+                        {% for customer in customers %}
+                            <option value="{{ customer.id }}" {% if customer_filter == customer.id|stringformat:"s" %}selected{% endif %}>{{ customer.name }} ({{ customer.email }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Date Range -->
+                <div class="filter-group">
+                    <label for="date_from"><i class="fas fa-calendar"></i> Date Range:</label>
+                    <div class="range-inputs">
+                        <input type="date" id="date_from" name="date_from" value="{{ date_from }}" 
+                               class="form-control">
+                        <span>to</span>
+                        <input type="date" id="date_to" name="date_to" value="{{ date_to }}" 
+                               class="form-control">
+                    </div>
+                </div>
+                
+                <!-- Amount Range -->
+                <div class="filter-group">
+                    <label for="amount_min"><i class="fas fa-dollar-sign"></i> Amount Range:</label>
+                    <div class="range-inputs">
+                        <input type="number" id="amount_min" name="amount_min" value="{{ amount_min }}" 
+                               placeholder="Min" class="form-control" min="0" step="0.01">
+                        <span>to</span>
+                        <input type="number" id="amount_max" name="amount_max" value="{{ amount_max }}" 
+                               placeholder="Max" class="form-control" min="0" step="0.01">
+                    </div>
+                </div>
+                
+                <!-- Sort -->
+                <div class="filter-group">
+                    <label for="sort"><i class="fas fa-sort"></i> Sort by:</label>
+                    <select id="sort" name="sort" class="form-control">
+                        <option value="-placed_at" {% if sort_by == '-placed_at' %}selected{% endif %}>Newest Orders</option>
+                        <option value="placed_at" {% if sort_by == 'placed_at' %}selected{% endif %}>Oldest Orders</option>
+                        <option value="total_amount" {% if sort_by == 'total_amount' %}selected{% endif %}>Amount Low-High</option>
+                        <option value="-total_amount" {% if sort_by == '-total_amount' %}selected{% endif %}>Amount High-Low</option>
+                        <option value="fulfillment_status" {% if sort_by == 'fulfillment_status' %}selected{% endif %}>Status A-Z</option>
+                        <option value="-fulfillment_status" {% if sort_by == '-fulfillment_status' %}selected{% endif %}>Status Z-A</option>
+                        <option value="customer__name" {% if sort_by == 'customer__name' %}selected{% endif %}>Customer A-Z</option>
+                        <option value="-customer__name" {% if sort_by == '-customer__name' %}selected{% endif %}>Customer Z-A</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="filter-actions">
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-search"></i> Apply Filters
+                </button>
+                <a href="{% url 'order_list' %}" class="btn-secondary">
+                    <i class="fas fa-times"></i> Clear All
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div id="create-form-container" class="create-form-panel {% if not form.errors and not formset.errors %}hidden{% endif %}">
     <h3>Create New Order</h3>
     <form method="post" action="{% url 'order_list' %}" enctype="multipart/form-data" novalidate>
@@ -160,6 +253,22 @@
         if (cancelBtn) {
             cancelBtn.addEventListener('click', function() {
                 formContainer.classList.add('hidden');
+            });
+        }
+        
+        // Toggle filters panel with chevron rotation
+        var filtersContainer = document.getElementById('filters-container');
+        var filterChevron = document.getElementById('filter-chevron');
+        
+        if (filtersContainer && filterChevron) {
+            document.getElementById('toggle-filters-btn').addEventListener('click', function() {
+                if (filtersContainer.style.display === 'none') {
+                    filtersContainer.style.display = 'block';
+                    filterChevron.style.transform = 'rotate(180deg)';
+                } else {
+                    filtersContainer.style.display = 'none';
+                    filterChevron.style.transform = 'rotate(0deg)';
+                }
             });
         }
 

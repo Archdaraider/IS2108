@@ -14,6 +14,92 @@
     </div>
 </div>
 
+<!-- Filter and Sort Panel -->
+<div class="content-panel filter-panel">
+    <div class="content-panel-header">
+        <h3><i class="fas fa-filter"></i> Filter & Sort Customers</h3>
+        <button id="toggle-filters-btn" class="btn-secondary">
+            <i class="fas fa-chevron-down" id="filter-chevron"></i> Toggle Filters
+        </button>
+    </div>
+    
+    <div id="filters-container" class="content-panel-body" style="display: none;">
+        <form method="get" class="filter-form">
+            <div class="filter-grid">
+                <!-- Search -->
+                <div class="filter-group">
+                    <label for="search"><i class="fas fa-search"></i> Search:</label>
+                    <input type="text" id="search" name="search" value="{{ search_query }}" 
+                           placeholder="Name or email..." class="form-control">
+                </div>
+                
+                <!-- Category Filter -->
+                <div class="filter-group">
+                    <label for="category"><i class="fas fa-tags"></i> Category:</label>
+                    <select id="category" name="category" class="form-control">
+                        <option value="">All Categories</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat }}" {% if category_filter == cat %}selected{% endif %}>{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Age Range -->
+                <div class="filter-group">
+                    <label for="age_min"><i class="fas fa-birthday-cake"></i> Age Range:</label>
+                    <div class="range-inputs">
+                        <input type="number" id="age_min" name="age_min" value="{{ age_min }}" 
+                               placeholder="Min" class="form-control" min="0" max="120">
+                        <span>to</span>
+                        <input type="number" id="age_max" name="age_max" value="{{ age_max }}" 
+                               placeholder="Max" class="form-control" min="0" max="120">
+                    </div>
+                </div>
+                
+                <!-- Income Range -->
+                <div class="filter-group">
+                    <label for="income_min"><i class="fas fa-dollar-sign"></i> Income Range (SGD):</label>
+                    <div class="range-inputs">
+                        <input type="number" id="income_min" name="income_min" value="{{ income_min }}" 
+                               placeholder="Min" class="form-control" min="0" step="100">
+                        <span>to</span>
+                        <input type="number" id="income_max" name="income_max" value="{{ income_max }}" 
+                               placeholder="Max" class="form-control" min="0" step="100">
+                    </div>
+                </div>
+                
+                <!-- Sort -->
+                <div class="filter-group">
+                    <label for="sort"><i class="fas fa-sort"></i> Sort by:</label>
+                    <select id="sort" name="sort" class="form-control">
+                        <option value="-id" {% if sort_by == '-id' %}selected{% endif %}>Newest First</option>
+                        <option value="id" {% if sort_by == 'id' %}selected{% endif %}>Oldest First</option>
+                        <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Name A-Z</option>
+                        <option value="-name" {% if sort_by == '-name' %}selected{% endif %}>Name Z-A</option>
+                        <option value="email" {% if sort_by == 'email' %}selected{% endif %}>Email A-Z</option>
+                        <option value="-email" {% if sort_by == '-email' %}selected{% endif %}>Email Z-A</option>
+                        <option value="age" {% if sort_by == 'age' %}selected{% endif %}>Age Low-High</option>
+                        <option value="-age" {% if sort_by == '-age' %}selected{% endif %}>Age High-Low</option>
+                        <option value="monthly_income_sgd" {% if sort_by == 'monthly_income_sgd' %}selected{% endif %}>Income Low-High</option>
+                        <option value="-monthly_income_sgd" {% if sort_by == '-monthly_income_sgd' %}selected{% endif %}>Income High-Low</option>
+                        <option value="preferred_category" {% if sort_by == 'preferred_category' %}selected{% endif %}>Category A-Z</option>
+                        <option value="-preferred_category" {% if sort_by == '-preferred_category' %}selected{% endif %}>Category Z-A</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="filter-actions">
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-search"></i> Apply Filters
+                </button>
+                <a href="{% url 'customer_list' %}" class="btn-secondary">
+                    <i class="fas fa-times"></i> Clear All
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div id="create-form-container" class="create-form-panel" {% if not form.errors %}style="display: none;"{% endif %}>
     <h3>Create New Customer</h3>
     <form method="post" action="{% url 'customer_list' %}" enctype="multipart/form-data" novalidate>
@@ -92,6 +178,7 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         var formContainer = document.getElementById('create-form-container');
+        var filtersContainer = document.getElementById('filters-container');
         
         // Toggle button shows/hides the form
         document.getElementById('toggle-form-btn').addEventListener('click', function() {
@@ -105,6 +192,18 @@
         // Cancel button always hides the form
         document.getElementById('cancel-btn').addEventListener('click', function() {
             formContainer.style.display = 'none';
+        });
+        
+        // Toggle filters panel
+        document.getElementById('toggle-filters-btn').addEventListener('click', function() {
+            var filterChevron = document.getElementById('filter-chevron');
+            if (filtersContainer.style.display === 'none') {
+                filtersContainer.style.display = 'block';
+                filterChevron.style.transform = 'rotate(180deg)';
+            } else {
+                filtersContainer.style.display = 'none';
+                filterChevron.style.transform = 'rotate(0deg)';
+            }
         });
     });
 </script>

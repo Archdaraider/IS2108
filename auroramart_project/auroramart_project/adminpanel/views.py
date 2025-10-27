@@ -93,7 +93,59 @@ def admin_dashboard_home(request):
 
 @login_required(login_url='admin_login')
 def product_list(request):
-    """View to LIST and CREATE Products on one page."""
+    """View to LIST and CREATE Products on one page with sorting and filtering."""
+    # Get all products for filtering/sorting
+    products = Product.objects.all()
+    
+    # Handle filtering
+    search_query = request.GET.get('search', '')
+    category_filter = request.GET.get('category', '')
+    subcategory_filter = request.GET.get('subcategory', '')
+    price_min = request.GET.get('price_min', '')
+    price_max = request.GET.get('price_max', '')
+    rating_min = request.GET.get('rating_min', '')
+    stock_filter = request.GET.get('stock', '')
+    
+    if search_query:
+        products = products.filter(
+            models.Q(name__icontains=search_query) | 
+            models.Q(sku__icontains=search_query) |
+            models.Q(description__icontains=search_query)
+        )
+    
+    if category_filter:
+        products = products.filter(category=category_filter)
+    
+    if subcategory_filter:
+        products = products.filter(subcategory=subcategory_filter)
+    
+    if price_min:
+        products = products.filter(price__gte=price_min)
+    if price_max:
+        products = products.filter(price__lte=price_max)
+    
+    if rating_min:
+        products = products.filter(rating__gte=rating_min)
+    
+    if stock_filter == 'low':
+        products = products.filter(quantity_on_hand__lte=models.F('reorder_quantity'))
+    elif stock_filter == 'out':
+        products = products.filter(quantity_on_hand=0)
+    elif stock_filter == 'in_stock':
+        products = products.filter(quantity_on_hand__gt=0)
+    
+    # Handle sorting
+    sort_by = request.GET.get('sort', '-id')  # Default sort by newest first
+    valid_sort_fields = ['id', '-id', 'name', '-name', 'sku', '-sku', 'price', '-price', 
+                        'rating', '-rating', 'quantity_on_hand', '-quantity_on_hand', 
+                        'category', '-category', 'subcategory', '-subcategory']
+    
+    if sort_by in valid_sort_fields:
+        products = products.order_by(sort_by)
+    else:
+        products = products.order_by('-id')
+    
+    # Handle form submission for creating new products
     if request.method == 'POST':
         form = ProductForm(request.POST, request.FILES)
         if form.is_valid():
@@ -102,11 +154,24 @@ def product_list(request):
     else:
         form = ProductForm()
 
-    products = Product.objects.all().order_by('name')
+    # Get unique categories and subcategories for filter dropdowns
+    categories = Product.objects.values_list('category', flat=True).distinct().order_by('category')
+    subcategories = Product.objects.values_list('subcategory', flat=True).distinct().order_by('subcategory')
+
     context = {
         'page_title': 'Product List',
         'products': products,
-        'form': form
+        'form': form,
+        'search_query': search_query,
+        'category_filter': category_filter,
+        'subcategory_filter': subcategory_filter,
+        'price_min': price_min,
+        'price_max': price_max,
+        'rating_min': rating_min,
+        'stock_filter': stock_filter,
+        'sort_by': sort_by,
+        'categories': categories,
+        'subcategories': subcategories,
     }
     return render(request, 'adminpanel/product_list.html', context)
 
@@ -145,12 +210,58 @@ def product_delete(request, pk):
 
 @login_required(login_url='admin_login')
 def order_list(request):
-    """View to LIST and CREATE Orders, now with OrderItems."""
-    orders = Order.objects.all().order_by('-placed_at')[:100]
+    """View to LIST and CREATE Orders, now with OrderItems, sorting and filtering."""
+    # Get all orders for filtering/sorting
+    orders = Order.objects.all()
+    
+    # Handle filtering
+    search_query = request.GET.get('search', '')
+    status_filter = request.GET.get('status', '')
+    customer_filter = request.GET.get('customer', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    amount_min = request.GET.get('amount_min', '')
+    amount_max = request.GET.get('amount_max', '')
+    
+    if search_query:
+        orders = orders.filter(
+            models.Q(oID__icontains=search_query) |
+            models.Q(customer__name__icontains=search_query) |
+            models.Q(customer__email__icontains=search_query) |
+            models.Q(shipping_address__icontains=search_query)
+        )
+    
+    if status_filter:
+        orders = orders.filter(fulfillment_status=status_filter)
+    
+    if customer_filter:
+        orders = orders.filter(customer__id=customer_filter)
+    
+    if date_from:
+        orders = orders.filter(placed_at__date__gte=date_from)
+    if date_to:
+        orders = orders.filter(placed_at__date__lte=date_to)
+    
+    if amount_min:
+        orders = orders.filter(total_amount__gte=amount_min)
+    if amount_max:
+        orders = orders.filter(total_amount__lte=amount_max)
+    
+    # Handle sorting
+    sort_by = request.GET.get('sort', '-placed_at')  # Default sort by newest first
+    valid_sort_fields = ['id', '-id', 'placed_at', '-placed_at', 'total_amount', '-total_amount', 
+                        'fulfillment_status', '-fulfillment_status', 'customer__name', '-customer__name']
+    
+    if sort_by in valid_sort_fields:
+        orders = orders.order_by(sort_by)
+    else:
+        orders = orders.order_by('-placed_at')
+    
+    # Limit to 100 orders for performance
+    orders = orders[:100]
 
     # Define the formset factory here (unbound to an instance)
     OrderItemFormSetFactory = inlineformset_factory(Order, OrderItem, form=OrderItemFormSet.form, extra=1, can_delete=True)
-
 
     if request.method == 'POST':
         form = OrderForm(request.POST)
@@ -193,11 +304,25 @@ def order_list(request):
         # Create an empty formset for a new, blank order
         formset = OrderItemFormSetFactory(queryset=OrderItem.objects.none())
 
+    # Get unique customers and statuses for filter dropdowns
+    customers = Customer.objects.all().order_by('name')
+    statuses = Order.STATUS_CHOICES
+
     context = {
         'page_title': 'Order List',
         'orders': orders,
         'form': form,
-        'formset': formset # Pass the formset to the template
+        'formset': formset, # Pass the formset to the template
+        'search_query': search_query,
+        'status_filter': status_filter,
+        'customer_filter': customer_filter,
+        'date_from': date_from,
+        'date_to': date_to,
+        'amount_min': amount_min,
+        'amount_max': amount_max,
+        'sort_by': sort_by,
+        'customers': customers,
+        'statuses': statuses,
     }
     return render(request, 'adminpanel/order_list.html', context)
 
@@ -302,9 +427,49 @@ def order_delete(request, pk):
 def customer_list(request):
     """
     Handles LISTING customers and CREATING new ones with AI prediction.
+    Now includes sorting and filtering functionality.
     """
-    customers = Customer.objects.all().order_by('-id') # Get list for GET request
-
+    # Get all customers for filtering/sorting
+    customers = Customer.objects.all()
+    
+    # Handle filtering
+    search_query = request.GET.get('search', '')
+    category_filter = request.GET.get('category', '')
+    age_min = request.GET.get('age_min', '')
+    age_max = request.GET.get('age_max', '')
+    income_min = request.GET.get('income_min', '')
+    income_max = request.GET.get('income_max', '')
+    
+    if search_query:
+        customers = customers.filter(
+            models.Q(name__icontains=search_query) | 
+            models.Q(email__icontains=search_query)
+        )
+    
+    if category_filter:
+        customers = customers.filter(preferred_category=category_filter)
+    
+    if age_min:
+        customers = customers.filter(age__gte=age_min)
+    if age_max:
+        customers = customers.filter(age__lte=age_max)
+    
+    if income_min:
+        customers = customers.filter(monthly_income_sgd__gte=income_min)
+    if income_max:
+        customers = customers.filter(monthly_income_sgd__lte=income_max)
+    
+    # Handle sorting
+    sort_by = request.GET.get('sort', '-id')  # Default sort by newest first
+    valid_sort_fields = ['id', '-id', 'name', '-name', 'email', '-email', 'age', '-age', 
+                        'monthly_income_sgd', '-monthly_income_sgd', 'preferred_category', '-preferred_category']
+    
+    if sort_by in valid_sort_fields:
+        customers = customers.order_by(sort_by)
+    else:
+        customers = customers.order_by('-id')
+    
+    # Handle form submission for creating new customers
     if request.method == 'POST':
         form = CustomerForm(request.POST)
         if form.is_valid():
@@ -375,10 +540,21 @@ def customer_list(request):
     else: # GET request
         form = CustomerForm() # An empty form
 
+    # Get unique categories for filter dropdown
+    categories = Customer.objects.values_list('preferred_category', flat=True).distinct().order_by('preferred_category')
+
     context = {
         'page_title': 'Customers',
         'customers': customers,
-        'form': form
+        'form': form,
+        'search_query': search_query,
+        'category_filter': category_filter,
+        'age_min': age_min,
+        'age_max': age_max,
+        'income_min': income_min,
+        'income_max': income_max,
+        'sort_by': sort_by,
+        'categories': categories,
     }
     return render(request, 'adminpanel/customer_list.html', context)
 

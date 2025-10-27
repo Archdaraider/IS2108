@@ -14,6 +14,117 @@
     </div>
 </div>
 
+<!-- Filter and Sort Panel -->
+<div class="content-panel filter-panel">
+    <div class="content-panel-header">
+        <h3><i class="fas fa-filter"></i> Filter & Sort Products</h3>
+        <button id="toggle-filters-btn" class="btn-secondary">
+            <i class="fas fa-chevron-down" id="filter-chevron"></i> Toggle Filters
+        </button>
+    </div>
+    
+    <div id="filters-container" class="content-panel-body" style="display: none;">
+        <form method="get" class="filter-form">
+            <div class="filter-grid">
+                <!-- Search -->
+                <div class="filter-group">
+                    <label for="search"><i class="fas fa-search"></i> Search:</label>
+                    <input type="text" id="search" name="search" value="{{ search_query }}" 
+                           placeholder="Product name, SKU, or description..." class="form-control">
+                </div>
+                
+                <!-- Category Filter -->
+                <div class="filter-group">
+                    <label for="category"><i class="fas fa-tags"></i> Category:</label>
+                    <select id="category" name="category" class="form-control">
+                        <option value="">All Categories</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat }}" {% if category_filter == cat %}selected{% endif %}>{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Subcategory Filter -->
+                <div class="filter-group">
+                    <label for="subcategory"><i class="fas fa-tag"></i> Subcategory:</label>
+                    <select id="subcategory" name="subcategory" class="form-control">
+                        <option value="">All Subcategories</option>
+                        {% for subcat in subcategories %}
+                            <option value="{{ subcat }}" {% if subcategory_filter == subcat %}selected{% endif %}>{{ subcat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Price Range -->
+                <div class="filter-group">
+                    <label for="price_min"><i class="fas fa-dollar-sign"></i> Price Range:</label>
+                    <div class="range-inputs">
+                        <input type="number" id="price_min" name="price_min" value="{{ price_min }}" 
+                               placeholder="Min" class="form-control" min="0" step="0.01">
+                        <span>to</span>
+                        <input type="number" id="price_max" name="price_max" value="{{ price_max }}" 
+                               placeholder="Max" class="form-control" min="0" step="0.01">
+                    </div>
+                </div>
+                
+                <!-- Rating Filter -->
+                <div class="filter-group">
+                    <label for="rating_min"><i class="fas fa-star"></i> Minimum Rating:</label>
+                    <select id="rating_min" name="rating_min" class="form-control">
+                        <option value="">Any Rating</option>
+                        <option value="1" {% if rating_min == '1' %}selected{% endif %}>1+ Stars</option>
+                        <option value="2" {% if rating_min == '2' %}selected{% endif %}>2+ Stars</option>
+                        <option value="3" {% if rating_min == '3' %}selected{% endif %}>3+ Stars</option>
+                        <option value="4" {% if rating_min == '4' %}selected{% endif %}>4+ Stars</option>
+                        <option value="5" {% if rating_min == '5' %}selected{% endif %}>5 Stars Only</option>
+                    </select>
+                </div>
+                
+                <!-- Stock Filter -->
+                <div class="filter-group">
+                    <label for="stock"><i class="fas fa-boxes"></i> Stock Status:</label>
+                    <select id="stock" name="stock" class="form-control">
+                        <option value="">All Stock Levels</option>
+                        <option value="in_stock" {% if stock_filter == 'in_stock' %}selected{% endif %}>In Stock</option>
+                        <option value="low" {% if stock_filter == 'low' %}selected{% endif %}>Low Stock</option>
+                        <option value="out" {% if stock_filter == 'out' %}selected{% endif %}>Out of Stock</option>
+                    </select>
+                </div>
+                
+                <!-- Sort -->
+                <div class="filter-group">
+                    <label for="sort"><i class="fas fa-sort"></i> Sort by:</label>
+                    <select id="sort" name="sort" class="form-control">
+                        <option value="-id" {% if sort_by == '-id' %}selected{% endif %}>Newest First</option>
+                        <option value="id" {% if sort_by == 'id' %}selected{% endif %}>Oldest First</option>
+                        <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Name A-Z</option>
+                        <option value="-name" {% if sort_by == '-name' %}selected{% endif %}>Name Z-A</option>
+                        <option value="sku" {% if sort_by == 'sku' %}selected{% endif %}>SKU A-Z</option>
+                        <option value="-sku" {% if sort_by == '-sku' %}selected{% endif %}>SKU Z-A</option>
+                        <option value="price" {% if sort_by == 'price' %}selected{% endif %}>Price Low-High</option>
+                        <option value="-price" {% if sort_by == '-price' %}selected{% endif %}>Price High-Low</option>
+                        <option value="rating" {% if sort_by == 'rating' %}selected{% endif %}>Rating Low-High</option>
+                        <option value="-rating" {% if sort_by == '-rating' %}selected{% endif %}>Rating High-Low</option>
+                        <option value="quantity_on_hand" {% if sort_by == 'quantity_on_hand' %}selected{% endif %}>Stock Low-High</option>
+                        <option value="-quantity_on_hand" {% if sort_by == '-quantity_on_hand' %}selected{% endif %}>Stock High-Low</option>
+                        <option value="category" {% if sort_by == 'category' %}selected{% endif %}>Category A-Z</option>
+                        <option value="-category" {% if sort_by == '-category' %}selected{% endif %}>Category Z-A</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="filter-actions">
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-search"></i> Apply Filters
+                </button>
+                <a href="{% url 'product_list' %}" class="btn-secondary">
+                    <i class="fas fa-times"></i> Clear All
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div id="create-form-container" class="create-form-panel" {% if not form.errors %}style="display: none;"{% endif %}>
     <h3>Create New Product</h3>
     <form method="post" action="{% url 'product_list' %}" enctype="multipart/form-data" novalidate>
@@ -97,6 +208,8 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         var formContainer = document.getElementById('create-form-container');
+        var filtersContainer = document.getElementById('filters-container');
+        var filterChevron = document.getElementById('filter-chevron');
         
         // Toggle button shows/hides the form
         document.getElementById('toggle-form-btn').addEventListener('click', function() {
@@ -110,6 +223,17 @@
         // Cancel button always hides the form
         document.getElementById('cancel-btn').addEventListener('click', function() {
             formContainer.style.display = 'none';
+        });
+        
+        // Toggle filters panel with chevron rotation
+        document.getElementById('toggle-filters-btn').addEventListener('click', function() {
+            if (filtersContainer.style.display === 'none') {
+                filtersContainer.style.display = 'block';
+                filterChevron.style.transform = 'rotate(180deg)';
+            } else {
+                filtersContainer.style.display = 'none';
+                filterChevron.style.transform = 'rotate(0deg)';
+            }
         });
     });
 </script>

@@ -29,6 +29,10 @@ urlpatterns = [
     path('catalogue/<int:pk>/toggle/', views.catalogue_toggle_active, name='catalogue_toggle_active'),
     path('catalogue/bulk-update/', views.catalogue_bulk_update, name='catalogue_bulk_update'),
     
+    # Admin User Management (Superuser only)
+    path('admin-users/', views.admin_users_list, name='admin_users_list'),
+    path('admin-users/<int:pk>/delete/', views.admin_user_delete, name='admin_user_delete'),
+    
     #path('reports/', views.custom_reports, name='custom_reports'),
     path('ai-studio/', views.ai_studio_home, name='ai_studio_home'),
 ]

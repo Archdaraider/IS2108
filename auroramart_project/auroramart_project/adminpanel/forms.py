@@ -1,6 +1,8 @@
 from django import forms
 from .models import Customer, Product, Order, OrderItem
-from django.forms import inlineformset_factory 
+from django.forms import inlineformset_factory
+from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password 
 
 class BaseForm(forms.ModelForm):
     """
@@ -84,4 +86,81 @@ OrderItemFormSet = inlineformset_factory(
     extra=1,            # Show 1 empty form for adding new items
     validate_min=False,  # Don't require minimum forms
 )
+
+# --- Admin User Management Forms ---
+
+class AdminUserForm(BaseForm):
+    """
+    Form for creating new admin users (staff users, not superusers).
+    """
+    username = forms.CharField(
+        max_length=150,
+        required=True,
+        help_text="Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only."
+    )
+    email = forms.EmailField(required=True)
+    password = forms.CharField(
+        widget=forms.PasswordInput,
+        required=True,
+        min_length=1,
+        help_text="Password for the admin user."
+    )
+    password_confirm = forms.CharField(
+        widget=forms.PasswordInput,
+        required=True,
+        min_length=1,
+        help_text="Enter the same password as before, for verification."
+    )
+    first_name = forms.CharField(max_length=30, required=False)
+    last_name = forms.CharField(max_length=30, required=False)
+    
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'first_name', 'last_name']
+    
+    def clean_username(self):
+        username = self.cleaned_data.get('username')
+        # Check if user already exists (for create, not update)
+        if not self.instance.pk and User.objects.filter(username=username).exists():
+            raise forms.ValidationError("A user with that username already exists.")
+        return username
+    
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        # Check if email already exists (for create, not update)
+        if not self.instance.pk and User.objects.filter(email=email).exists():
+            raise forms.ValidationError("A user with that email already exists.")
+        return email
+    
+    def clean_password_confirm(self):
+        password = self.cleaned_data.get('password')
+        password_confirm = self.cleaned_data.get('password_confirm')
+        
+        if password and password_confirm:
+            if password != password_confirm:
+                raise forms.ValidationError("The two password fields didn't match.")
+        
+        # Validate password strength
+        if password:
+            try:
+                validate_password(password)
+            except forms.ValidationError as e:
+                raise forms.ValidationError(list(e.messages))
+        
+        return password_confirm
+    
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        # Set the password properly (hashed)
+        password = self.cleaned_data.get('password')
+        if password:
+            user.set_password(password)
+        
+        # Set staff status (not superuser)
+        user.is_staff = True
+        user.is_superuser = False
+        
+        if commit:
+            user.save()
+        return user
 

@@ -1,0 +1,340 @@
+{% extends "adminpanel/base.html" %}
+{% load static %}
+
+{% block title %}Admin Users{% endblock %}
+
+{% block content %}
+<main class="dashboard-main-content">
+    
+    <!-- Header -->
+    <div class="content-panel">
+        <div class="content-panel-header">
+            <h2>Admin User Management</h2>
+            <p style="color: #666; font-size: 0.9rem; margin-top: 0.5rem;">
+                Create and manage admin accounts for the admin panel. Only the superuser can create new admins.
+            </p>
+        </div>
+    </div>
+
+    <!-- Create New Admin Form -->
+    <div class="content-panel" style="margin-bottom: 1.5rem;">
+        <div class="content-panel-header">
+            <h3>Create New Admin User</h3>
+        </div>
+        <div class="content-panel-body">
+            <form method="post" action="{% url 'admin_users_list' %}" style="max-width: 600px;">
+                {% csrf_token %}
+                
+                {% if form.non_field_errors %}
+                    <div style="background: #fee; color: #c33; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
+                        {{ form.non_field_errors }}
+                    </div>
+                {% endif %}
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div>
+                        <label for="{{ form.username.id_for_label }}">Username *</label>
+                        {{ form.username }}
+                        {% if form.username.errors %}
+                            <span class="field-error-message">{{ form.username.errors }}</span>
+                        {% endif %}
+                        {% if form.username.help_text %}
+                            <small style="color: #666; font-size: 0.85rem;">{{ form.username.help_text }}</small>
+                        {% endif %}
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.email.id_for_label }}">Email *</label>
+                        {{ form.email }}
+                        {% if form.email.errors %}
+                            <span class="field-error-message">{{ form.email.errors }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div>
+                        <label for="{{ form.first_name.id_for_label }}">First Name</label>
+                        {{ form.first_name }}
+                        {% if form.first_name.errors %}
+                            <span class="field-error-message">{{ form.first_name.errors }}</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.last_name.id_for_label }}">Last Name</label>
+                        {{ form.last_name }}
+                        {% if form.last_name.errors %}
+                            <span class="field-error-message">{{ form.last_name.errors }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div>
+                        <label for="{{ form.password.id_for_label }}">Password *</label>
+                        {{ form.password }}
+                        {% if form.password.errors %}
+                            <span class="field-error-message">{{ form.password.errors }}</span>
+                        {% endif %}
+                        {% if form.password.help_text %}
+                            <small style="color: #666; font-size: 0.85rem;">{{ form.password.help_text }}</small>
+                        {% endif %}
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.password_confirm.id_for_label }}">Confirm Password *</label>
+                        {{ form.password_confirm }}
+                        {% if form.password_confirm.errors %}
+                            <span class="field-error-message">{{ form.password_confirm.errors }}</span>
+                        {% endif %}
+                        {% if form.password_confirm.help_text %}
+                            <small style="color: #666; font-size: 0.85rem;">{{ form.password_confirm.help_text }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div style="margin-top: 1.5rem;">
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-user-plus"></i> Create Admin User
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Existing Admin Users -->
+    <div class="content-panel">
+        <div class="content-panel-header">
+            <h3>Existing Admin Users</h3>
+        </div>
+        <div class="content-panel-body">
+            <!-- Superuser Section -->
+            {% if superusers %}
+                <div style="margin-bottom: 2rem;">
+                    <h4 style="color: #dc3545; margin-bottom: 1rem;">
+                        <i class="fas fa-crown"></i> Superuser(s)
+                    </h4>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Email</th>
+                                <th>Name</th>
+                                <th>Joined</th>
+                                <th>Last Login</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in superusers %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ user.username }}</strong>
+                                        <span class="status-pill active" style="margin-left: 0.5rem;">Superuser</span>
+                                    </td>
+                                    <td>{{ user.email|default:"—" }}</td>
+                                    <td>{{ user.get_full_name|default:"—" }}</td>
+                                    <td>{{ user.date_joined|date:"Y-m-d" }}</td>
+                                    <td>{{ user.last_login|date:"Y-m-d H:i"|default:"Never" }}</td>
+                                    <td>
+                                        {% if user.username == 'admin' %}
+                                            <span style="color: #999; font-style: italic;">Protected</span>
+                                        {% else %}
+                                            <button type="button" 
+                                                    class="btn-secondary" 
+                                                    style="background: #dc3545; border-color: #dc3545; color: white; padding: 0.25rem 0.75rem;"
+                                                    onclick="deleteAdmin({{ user.pk }}, '{{ user.username }}')">
+                                                Delete
+                                            </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+
+            <!-- Regular Admin Users Section -->
+            {% if regular_admins %}
+                <div>
+                    <h4 style="color: #007bff; margin-bottom: 1rem;">
+                        <i class="fas fa-users"></i> Admin Users
+                    </h4>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Email</th>
+                                <th>Name</th>
+                                <th>Joined</th>
+                                <th>Last Login</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in regular_admins %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ user.username }}</strong>
+                                        <span class="status-pill active" style="margin-left: 0.5rem;">Admin</span>
+                                    </td>
+                                    <td>{{ user.email|default:"—" }}</td>
+                                    <td>{{ user.get_full_name|default:"—" }}</td>
+                                    <td>{{ user.date_joined|date:"Y-m-d" }}</td>
+                                    <td>{{ user.last_login|date:"Y-m-d H:i"|default:"Never" }}</td>
+                                    <td>
+                                        <button type="button" 
+                                                class="btn-secondary" 
+                                                style="background: #dc3545; border-color: #dc3545; color: white; padding: 0.25rem 0.75rem;"
+                                                onclick="deleteAdmin({{ user.pk }}, '{{ user.username }}')">
+                                            Delete
+                                        </button>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+
+            {% if not superusers and not regular_admins %}
+                <p style="text-align: center; color: #777; padding: 2rem; font-style: italic;">
+                    No admin users found.
+                </p>
+            {% endif %}
+        </div>
+    </div>
+</main>
+
+<!-- Toast Notification -->
+<div id="toast" class="toast"></div>
+
+<style>
+    .field-error-message {
+        color: #dc3545;
+        font-size: 0.85rem;
+        display: block;
+        margin-top: 0.25rem;
+    }
+
+    .toast {
+        visibility: hidden;
+        min-width: 250px;
+        margin-left: -125px;
+        background-color: #333;
+        color: #fff;
+        text-align: center;
+        border-radius: 6px;
+        padding: 16px;
+        position: fixed;
+        z-index: 1000;
+        left: 50%;
+        bottom: 30px;
+        font-size: 14px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        transition: visibility 0s, opacity 0.3s;
+        opacity: 0;
+    }
+
+    .toast.show {
+        visibility: visible;
+        opacity: 1;
+    }
+
+    .toast.success {
+        background-color: #28a745;
+    }
+
+    .toast.error {
+        background-color: #dc3545;
+    }
+
+    label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: #333;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"] {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 0.95rem;
+    }
+
+    input:focus {
+        outline: none;
+        border-color: #007bff;
+        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Get CSRF token from cookies
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    const csrfToken = getCookie('csrftoken');
+    
+    // Toast notification function
+    window.showToast = function(message, type = 'success') {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.className = 'toast ' + type + ' show';
+        
+        setTimeout(function() {
+            toast.classList.remove('show');
+        }, 3000);
+    };
+    
+    // Delete admin user function
+    window.deleteAdmin = function(userId, username) {
+        if (!confirm(`Are you sure you want to delete admin user "${username}"? This action cannot be undone.`)) {
+            return;
+        }
+        
+        fetch(`/adminpanel/admin-users/${userId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, 'success');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                showToast('Error: ' + (data.error || 'Failed to delete user'), 'error');
+            }
+        })
+        .catch(error => {
+            showToast('Error: Failed to delete user', 'error');
+            console.error('Error:', error);
+        });
+    };
+});
+</script>
+
+{% endblock content %}
+

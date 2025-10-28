@@ -17,6 +17,9 @@ from django.forms import inlineformset_factory
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth import logout
 from django.views.decorators.http import require_POST
+from django.contrib.auth.models import User
+from django.contrib.auth.decorators import user_passes_test
+from .forms import AdminUserForm
 
 # --- Load Models Once ---
 app_path = apps.get_app_config('adminpanel').path
@@ -106,6 +109,10 @@ def admin_dashboard_home(request):
         'total_revenue': Order.objects.aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00'),
     }
 
+    # Top 3 and Worst 3 Rated Products
+    top_rated_products = Product.objects.order_by('-rating', 'name')[:3]
+    worst_rated_products = Product.objects.order_by('rating', 'name')[:3]
+
     model_status = DecisionTreeModel.objects.order_by('-training_date')
 
     context = {
@@ -116,6 +123,8 @@ def admin_dashboard_home(request):
         'pie_chart_data': pie_chart_data,
         'customer_summary': customer_summary,
         'overall_stats': overall_stats,
+        'top_rated_products': top_rated_products,
+        'worst_rated_products': worst_rated_products,
         'model_status': model_status,
     }
 
@@ -737,6 +746,84 @@ def customer_delete(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
     customer.delete()
     return redirect('customer_list')
+
+
+# --- Admin User Management Views ---
+
+def superuser_required(user):
+    """Check if user is a superuser."""
+    return user.is_authenticated and user.is_superuser
+
+@login_required(login_url='admin_login')
+@user_passes_test(superuser_required, login_url='admin_login')
+def admin_users_list(request):
+    """
+    List all admin users (staff users).
+    Only accessible by superuser.
+    """
+    # Get all staff users (including superuser)
+    admin_users = User.objects.filter(is_staff=True).order_by('-date_joined')
+    
+    # Separate superuser from regular staff
+    superusers = admin_users.filter(is_superuser=True)
+    regular_admins = admin_users.filter(is_superuser=False)
+    
+    # Handle form submission for creating new admin
+    if request.method == 'POST':
+        form = AdminUserForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('admin_users_list')
+    else:
+        form = AdminUserForm()
+    
+    context = {
+        'page_title': 'Admin Users',
+        'superusers': superusers,
+        'regular_admins': regular_admins,
+        'form': form,
+    }
+    
+    return render(request, 'adminpanel/admin_users_list.html', context)
+
+
+@login_required(login_url='admin_login')
+@user_passes_test(superuser_required, login_url='admin_login')
+@require_POST
+def admin_user_delete(request, pk):
+    """
+    Delete an admin user.
+    Only superuser can delete admin users.
+    Prevents deleting the superuser itself.
+    """
+    user_to_delete = get_object_or_404(User, pk=pk)
+    
+    # Prevent deleting yourself
+    if user_to_delete == request.user:
+        return JsonResponse({
+            'success': False,
+            'error': 'You cannot delete your own account.'
+        }, status=400)
+    
+    # Prevent deleting the main admin superuser
+    if user_to_delete.username == 'admin' and user_to_delete.is_superuser:
+        return JsonResponse({
+            'success': False,
+            'error': 'Cannot delete the main admin account.'
+        }, status=400)
+    
+    try:
+        username = user_to_delete.username
+        user_to_delete.delete()
+        return JsonResponse({
+            'success': True,
+            'message': f'Admin user "{username}" deleted successfully.'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=400)
 
 # --- AI/ML Studio View ---
 

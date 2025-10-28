@@ -74,12 +74,14 @@ class OrderItemForm(BaseForm):
             
         return cleaned_data
         
+# Create formset factory with 1 extra empty form for adding new items
 OrderItemFormSet = inlineformset_factory(
     Order,              # parent model
-    OrderItem,          #child model
-    form = OrderItemForm, #  form to use fr each child
+    OrderItem,          # child model
+    form=OrderItemForm, # form to use for each child
     can_delete=True,   
     min_num=0,   
-    extra=0,
+    extra=1,            # Show 1 empty form for adding new items
+    validate_min=False,  # Don't require minimum forms
 )
 

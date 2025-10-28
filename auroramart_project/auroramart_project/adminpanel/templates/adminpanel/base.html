@@ -34,6 +34,11 @@
                Products
             </a>
             
+            <a href="{% url 'catalogue_view' %}" 
+               class="nav-link {% if request.resolver_match.url_name == 'catalogue_view' %}active{% endif %}">
+               Catalogue
+            </a>
+            
             <a href="{% url 'order_list' %}" 
                class="nav-link {% if request.resolver_match.url_name == 'order_list' %}active{% endif %}">
                Orders

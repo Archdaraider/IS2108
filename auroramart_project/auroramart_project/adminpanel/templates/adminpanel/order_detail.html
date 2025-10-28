@@ -72,39 +72,51 @@
         </div>
         
         <div id="order-items-container">
-    {{ formset.management_form }} 
+    {{ formset.management_form }}
 
     {% for form in formset %}
         <div class="item-form-row">
-            
-            <!-- Hidden Fields (MUST BE PRESENT) -->
-            {{ form.id }}
+            <!-- Hidden Fields - CRITICAL: These must be rendered for updates and deletions to work -->
+            {% if form.id %}
+                {{ form.id }}
+            {% endif %}
             {{ form.order }}
-            {{ form.product.errors }}
-            {{ form.quantity.errors }}
+
+            <!-- Display field errors if any -->
+            {% if form.non_field_errors %}
+                <div class="error">{{ form.non_field_errors }}</div>
+            {% endif %}
             
-            <!-- Product Selector (5fr column) -->
+            <!-- Product Selector -->
             <div>
                 <label for="{{ form.product.id_for_label }}">Product</label>
                 {{ form.product }}
+                {% if form.product.errors %}
+                    <span class="field-error-message">{{ form.product.errors }}</span>
+                {% endif %}
             </div>
 
-            <!-- Quantity Field (2fr column) -->
+            <!-- Quantity Field -->
             <div>
                 <label for="{{ form.quantity.id_for_label }}">Quantity</label>
                 {{ form.quantity }}
+                {% if form.quantity.errors %}
+                    <span class="field-error-message">{{ form.quantity.errors }}</span>
+                {% endif %}
             </div>
 
-            <!-- Delete Checkbox (1fr column) -->
+            <!-- Delete Checkbox -->
             <div class="delete-col">
-                <label for="{{ form.DELETE.id_for_label }}" class="text-danger">Remove</label>
-                <!-- 🔑 CRITICAL FIX: The DELETE checkbox must be rendered here -->
-                <div style="text-align: center; margin-top: 5px;">
-                    {{ form.DELETE }}
-                </div>
+                {% if form.DELETE %}
+                    <label for="{{ form.DELETE.id_for_label }}" class="text-danger" style="font-size: 0.9rem;">Delete</label>
+                    <div style="text-align: center; margin-top: 5px;">
+                        {{ form.DELETE }}
+                    </div>
+                {% endif %}
             </div>
-            
         </div>
+    {% empty %}
+        <p style="color: #777; font-style: italic; padding: 1rem;">No items in this order. Add a product below.</p>
     {% endfor %}
 </div>
 
@@ -143,11 +155,12 @@
     document.addEventListener('DOMContentLoaded', function() {
         // --- SCRIPT FOR ADDING FORMSET ROWS ---
         var addBtn = document.getElementById('add-item-btn');
-        var rowsContainer = document.getElementById('item-rows-container');
+        var rowsContainer = document.getElementById('order-items-container');
         var template = document.getElementById('item-form-template');
-        // 'items' is the prefix we set. Check forms.py if this fails.
-        // It's the 'related_name' on the OrderItem model.
-        var totalFormsInput = document.querySelector('input[name="items-TOTAL_FORMS"]');
+        // Get the formset prefix from the management form
+        var managementForm = document.querySelector('#order-items-container input[name*="-TOTAL_FORMS"]');
+        var formsetPrefix = managementForm ? managementForm.name.split('-TOTAL_FORMS')[0] : 'items';
+        var totalFormsInput = document.querySelector('input[name="' + formsetPrefix + '-TOTAL_FORMS"]');
 
         if (addBtn) {
             addBtn.addEventListener('click', function() {
@@ -158,6 +171,10 @@
                 inputs.forEach(function(input) {
                     if (input.name) {
                         input.name = input.name.replace('__prefix__', currentFormCount);
+                        // Also replace the formset prefix if needed
+                        if (input.name.includes(formsetPrefix + '-__prefix__')) {
+                            input.name = input.name.replace(formsetPrefix + '-__prefix__', formsetPrefix + '-' + currentFormCount);
+                        }
                     }
                     if (input.id) {
                         input.id = input.id.replace('__prefix__', currentFormCount);

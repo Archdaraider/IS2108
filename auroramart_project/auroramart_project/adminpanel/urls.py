@@ -24,6 +24,11 @@ urlpatterns = [
     path('orders/<int:pk>/', views.order_detail, name='order_detail'),
     path('orders/<int:pk>/delete/', views.order_delete, name='order_delete'),
     
+    # Catalogue Management
+    path('catalogue/', views.catalogue_view, name='catalogue_view'),
+    path('catalogue/<int:pk>/toggle/', views.catalogue_toggle_active, name='catalogue_toggle_active'),
+    path('catalogue/bulk-update/', views.catalogue_bulk_update, name='catalogue_bulk_update'),
+    
     #path('reports/', views.custom_reports, name='custom_reports'),
     path('ai-studio/', views.ai_studio_home, name='ai_studio_home'),
 ]

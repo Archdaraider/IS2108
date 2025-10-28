@@ -174,6 +174,10 @@ class Product(models.Model):
     quantity_on_hand = models.IntegerField() # Renamed from stock
     reorder_quantity = models.IntegerField() # Renamed from reorder_threshold
     image = models.ImageField(upload_to='products/', null=True, blank=True)
+    is_active = models.BooleanField(
+        default=True,
+        help_text="When unchecked, this product will be hidden from the customer storefront."
+    )
 
     def __str__(self):
         return f"{self.sku}: {self.name}"

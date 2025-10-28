@@ -9,13 +9,14 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView, LogoutView
 from .models import Customer, Product, Order, OrderItem, DecisionTreeModel
 from django.db import models
-from .forms import CustomerForm, ProductForm, OrderForm, OrderItemFormSet # Ensure OrderItemFormSet is imported
+from .forms import CustomerForm, ProductForm, OrderForm, OrderItemForm, OrderItemFormSet # Ensure OrderItemFormSet is imported
 from django.http import HttpResponseNotAllowed
 from django.apps import apps
 from django.db import transaction # Keep transaction import
 from django.forms import inlineformset_factory
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.contrib.auth import logout
+from django.views.decorators.http import require_POST
 
 # --- Load Models Once ---
 app_path = apps.get_app_config('adminpanel').path
@@ -365,72 +366,63 @@ def order_list(request):
 def order_detail(request, pk):
     """
     View to display and update a single order and its items.
-    (Fixed NOT NULL constraint failure on unit_price during updates)
+    Properly handles inline formset with deletions and updates.
     """
     order = get_object_or_404(Order, pk=pk)
 
-    # DEFINE THE FORMSET FACTORY HERE (OUTSIDE THE IF/ELSE BLOCK)
-    OrderItemFormSetFactory = inlineformset_factory(
-        Order, OrderItem, form=OrderItemFormSet.form, extra=1, can_delete=True
-    )
-
     if request.method == 'POST':
         form = OrderForm(request.POST, instance=order)
-        # Use the factory to create the formset instance with POST data
-        formset = OrderItemFormSetFactory(request.POST, instance=order)
+        formset = OrderItemFormSet(request.POST, instance=order)
 
         if form.is_valid() and formset.is_valid():
             try:
                 with transaction.atomic():
-                    # 1. Save main order details
+                    # 1. Save the main order form first
                     order = form.save()
 
-                    # 2. Process deletions first (handles items marked by the DELETE checkbox)
-                    # REMOVED: formset.save_clean(commit=False) - This caused the error!
-                    for item_form in formset.deleted_forms:
-                        if item_form.instance.pk:
-                            item_form.instance.delete()
-
-                    # 3. Process new and updated items, setting unit_price manually
+                    # 2. Save formset with commit=False to get all objects
+                    # This automatically handles deletions - deleted items won't be in the returned queryset
                     items_to_save = formset.save(commit=False)
-                    for item in items_to_save:
-                        # item.product might be None if the user selected nothing in a new line, 
-                        # but formset.is_valid() should handle that. We check just in case.
-                        if item.product: 
-                            # CRITICAL FIX: Explicitly set unit_price before saving
-                            # This prevents the NOT NULL constraint failure
-                            item.unit_price = item.product.price
-                            item.save() 
-                        # Else: If item.product is None, it means the row was empty or invalid, 
-                        # which is okay if it's a new, empty extra form.
 
-                    # 4. Recalculate the total from the database after all saves/deletes
+                    # 3. Process each item
+                    for item in items_to_save:
+                        # Set unit_price from the product's current price
+                        if item.product:
+                            item.unit_price = item.product.price
+                            item.save()
+
+                    # 4. Delete items marked for deletion
+                    # formset.deleted_objects contains items that were marked for deletion
+                    for item in formset.deleted_objects:
+                        item.delete()
+
+                    # 5. Recalculate the order total after all changes
                     total_result = order.items.aggregate(
                         total=Sum(F('unit_price') * F('quantity'), output_field=DecimalField())
                     )
-                    new_total = total_result['total'] or Decimal('0.00') 
-
-                    # 5. Save the final, correct total
-                    order.total_amount = new_total
+                    order.total_amount = total_result['total'] or Decimal('0.00')
                     order.save(update_fields=['total_amount'])
 
                     return redirect('order_detail', pk=order.pk)
 
             except Exception as e:
-                # Add error to the main form to be displayed
-                form.add_error(None, f"An error occurred while saving: {e}")
-        
-        else: # Form or formset was invalid
-            # Add clearer error messages if validation fails
+                import traceback
+                form.add_error(None, f"An error occurred while saving: {str(e)}")
+                # Print to console for debugging
+                print(f"Error in order_detail: {e}")
+                print(traceback.format_exc())
+        else:
+            # Form or formset validation failed
             if not formset.is_valid():
-                form.add_error(None, "Please correct the errors in the product items.")
+                form.add_error(None, "There are errors in the product items. Please correct them.")
+                print(f"Formset errors: {formset.errors}")
             if not form.is_valid():
-                form.add_error(None, "Please correct the errors in the order details.")
+                form.add_error(None, "There are errors in the order details. Please correct them.")
             
-    else: # GET request
+    else:
+        # GET request - display the form
         form = OrderForm(instance=order)
-        # Use the factory to create the formset instance for the GET request
-        formset = OrderItemFormSetFactory(instance=order)
+        formset = OrderItemFormSet(instance=order)
 
     context = {
         'page_title': f'Edit Order {order.oID}',
@@ -452,6 +444,127 @@ def order_delete(request, pk):
     order = get_object_or_404(Order, pk=pk)
     order.delete()
     return redirect('order_list')
+
+
+# --- Catalogue Management Views ---
+
+@login_required(login_url='admin_login')
+def catalogue_view(request):
+    """
+    Catalogue page for managing product visibility on the storefront.
+    Displays all products in a grid layout with toggle switches.
+    """
+    # Get all products
+    products = Product.objects.all().order_by('-id')
+    
+    # Handle filtering
+    category_filter = request.GET.get('category', '')
+    status_filter = request.GET.get('status', '')  # 'active', 'inactive', or ''
+    search_query = request.GET.get('search', '')
+    
+    if search_query:
+        products = products.filter(
+            models.Q(name__icontains=search_query) |
+            models.Q(sku__icontains=search_query) |
+            models.Q(description__icontains=search_query)
+        )
+    
+    if category_filter:
+        products = products.filter(category=category_filter)
+    
+    if status_filter == 'active':
+        products = products.filter(is_active=True)
+    elif status_filter == 'inactive':
+        products = products.filter(is_active=False)
+    
+    # Get unique categories for filter dropdown
+    categories = Product.objects.values_list('category', flat=True).distinct().order_by('category')
+    
+    # Statistics
+    total_products = Product.objects.count()
+    active_products = Product.objects.filter(is_active=True).count()
+    inactive_products = Product.objects.filter(is_active=False).count()
+    
+    context = {
+        'page_title': 'Catalogue',
+        'products': products,
+        'categories': categories,
+        'category_filter': category_filter,
+        'status_filter': status_filter,
+        'search_query': search_query,
+        'total_products': total_products,
+        'active_products': active_products,
+        'inactive_products': inactive_products,
+    }
+    
+    return render(request, 'adminpanel/catalogue.html', context)
+
+
+@login_required(login_url='admin_login')
+@require_POST
+def catalogue_toggle_active(request, pk):
+    """
+    AJAX endpoint to toggle product visibility.
+    Returns JSON response.
+    """
+    try:
+        product = get_object_or_404(Product, pk=pk)
+        product.is_active = not product.is_active
+        product.save(update_fields=['is_active'])
+        
+        return JsonResponse({
+            'success': True,
+            'is_active': product.is_active,
+            'message': f'Product {"activated" if product.is_active else "deactivated"} successfully.'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=400)
+
+
+@login_required(login_url='admin_login')
+@require_POST
+def catalogue_bulk_update(request):
+    """
+    Handle bulk show/hide actions for multiple products.
+    Expects POST data: {'action': 'activate'|'deactivate', 'product_ids': [1, 2, 3]}
+    """
+    try:
+        action = request.POST.get('action')
+        product_ids = request.POST.getlist('product_ids')
+        
+        if action not in ['activate', 'deactivate']:
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid action. Must be "activate" or "deactivate".'
+            }, status=400)
+        
+        if not product_ids:
+            return JsonResponse({
+                'success': False,
+                'error': 'No products selected.'
+            }, status=400)
+        
+        # Convert to integers and filter products
+        product_ids = [int(pid) for pid in product_ids]
+        products = Product.objects.filter(pk__in=product_ids)
+        
+        # Update products
+        new_status = (action == 'activate')
+        updated_count = products.update(is_active=new_status)
+        
+        return JsonResponse({
+            'success': True,
+            'updated_count': updated_count,
+            'message': f'Successfully {action}d {updated_count} product(s).'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=400)
 
 
 # --- Customer Views (Unchanged) ---

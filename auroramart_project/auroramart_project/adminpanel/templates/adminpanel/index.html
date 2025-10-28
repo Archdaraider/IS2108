@@ -41,24 +41,10 @@
             </div>
             <div class="content-panel-body">
                 <p style="font-size: 0.9rem; color: #555; margin-top: 0; margin-bottom: 1rem;">
-                    Top 5 Preferred Categories by Customer Count (Decision Tree Insights)
+                    Customer Distribution by Preferred Category (Decision Tree Insights)
                 </p>
-                <ul class="summary-list">
-                {% for segment in segment_summary %}
-                    <li>
-                        <span class="item-name">{{ segment.preferred_category }}</span>
-                        <span class="item-value">{{ segment.count }} Customers</span>
-                    </li>
-                {% empty %}
-                    <li style="justify-content: center; background: #fff; color: #777; font-style: italic;">
-                        No customer segment data available.
-                    </li>
-                {% endfor %}
-                </ul>
-                <div style="border-top: 1px solid #eee; margin-top: 1.5rem; padding-top: 1rem;">
-                    <p style="font-size: 0.8rem; color: #888; text-align: center; font-style: italic; margin-bottom: 0;">
-                        Integration Point: Use JavaScript to render a Pie Chart/Bar Chart here.
-                    </p>
+                <div style="position: relative; height: 300px; margin: 1rem 0;">
+                    <canvas id="preferredCategoryPieChart"></canvas>
                 </div>
             </div>
         </div>
@@ -139,5 +125,148 @@
             </table>
         </div>
     </div> -->
+
+    <div class="dashboard-layout">
+        
+        <div class="content-panel">
+            <div class="content-panel-header">
+                <h2>Customer Summary Statistics</h2>
+            </div>
+            <div class="content-panel-body">
+                <div style="margin-bottom: 1.5rem; padding: 1rem; background: #f8f9fa; border-radius: 4px;">
+                    <p style="font-size: 0.9rem; color: #555; margin: 0 0 0.5rem 0; font-weight: 600;">
+                        Overall Statistics
+                    </p>
+                    <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
+                        <div>
+                            <span style="font-size: 0.85rem; color: #777;">Customers with Orders:</span>
+                            <span style="font-weight: 600; margin-left: 0.5rem;">{{ overall_stats.total_customers_with_orders }}</span>
+                        </div>
+                        <div>
+                            <span style="font-size: 0.85rem; color: #777;">Average Order Value:</span>
+                            <span style="font-weight: 600; margin-left: 0.5rem;">${{ overall_stats.avg_order_value_all|floatformat:2 }}</span>
+                        </div>
+                        <div>
+                            <span style="font-size: 0.85rem; color: #777;">Total Revenue:</span>
+                            <span style="font-weight: 600; margin-left: 0.5rem;">${{ overall_stats.total_revenue|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <p style="font-size: 0.9rem; color: #555; margin-top: 0; margin-bottom: 1rem;">
+                    Top Customers by Order Count (Total Orders, Average Order Value, Last Order Date)
+                </p>
+                <div class="content-panel-body no-padding" style="max-height: 400px; overflow-y: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Customer Name</th>
+                                <th>Email</th>
+                                <th>Total Orders</th>
+                                <th>Avg Order Value</th>
+                                <th>Last Order Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for customer in customer_summary %}
+                            <tr>
+                                <td>{{ customer.name }}</td>
+                                <td>{{ customer.email }}</td>
+                                <td class="text-center">{{ customer.total_orders|default:"0" }}</td>
+                                <td class="text-right">
+                                    {% if customer.avg_order_value %}
+                                        ${{ customer.avg_order_value|floatformat:2 }}
+                                    {% else %}
+                                        $0.00
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if customer.last_order_date %}
+                                        {{ customer.last_order_date|date:"Y-m-d H:i" }}
+                                    {% else %}
+                                        <span style="color: #999; font-style: italic;">No orders</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" style="text-align: center; color: #777; font-style: italic;">
+                                    No customer data available.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
 </main>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Pie Chart for Preferred Category
+    const pieChartLabels = {{ pie_chart_data.labels|safe }};
+    const pieChartCounts = {{ pie_chart_data.counts|safe }};
+    
+    const pieChartData = {
+        labels: pieChartLabels,
+        datasets: [{
+            data: pieChartCounts,
+            backgroundColor: [
+                '#FF6384',
+                '#36A2EB',
+                '#FFCE56',
+                '#4BC0C0',
+                '#9966FF',
+                '#FF9F40',
+                '#FF6384',
+                '#C9CBCF'
+            ],
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    };
+
+    const pieChartConfig = {
+        type: 'pie',
+        data: pieChartData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        padding: 15,
+                        font: {
+                            size: 12
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            label += context.parsed + ' customers';
+                            return label;
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    const pieChartCtx = document.getElementById('preferredCategoryPieChart');
+    if (pieChartCtx) {
+        new Chart(pieChartCtx, pieChartConfig);
+    }
+});
+</script>
+
 {% endblock content %}

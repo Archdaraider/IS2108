@@ -1,8 +1,9 @@
 import joblib
 import os
+import json
 import pandas as pd
 from decimal import Decimal
-from django.db.models import Count, Sum, F, DecimalField
+from django.db.models import Count, Sum, F, DecimalField, Avg, Max
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView, LogoutView
@@ -72,9 +73,37 @@ def admin_dashboard_home(request):
         quantity_on_hand__lte=models.F('reorder_quantity')
     ).order_by('quantity_on_hand')[:10]
 
-    segment_summary = Customer.objects.values('preferred_category') \
+    # Get all preferred categories for pie chart (not just top 5)
+    category_data = Customer.objects.values('preferred_category') \
         .annotate(count=Count('id')) \
-        .order_by('-count')[:5]
+        .order_by('-count')
+    
+    # Prepare data for Chart.js pie chart (convert to JSON strings for template)
+    pie_chart_labels = [item['preferred_category'] for item in category_data]
+    pie_chart_counts = [item['count'] for item in category_data]
+    
+    pie_chart_data = {
+        'labels': json.dumps(pie_chart_labels),
+        'counts': json.dumps(pie_chart_counts),
+    }
+    
+    # Keep the list version for backwards compatibility if needed
+    segment_summary = list(category_data[:5])
+
+    # Customer Summary Statistics
+    # Get aggregate statistics: total orders, average order value, last order date
+    customer_summary = Customer.objects.annotate(
+        total_orders=Count('order', distinct=True),
+        avg_order_value=Avg('order__total_amount'),
+        last_order_date=Max('order__placed_at')
+    ).order_by('-total_orders')[:10]  # Top 10 customers by order count
+    
+    # Calculate overall statistics
+    overall_stats = {
+        'total_customers_with_orders': Customer.objects.filter(order__isnull=False).distinct().count(),
+        'avg_order_value_all': Order.objects.aggregate(avg=Avg('total_amount'))['avg'] or Decimal('0.00'),
+        'total_revenue': Order.objects.aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00'),
+    }
 
     model_status = DecisionTreeModel.objects.order_by('-training_date')
 
@@ -83,6 +112,9 @@ def admin_dashboard_home(request):
         'kpis': kpis,
         'inventory_alerts': inventory_alerts,
         'segment_summary': segment_summary,
+        'pie_chart_data': pie_chart_data,
+        'customer_summary': customer_summary,
+        'overall_stats': overall_stats,
         'model_status': model_status,
     }
 

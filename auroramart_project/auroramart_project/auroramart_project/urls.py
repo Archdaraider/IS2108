@@ -22,8 +22,8 @@ from django.conf.urls.static import static
 urlpatterns = [
     # Keep the default Django Admin for system management/superusers
     path('django-admin/', admin.site.urls), 
-    
     path('admin/', include('adminpanel.urls')), 
+    path('', include('storefront.urls')),
     
     # Placeholder for the customer-facing front end (e.g., homepage)
     # path('', include('core.urls')), 

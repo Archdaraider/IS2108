@@ -1,0 +1,49 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login</title>
+    <link rel="stylesheet" href="{% static 'css/admin_styles.css' %}">
+</head>
+<body class="login-body">
+    
+    <div class="login-container">
+        <div class="login-header">
+            <div class="logo">A</div>
+            <h2>AuroraMart Admin</h2>
+        </div>
+
+        <form method="post" action="{% url 'admin_login' %}">
+            {% csrf_token %}
+            
+            {% if form.errors %}
+                <p class="error-message">Your username and password didn't match. Please try again.</p>
+            {% endif %}
+
+            <div class="form-group">
+                <label for="{{ form.username.id_for_label }}">Username</label>
+                {{ form.username }}
+                <script>
+                    // Add the 'form-control' class to the Django-rendered input
+                    document.getElementById("{{ form.username.id_for_label }}").classList.add("form-control");
+                </script>
+            </div>
+            
+            <div class="form-group">
+                <label for="{{ form.password.id_for_label }}">Password</label>
+                {{ form.password }}
+                <script>
+                    document.getElementById("{{ form.password.id_for_label }}").classList.add("form-control");
+                </script>
+            </div>
+            
+            <button type="submit" class="btn-primary">Login</button>
+            
+            <input type="hidden" name="next" value="{{ next }}">
+        </form>
+    </div>
+
+</body>
+</html>

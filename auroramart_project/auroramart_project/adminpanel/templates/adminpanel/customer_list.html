@@ -1,0 +1,91 @@
+{% extends "adminpanel/base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title|default:"Customer List" }}{% endblock %}
+
+{% block content %}
+
+<div class="content-panel">
+    <div class="content-panel-header">
+        <h2>{{ page_title }}</h2>
+        <button id="toggle-form-btn" class="btn-primary" style="text-decoration: none;">
+            + New Customer
+        </button>
+    </div>
+</div>
+
+<div id="create-form-container" class="create-form-panel" {% if not form.errors %}style="display: none;"{% endif %}>
+    <h3>Create New Customer</h3>
+    <form method="post" action="{% url 'customer_list' %}" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+        <div class="form-container">
+            {{ form.as_p }}
+        </div>
+        <div class="form-actions">
+            <button type="button" id="cancel-btn" class="btn-secondary">Cancel</button>
+            <button type="submit" class="btn-primary">Save Customer</button>
+        </div>
+    </form>
+</div>
+<div class="content-panel">
+    <div class="content-panel-body no-padding">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>cID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Age</th>
+                    <th>Preferred Category</th>
+                    <th>Tools</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for customer in customers %}
+                <tr>
+                    <td>{{ customer.cID }}</td>
+                    <!-- === UPDATED: Make name a link === -->
+                    <td>
+                        <a href="{% url 'customer_detail' customer.pk %}" class="table-link">
+                            {{ customer.name }}
+                        </a>
+                    </td>
+                    <td>{{ customer.email }}</td>
+                    <td>{{ customer.age }}</td>
+                    <td>{{ customer.get_preferred_category_display }}</td>
+                    <!-- === UPDATED: Changed tools column === -->
+                    <td class="tools">
+                        <a href="{% url 'customer_detail' customer.pk %}">View / Update</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center; color: #777;">No customers found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var formContainer = document.getElementById('create-form-container');
+        
+        // Toggle button shows/hides the form
+        document.getElementById('toggle-form-btn').addEventListener('click', function() {
+            if (formContainer.style.display === 'none') {
+                formContainer.style.display = 'block';
+            } else {
+                formContainer.style.display = 'none';
+            }
+        });
+
+        // Cancel button always hides the form
+        document.getElementById('cancel-btn').addEventListener('click', function() {
+            formContainer.style.display = 'none';
+        });
+    });
+</script>
+
+{% endblock content %}

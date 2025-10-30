@@ -1,0 +1,26 @@
+{% extends "adminpanel/base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title|default:"Create New" }}{% endblock %}
+
+{% block content %}
+<div class="content-panel">
+    <div class="content-panel-header">
+        <h2>{{ page_title }}</h2>
+    </div>
+    <div class="content-panel-body">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="form-container">
+                {{ form.as_p }}
+            </div>
+
+            <div class="form-actions">
+                <a href="{{ request.META.HTTP_REFERER|default:'/' }}" class="btn-secondary">Cancel</a>
+                <button type="submit" class="btn-primary">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock content %}

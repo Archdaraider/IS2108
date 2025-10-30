@@ -1,0 +1,108 @@
+{% extends "adminpanel/base.html" %}
+{% load static %}
+
+{% block title %}Edit: {{ product.name }}{% endblock %}
+
+{% block content %}
+
+<form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    
+    <div class="content-panel">
+        <div class="content-panel-header">
+            <h2>{{ product.name }}</h2>
+            <div class="form-actions-header">
+                <a href="{% url 'product_list' %}" class="btn-secondary">Back to List</a>
+                <button type="submit" class="btn-primary">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    {% if form.errors %}
+        <div class="content-panel error-panel">
+            <p><strong>Please correct the errors below:</strong></p>
+            {{ form.non_field_errors }}
+            {% for field in form %}
+                {% if field.errors %}
+                    <p><strong>{{ field.label }}:</strong> {{ field.errors|striptags }}</p>
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="product-detail-layout">
+        <!-- Left for Image -->
+        <div class="content-panel">
+            <div class="content-panel-header">
+                <h3>Product Image</h3>
+            </div>
+            <div class="content-panel-body">
+                <div class="product-image-container">
+                    {% if product.image %}
+                        <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                    {% else %}
+                        <div class="image-placeholder">
+                            <i class="fas fa-camera"></i>
+                            <span>No Image</span>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="image-upload-field">
+                    <label for="{{ form.image.id_for_label }}">Change Image</label>
+                    {{ form.image }}
+                    {% if form.image.help_text %}
+                        <small class="form-help-text">{{ form.image.help_text }}</small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column is for Details Form -->
+        <div class="content-panel">
+            <div class="content-panel-header">
+                <h3>Product Details</h3>
+            </div>
+            <div class="content-panel-body">
+                <div class="form-container">
+                    {% for field in form %}
+                        {% if field.name != 'image' %}
+                            <p id="field-{{ field.name }}">
+                                {{ field.label_tag }}
+                                {{ field }}
+                                {% if field.help_text %}
+                                    <small class="form-help-text">{{ field.help_text }}</small>
+                                {% endif %}
+                            </p>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<!-- Delete Button  -->
+<div class="content-panel delete-zone">
+    <div class="delete-zone-content">
+        <h4>Delete Product</h4>
+        <p>This action is permanent and cannot be undone. This will remove the product from the catalog.</p>
+        
+        <form id="delete-form" action="{% url 'product_delete' product.pk %}" method="post">
+            {% csrf_token %}
+            <button type="button" id="delete-btn-confirm" class="btn-danger">Delete This Product</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    //confirmation pop-up before deleting
+    document.getElementById('delete-btn-confirm').addEventListener('click', function(e) {
+        if (!confirm('Are you sure you want to permanently delete this product?')) {
+            e.preventDefault();
+        } else {
+            document.getElementById('delete-form').submit();
+        }
+    });
+</script>
+
+{% endblock content %}

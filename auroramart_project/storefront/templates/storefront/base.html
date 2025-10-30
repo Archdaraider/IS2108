@@ -1,0 +1,165 @@
+<!-- base.html -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AuroraMart - Your Online Shopping Destination{% endblock %}</title>
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'css/storefront.css' %}">
+    
+    <!-- Meta tags for SEO -->
+    <meta name="description" content="{% block description %}AuroraMart - Your one-stop online shopping destination for electronics, fashion, home & kitchen, and more.{% endblock %}">
+    <meta name="keywords" content="online shopping, e-commerce, electronics, fashion, home, kitchen, groceries">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-top">
+                <!-- Logo -->
+                <div class="logo">
+                    <a href="{% url 'homepage' %}" style="text-decoration: none; display: flex; align-items: center;">
+                        <img src="{% static 'images/AuroraMart Logo.png' %}" alt="AuroraMart" style="height: 70px; width: auto; object-fit: contain; max-width: 200px;">
+                    </a>
+                </div>
+
+                <!-- Search Bar -->
+                <div class="search-container">
+                    <form method="GET" action="{% url 'product_list' %}" class="search-form">
+                        <input type="text" name="search" placeholder="Search product" class="search-input" value="{{ search_query|default:'' }}">
+                        <button type="submit" class="search-button">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- User Actions -->
+                <div class="user-actions">
+                    <!-- Shopping Cart -->
+                    <a href="{% url 'shopping_cart' %}" class="action-link cart-link">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span class="action-text">My Cart</span>
+                        <span class="cart-count" id="cart-count">0</span>
+                    </a>
+
+                    <!-- User Account -->
+                    {% if user.is_authenticated %}
+                        <div class="user-dropdown">
+                            <a href="#" class="action-link user-link">
+                                <i class="fas fa-user"></i>
+                                <span class="action-text">{{ user.username }}</span>
+                                <i class="fas fa-chevron-down"></i>
+                            </a>
+                            <div class="dropdown-menu">
+                                <a href="#" class="dropdown-item">My Account</a>
+                                <a href="#" class="dropdown-item">My Orders</a>
+                                <a href="{% url 'wishlist' %}" class="dropdown-item">My Wishlist</a>
+                                <a href="#" class="dropdown-item">My Reviews</a>
+                                <div class="dropdown-divider"></div>
+                                <a href="{% url 'admin_logout' %}" class="dropdown-item">Logout</a>
+                            </div>
+                        </div>
+                    {% else %}
+                        <a href="{% url 'login' %}" class="action-link">
+                            <i class="fas fa-user"></i>
+                            <span class="action-text">Guest</span>
+                        </a>
+                    {% endif %}
+
+                    <!-- Wishlist -->
+                    <a href="{% url 'wishlist' %}" class="action-link">
+                        <i class="fas fa-heart"></i>
+                        <span class="action-text">Lists</span>
+                    </a>
+
+                    <!-- Help -->
+                    <a href="#" class="action-link">
+                        <i class="fas fa-question-circle"></i>
+                        <span class="action-text">Help</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="main-nav">
+                <div class="nav-categories">
+                    <a href="{% url 'product_list' %}" class="nav-link">All Products</a>
+                    <a href="{% url 'category_products' 'electronics' %}" class="nav-link">Electronics</a>
+                    <a href="{% url 'category_products' 'fashion-men' %}" class="nav-link">Fashion (Men & Women)</a>
+                    <a href="{% url 'category_products' 'home-kitchen' %}" class="nav-link">Home & Kitchen</a>
+                    <a href="{% url 'category_products' 'beauty-personal-care' %}" class="nav-link">Beauty & Personal Care</a>
+                    <a href="{% url 'category_products' 'sports-outdoors' %}" class="nav-link">Sports & Outdoors</a>
+                    <a href="{% url 'category_products' 'books' %}" class="nav-link">Books</a>
+                    <a href="{% url 'category_products' 'groceries-gourmet' %}" class="nav-link">Groceries & Gourmet</a>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>Help</h3>
+                    <ul>
+                        <li><a href="#">Customer service</a></li>
+                        <li><a href="#">How to guides</a></li>
+                        <li><a href="#">Contact us</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Other</h3>
+                    <ul>
+                        <li><a href="#">Privacy Policy</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Feature Highlights -->
+            <div class="footer-features">
+                <div class="feature-item">
+                    <i class="fas fa-truck"></i>
+                    <span>Free Delivery</span>
+                </div>
+                <div class="feature-item">
+                    <i class="fas fa-heart"></i>
+                    <span>Predict exactly what you love</span>
+                </div>
+                <div class="feature-item">
+                    <i class="fas fa-sync-alt"></i>
+                    <span>Find something relevant within 90s</span>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Messages -->
+    {% if messages %}
+        <div class="messages-container">
+            {% for message in messages %}
+                <div class="message message-{{ message.tags }}">
+                    {{ message }}
+                    <button class="message-close">&times;</button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- JavaScript -->
+    <script src="{% static 'js/storefront.js' %}"></script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,297 @@
+{% extends 'storefront/base.html' %}
+{% load static %}
+
+{% block title %}
+    {% if category %}
+        {{ category.name }} - AuroraMart
+    {% else %}
+        Products - AuroraMart
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Breadcrumbs -->
+    <nav class="breadcrumbs">
+        <a href="{% url 'homepage' %}">Home</a>
+        {% if category %}
+            <span class="breadcrumb-separator">></span>
+            <span class="breadcrumb-current">{{ category.name }}</span>
+        {% else %}
+            <span class="breadcrumb-separator">></span>
+            <span class="breadcrumb-current">Products</span>
+        {% endif %}
+    </nav>
+
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="page-title">
+            <h1>
+                {% if category %}
+                    {{ category.name }}
+                {% else %}
+                    All Products
+                {% endif %}
+            </h1>
+            <p class="product-count">{{ total_products }} items found</p>
+        </div>
+        
+        <!-- Sort Options -->
+        <div class="sort-options">
+            <label for="sort-select">Sort By:</label>
+            <select id="sort-select" class="sort-select">
+                <option value="best_match" {% if sort_by == 'best_match' %}selected{% endif %}>Best Match</option>
+                <option value="price_low" {% if sort_by == 'price_low' %}selected{% endif %}>Price low to high</option>
+                <option value="price_high" {% if sort_by == 'price_high' %}selected{% endif %}>Price high to low</option>
+                <option value="rating" {% if sort_by == 'rating' %}selected{% endif %}>Best rated</option>
+                <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="product-listing-layout">
+        <!-- Sidebar Filters -->
+        <aside class="filters-sidebar">
+            <div class="filter-section">
+                <h3>Filter</h3>
+                
+                <!-- Price Filter -->
+                <div class="filter-group">
+                    <h4>Price Range</h4>
+                    <div class="price-inputs">
+                        <input type="number" placeholder="Min" class="price-input" id="min-price">
+                        <span>-</span>
+                        <input type="number" placeholder="Max" class="price-input" id="max-price">
+                    </div>
+                </div>
+
+                <!-- Rating Filter -->
+                <div class="filter-group">
+                    <h4>Customer Rating</h4>
+                    <div class="rating-filters">
+                        <label class="rating-filter">
+                            <input type="radio" name="rating" value="5">
+                            <span class="stars">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                            </span>
+                            <span>And Up</span>
+                        </label>
+                        <label class="rating-filter">
+                            <input type="radio" name="rating" value="4">
+                            <span class="stars">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="far fa-star"></i>
+                            </span>
+                            <span>And Up</span>
+                        </label>
+                        <label class="rating-filter">
+                            <input type="radio" name="rating" value="3">
+                            <span class="stars">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="far fa-star"></i>
+                                <i class="far fa-star"></i>
+                            </span>
+                            <span>And Up</span>
+                        </label>
+                        <label class="rating-filter">
+                            <input type="radio" name="rating" value="2">
+                            <span class="stars">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="far fa-star"></i>
+                                <i class="far fa-star"></i>
+                                <i class="far fa-star"></i>
+                            </span>
+                            <span>And Up</span>
+                        </label>
+                        <label class="rating-filter">
+                            <input type="radio" name="rating" value="1">
+                            <span class="stars">
+                                <i class="fas fa-star"></i>
+                                <i class="far fa-star"></i>
+                                <i class="far fa-star"></i>
+                                <i class="far fa-star"></i>
+                                <i class="far fa-star"></i>
+                            </span>
+                            <span>And Up</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Category Filter -->
+                <div class="filter-group">
+                    <h4>Categories</h4>
+                    <div class="category-filters">
+                        {% for cat in categories %}
+                        <a href="{% url 'category_products' cat.slug %}" class="category-filter-link">
+                            {{ cat.name }}
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Product Grid -->
+        <main class="product-grid-container">
+            <!-- Category Tabs -->
+            {% if category %}
+            <div class="category-tabs">
+                <a href="{% url 'category_products' category.slug %}" class="tab-link active">
+                    <i class="fas fa-image"></i>
+                    Fresh Produce (642)
+                </a>
+                <a href="{% url 'category_products' category.slug %}" class="tab-link">
+                    <i class="fas fa-image"></i>
+                    Poultry (48)
+                </a>
+                <a href="{% url 'category_products' category.slug %}" class="tab-link">
+                    <i class="fas fa-image"></i>
+                    Dairy (67)
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- Products Grid -->
+            <div class="product-grid">
+                {% for product in products %}
+                <div class="product-card">
+                    <div class="product-image">
+                        {% if product.image %}
+                            <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                        {% else %}
+                            <div class="product-placeholder">
+                                <i class="fas fa-image"></i>
+                            </div>
+                        {% endif %}
+                        
+                        <!-- Product Badges -->
+                        {% if product.stock <= product.reorder_threshold %}
+                        <div class="product-badge sold-out">SOLD OUT</div>
+                        {% endif %}
+                        
+                        <div class="product-actions">
+                            <button class="action-btn wishlist-btn" data-product-id="{{ product.id }}">
+                                <i class="fas fa-heart"></i>
+                            </button>
+                            <button class="action-btn quick-view-btn" data-product-id="{{ product.id }}">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="product-info">
+                        <div class="product-price">${{ product.price|floatformat:2 }}</div>
+                        <h3 class="product-name">
+                            <a href="{% url 'product_detail' product.id %}">{{ product.name }}</a>
+                        </h3>
+                        <div class="product-category">{{ product.category }}</div>
+                        <div class="product-rating">
+                            <div class="stars">
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= product.rating %}
+                                        <i class="fas fa-star"></i>
+                                    {% else %}
+                                        <i class="far fa-star"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            <span class="rating-text">{{ product.rating }} (2.8k)</span>
+                        </div>
+                        
+                        {% if product.stock > 0 %}
+                            <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ product.id }}">
+                                Add to cart
+                            </button>
+                        {% else %}
+                            <button class="btn btn-secondary" disabled>
+                                Out of Stock
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% empty %}
+                <div class="no-products">
+                    <i class="fas fa-search"></i>
+                    <h3>No products found</h3>
+                    <p>Try adjusting your search or filter criteria</p>
+                    <a href="{% url 'product_list' %}" class="btn btn-primary">View All Products</a>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if products.has_other_pages %}
+            <div class="pagination">
+                {% if products.has_previous %}
+                    <a href="?page={{ products.previous_page_number }}" class="pagination-btn">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                {% endif %}
+                
+                {% for num in products.paginator.page_range %}
+                    {% if products.number == num %}
+                        <span class="pagination-number active">{{ num }}</span>
+                    {% elif num > products.number|add:'-3' and num < products.number|add:'3' %}
+                        <a href="?page={{ num }}" class="pagination-number">{{ num }}</a>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if products.has_next %}
+                    <a href="?page={{ products.next_page_number }}" class="pagination-btn">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </main>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Sort functionality
+document.getElementById('sort-select').addEventListener('change', function() {
+    const url = new URL(window.location);
+    url.searchParams.set('sort', this.value);
+    window.location.href = url.toString();
+});
+
+// Filter functionality
+function applyFilters() {
+    const url = new URL(window.location);
+    
+    // Price filter
+    const minPrice = document.getElementById('min-price').value;
+    const maxPrice = document.getElementById('max-price').value;
+    if (minPrice) url.searchParams.set('min_price', minPrice);
+    if (maxPrice) url.searchParams.set('max_price', maxPrice);
+    
+    // Rating filter
+    const selectedRating = document.querySelector('input[name="rating"]:checked');
+    if (selectedRating) url.searchParams.set('rating', selectedRating.value);
+    
+    window.location.href = url.toString();
+}
+
+// Apply filters on change
+document.querySelectorAll('.price-input').forEach(input => {
+    input.addEventListener('change', applyFilters);
+});
+
+document.querySelectorAll('input[name="rating"]').forEach(input => {
+    input.addEventListener('change', applyFilters);
+});
+</script>
+{% endblock %}

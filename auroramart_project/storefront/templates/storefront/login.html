@@ -1,0 +1,70 @@
+<!--login.html-->
+{% extends 'storefront/base.html' %}
+{% load static %}
+
+{% block title %}Login - AuroraMart{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-modal">
+        <div class="auth-header">
+            <h2>Welcome</h2>
+            <p>Log in to access your order history, save your favourites and your cart, earn credits & more!</p>
+        </div>
+
+        <div class="auth-content">
+            <!-- Social Login -->
+            <button class="btn btn-social google-btn">
+                <i class="fab fa-google"></i>
+                Continue with Google
+            </button>
+
+            <div class="auth-divider">
+                <span>OR</span>
+            </div>
+
+            <!-- Login Form -->
+            <form method="post" class="auth-form">
+                {% csrf_token %}
+                
+                <div class="form-group">
+                    <label for="username">Email</label>
+                    <input type="text" id="username" name="username" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" class="form-control" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary auth-submit">Log in</button>
+
+                <div class="auth-links">
+                    <a href="#" class="forgot-password">Forgot your password?</a>
+                </div>
+            </form>
+
+            <div class="auth-switch">
+                <p>New to AuroraMart? <a href="{% url 'register' %}">Sign up</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Add some interactive effects
+document.querySelectorAll('.form-control').forEach(input => {
+    input.addEventListener('focus', function() {
+        this.parentElement.classList.add('focused');
+    });
+    
+    input.addEventListener('blur', function() {
+        if (!this.value) {
+            this.parentElement.classList.remove('focused');
+        }
+    });
+});
+</script>
+{% endblock %}

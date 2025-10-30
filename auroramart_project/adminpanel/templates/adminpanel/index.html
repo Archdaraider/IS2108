@@ -1,0 +1,143 @@
+{% extends "adminpanel/base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title|default:"Dashboard" }}{% endblock %}
+
+{% block content %}
+<main class="dashboard-main-content">
+    
+    <div class="kpi-grid">
+        
+        <div class="kpi-card customers">
+            <p class="kpi-title">Total Customers</p>
+            <p class="kpi-value">{{ kpis.total_customers }}</p>
+            <p class="kpi-context">Current B2C customer base</p>
+        </div>
+        
+        <div class="kpi-card transactions">
+            <p class="kpi-title">Transactions Logged</p>
+            <p class="kpi-value">{{ kpis.total_transactions }}</p>
+            <p class="kpi-context">All transactions on file</p>
+        </div>
+        
+        <div class="kpi-card products">
+            <p class="kpi-title">Products in Catalog</p>
+            <p class="kpi-value">{{ kpis.total_products }}</p>
+            <p class="kpi-context">SKUs available for sale</p>
+        </div>
+        
+        <div class="kpi-card models">
+            <p class="kpi-title">Active AI Models</p>
+            <p class="kpi-value">{{ kpis.active_models }}</p>
+            <p class="kpi-context">Models currently serving predictions</p>
+        </div>
+    </div>
+
+    <div class="dashboard-layout">
+        
+        <div class="content-panel">
+            <div class="content-panel-header">
+                <h2>Customer Segment Summary (AI Driven)</h2>
+            </div>
+            <div class="content-panel-body">
+                <p style="font-size: 0.9rem; color: #555; margin-top: 0; margin-bottom: 1rem;">
+                    Top 5 Preferred Categories by Customer Count (Decision Tree Insights)
+                </p>
+                <ul class="summary-list">
+                {% for segment in segment_summary %}
+                    <li>
+                        <span class="item-name">{{ segment.preferred_category }}</span>
+                        <span class="item-value">{{ segment.count }} Customers</span>
+                    </li>
+                {% empty %}
+                    <li style="justify-content: center; background: #fff; color: #777; font-style: italic;">
+                        No customer segment data available.
+                    </li>
+                {% endfor %}
+                </ul>
+                <div style="border-top: 1px solid #eee; margin-top: 1.5rem; padding-top: 1rem;">
+                    <p style="font-size: 0.8rem; color: #888; text-align: center; font-style: italic; margin-bottom: 0;">
+                        Integration Point: Use JavaScript to render a Pie Chart/Bar Chart here.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-panel">
+            <div class="content-panel-header">
+                <h2>⚠️ Inventory Alert: Reorder Required</h2>
+            </div>
+            <div class="content-panel-body no-padding" style="max-height: 300px; overflow-y: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Product Name</th>
+                            <th>SKU</th>
+                            <th>On Hand</th>
+                            <th>Reorder Lvl</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in inventory_alerts %}
+                        <tr>
+                            <td>{{ product.name }}</td>
+                            <td>{{ product.sku_code }}</td>
+                            <td class="text-danger">{{ product.quantity_on_hand }}</td>
+                            <td>{{ product.reorder_quantity }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: #777; font-style: italic;">
+                                No inventory alerts.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="content-panel">
+        <div class="content-panel-header">
+            <h2>Deployed AI Model Status</h2>
+        </div>
+        <div class="content-panel-body no-padding">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Model Name</th>
+                        <th>Version</th>
+                        <th>Accuracy</th>
+                        <th>Status</th>
+                        <th>Trained On</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for model in model_status %}
+                    <tr>
+                        <td>{{ model.model_name }}</td>
+                        <td>v{{ model.version }}</td>
+                        <td>{{ model.accuracy|default:"N/A" }}</td>
+                        <td>
+                            {% if model.is_active %}
+                                <span class="status-pill active">Active</span>
+                            {% else %}
+                                <span class="status-pill inactive">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ model.training_date|date:"Y-m-d H:i" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: #777; font-style: italic;">
+                            No AI models found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+{% endblock content %}

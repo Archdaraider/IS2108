@@ -1,0 +1,31 @@
+{% extends 'storefront/base.html' %}
+{% load static %}
+
+{% block title %}Complete Your Profile - AuroraMart{% endblock %}
+
+{% block content %}
+<div class="container">
+	<div class="page-header">
+		<h1>Complete Your Profile</h1>
+		<p>Please provide a few details to personalize your shopping experience.</p>
+	</div>
+
+	<form method="post" class="onboarding-form">
+		{% csrf_token %}
+		<div class="form-grid">
+			{{ form.non_field_errors }}
+			<div class="form-row">{{ form.age.label_tag }}{{ form.age }}</div>
+			<div class="form-row">{{ form.gender.label_tag }}{{ form.gender }}</div>
+			<div class="form-row">{{ form.employment_status.label_tag }}{{ form.employment_status }}</div>
+			<div class="form-row">{{ form.occupation.label_tag }}{{ form.occupation }}</div>
+			<div class="form-row">{{ form.education.label_tag }}{{ form.education }}</div>
+			<div class="form-row">{{ form.household_size.label_tag }}{{ form.household_size }}</div>
+			<div class="form-row">{{ form.has_children.label_tag }}{{ form.has_children }}</div>
+			<div class="form-row">{{ form.monthly_income_sgd.label_tag }}{{ form.monthly_income_sgd }}</div>
+			<div class="form-row">{{ form.preferred_category.label_tag }}{{ form.preferred_category }}</div>
+		</div>
+		<button type="submit" class="btn btn-primary">Save and Continue</button>
+	</form>
+</div>
+{% endblock %}
+

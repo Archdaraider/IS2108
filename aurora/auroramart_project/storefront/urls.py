@@ -16,6 +16,8 @@ urlpatterns = [
     # Authentication
     path('login/', views.login_view, name='login'),
     path('register/', views.register_view, name='register'),
+    path('onboarding/', views.profile_onboarding, name='profile_onboarding'),
+    path('logout/', views.logout_view, name='logout'),
     
     # AJAX endpoints
     path('api/add-to-cart/', views.add_to_cart, name='add_to_cart'),

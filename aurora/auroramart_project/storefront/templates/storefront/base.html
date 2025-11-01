@@ -62,7 +62,7 @@
                                 <a href="{% url 'wishlist' %}" class="dropdown-item">My Wishlist</a>
                                 <a href="#" class="dropdown-item">My Reviews</a>
                                 <div class="dropdown-divider"></div>
-                                <a href="{% url 'admin_logout' %}" class="dropdown-item">Logout</a>
+                                <a href="{% url 'logout' %}" class="dropdown-item">Logout</a>
                             </div>
                         </div>
                     {% else %}
@@ -91,7 +91,8 @@
                 <div class="nav-categories">
                     <a href="{% url 'product_list' %}" class="nav-link">All Products</a>
                     <a href="{% url 'category_products' 'electronics' %}" class="nav-link">Electronics</a>
-                    <a href="{% url 'category_products' 'fashion-men' %}" class="nav-link">Fashion (Men & Women)</a>
+                    <a href="{% url 'category_products' 'fashion-men' %}" class="nav-link">Fashion - Men</a>
+                    <a href="{% url 'category_products' 'fashion-women' %}" class="nav-link">Fashion - Women</a>
                     <a href="{% url 'category_products' 'home-kitchen' %}" class="nav-link">Home & Kitchen</a>
                     <a href="{% url 'category_products' 'beauty-personal-care' %}" class="nav-link">Beauty & Personal Care</a>
                     <a href="{% url 'category_products' 'sports-outdoors' %}" class="nav-link">Sports & Outdoors</a>

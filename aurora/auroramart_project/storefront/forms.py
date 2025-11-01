@@ -55,14 +55,7 @@ class UserRegistrationForm(UserCreationForm):
 
 class CustomerProfileForm(forms.ModelForm):
     """Form for customer profile creation and editing"""
-    date_of_birth = forms.DateField(
-        required=True,
-        widget=forms.DateInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'DD/MM/YYYY',
-            'type': 'date'
-        })
-    )
+    # Remove date_of_birth requirement since it's not on the model
     
     class Meta:
         model = Customer
@@ -112,20 +105,12 @@ class CustomerProfileForm(forms.ModelForm):
                     'placeholder': 'Select'
                 }
             ),
-            'monthly_income_sgd': forms.Select(
-                choices=[
-                    ('', 'Select income range'),
-                    ('0-2000', '$0 - $2,000'),
-                    ('2001-4000', '$2,001 - $4,000'),
-                    ('4001-6000', '$4,001 - $6,000'),
-                    ('6001-8000', '$6,001 - $8,000'),
-                    ('8001-10000', '$8,001 - $10,000'),
-                    ('10001+', '$10,001+'),
-                ],
-                attrs={
-                    'class': 'form-control'
-                }
-            ),
+            'monthly_income_sgd': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g. 5000',
+                'step': '0.01',
+                'min': '0'
+            }),
             'preferred_category': forms.Select(attrs={
                 'class': 'form-control'
             }),

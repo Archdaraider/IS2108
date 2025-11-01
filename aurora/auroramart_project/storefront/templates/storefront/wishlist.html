@@ -1,27 +1,157 @@
-from django.urls import path
-from . import views
+{% extends 'storefront/base.html' %}
+{% load static %}
 
-urlpatterns = [
-    # Main storefront pages
-    path('', views.homepage, name='homepage'),
-    path('products/', views.product_list, name='product_list'),
-    path('products/<int:product_id>/', views.product_detail, name='product_detail'),
-    path('cart/', views.shopping_cart, name='shopping_cart'),
-    path('wishlist/', views.wishlist, name='wishlist'),
-    
-    # Category pages
-    path('category/<slug:category_slug>/', views.product_list, name='category_products'),
-    path('category/<slug:category_slug>/<slug:subcategory_slug>/', views.product_list, name='subcategory_products'),
-    
-    # Authentication
-    path('login/', views.login_view, name='login'),
-    path('register/', views.register_view, name='register'),
-    
-    # AJAX endpoints
-    path('api/add-to-cart/', views.add_to_cart, name='add_to_cart'),
-    path('api/update-cart-item/', views.update_cart_item, name='update_cart_item'),
-    path('api/remove-from-cart/', views.remove_from_cart, name='remove_from_cart'),
-    path('api/add-to-wishlist/', views.add_to_wishlist, name='add_to_wishlist'),
-    path('api/remove-from-wishlist/', views.remove_from_wishlist, name='remove_from_wishlist'),
-    path('api/subscribe-newsletter/', views.subscribe_newsletter, name='subscribe_newsletter'),
-]
+{% block title %}My Wishlist - AuroraMart{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1>My Wishlist</h1>
+        <p class="wishlist-count">{{ wishlist_items|length }} item{{ wishlist_items|length|pluralize }} saved</p>
+    </div>
+
+    <!-- Wishlist Items -->
+    {% if wishlist_items %}
+    <div class="wishlist-grid">
+        {% for item in wishlist_items %}
+        <div class="wishlist-item" data-item-id="{{ item.id }}">
+            <div class="product-image">
+                <a href="{% url 'product_detail' item.product.id %}">
+                    {% if item.product.image %}
+                        <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}">
+                    {% else %}
+                        <div class="product-placeholder">
+                            <i class="fas fa-image"></i>
+                        </div>
+                    {% endif %}
+                </a>
+                
+                <!-- Remove from Wishlist Button -->
+                <button class="remove-wishlist-btn" data-item-id="{{ item.id }}" title="Remove from wishlist">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="product-info">
+                <h3 class="product-name">
+                    <a href="{% url 'product_detail' item.product.id %}">{{ item.product.name }}</a>
+                </h3>
+                <div class="product-category">{{ item.product.category }} - {{ item.product.subcategory }}</div>
+                
+                <div class="product-rating">
+                    <div class="stars">
+                        {% for i in "12345" %}
+                            {% if forloop.counter <= item.product.rating %}
+                                <i class="fas fa-star"></i>
+                            {% else %}
+                                <i class="far fa-star"></i>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    <span class="rating-text">{{ item.product.rating }}</span>
+                </div>
+                
+                <div class="product-price">${{ item.product.price|floatformat:2 }}</div>
+                
+                {% if item.product.stock > 0 %}
+                    <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ item.product.id }}">
+                        Add to Cart
+                    </button>
+                {% else %}
+                    <button class="btn btn-secondary" disabled>
+                        Out of Stock
+                    </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-wishlist">
+        <div class="empty-state">
+            <i class="fas fa-heart"></i>
+            <h2>Your wishlist is empty</h2>
+            <p>Start adding items you love to your wishlist!</p>
+            <a href="{% url 'product_list' %}" class="btn btn-primary">Browse Products</a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Remove from wishlist
+document.querySelectorAll('.remove-wishlist-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const itemId = this.getAttribute('data-item-id');
+        fetch('{% url "remove_from_wishlist" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                'item_id': itemId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Remove the item from the DOM
+                const itemElement = document.querySelector(`[data-item-id="${itemId}"]`);
+                if (itemElement) {
+                    itemElement.remove();
+                }
+                // Show success message
+                alert(data.message || 'Item removed from wishlist');
+                // Reload page to update count
+                location.reload();
+            } else {
+                alert(data.message || 'Error removing item');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error removing item from wishlist');
+        });
+    });
+});
+
+// Add to cart from wishlist
+document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const productId = this.getAttribute('data-product-id');
+        fetch('{% url "add_to_cart" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                'product_id': productId,
+                'quantity': 1
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message || 'Product added to cart');
+                // Update cart count if element exists
+                const cartCount = document.getElementById('cart-count');
+                if (cartCount) {
+                    cartCount.textContent = data.cart_total || 0;
+                }
+            } else {
+                alert(data.message || 'Error adding to cart');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error adding product to cart');
+        });
+    });
+});
+</script>
+{% endblock %}

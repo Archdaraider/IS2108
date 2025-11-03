@@ -36,21 +36,23 @@
                     <input type="checkbox" class="item-select" checked>
                 </div>
                 
-                <div class="item-image">
-                    {% if item.product.image %}
-                        <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}">
-                    {% else %}
-                        <div class="product-placeholder">
-                            <i class="fas fa-image"></i>
-                        </div>
-                    {% endif %}
-                </div>
-                
-                <div class="item-details">
-                    <h3 class="item-name">{{ item.product.name }}</h3>
-                    <div class="item-category">{{ item.product.category }} {{ item.product.subcategory }}</div>
-                    <div class="item-price">${{ item.product.price|floatformat:2 }}</div>
-                </div>
+                <a href="{% url 'product_detail' item.product.id %}" class="cart-item-link">
+                    <div class="item-image">
+                        {% if item.product.image %}
+                            <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}">
+                        {% else %}
+                            <div class="product-placeholder">
+                                <i class="fas fa-image"></i>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="item-details">
+                        <h3 class="item-name">{{ item.product.name }}</h3>
+                        <div class="item-category">{{ item.product.category }} {{ item.product.subcategory }}</div>
+                        <div class="item-price">${{ item.product.price|floatformat:2 }}</div>
+                    </div>
+                </a>
                 
                 <div class="item-actions">
                     <button class="action-btn wishlist-btn" data-product-id="{{ item.product.id }}">
@@ -133,13 +135,15 @@
                         <div class="product-category">Category Subcategory</div>
                         <div class="product-rating">
                             <div class="stars">
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= item.product.avg_rating %}
+                                        <i class="fas fa-star"></i>
+                                    {% else %}
+                                        <i class="far fa-star"></i>
+                                    {% endif %}
+                                {% endfor %}
                             </div>
-                            <span class="rating-text">4.8 (2.8k)</span>
+                            <span class="rating-text">{{ item.product.avg_rating|floatformat:1 }} ({{ item.product.reviews_count|default:0 }})</span>
                         </div>
                         <button class="btn btn-primary add-to-cart-btn">
                             Add to cart
@@ -165,13 +169,15 @@
                         <div class="product-category">Category Subcategory</div>
                         <div class="product-rating">
                             <div class="stars">
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= item.product.avg_rating %}
+                                        <i class="fas fa-star"></i>
+                                    {% else %}
+                                        <i class="far fa-star"></i>
+                                    {% endif %}
+                                {% endfor %}
                             </div>
-                            <span class="rating-text">4.8 (2.8k)</span>
+                            <span class="rating-text">{{ item.product.avg_rating|floatformat:1 }} ({{ item.product.reviews_count|default:0 }})</span>
                         </div>
                         <button class="btn btn-primary add-to-cart-btn">
                             Add to cart
@@ -188,108 +194,4 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-// Quantity controls
-document.querySelectorAll('.quantity-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-        const itemId = this.getAttribute('data-item-id');
-        const isPlus = this.classList.contains('plus');
-        const quantitySpan = this.parentElement.querySelector('.quantity-value');
-        const currentQuantity = parseInt(quantitySpan.textContent);
-        
-        let newQuantity = isPlus ? currentQuantity + 1 : Math.max(1, currentQuantity - 1);
-        
-        // Update quantity via AJAX
-        fetch('{% url "update_cart_item" %}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-            },
-            body: JSON.stringify({
-                item_id: itemId,
-                quantity: newQuantity
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                quantitySpan.textContent = newQuantity;
-                updateCartTotals(data.cart_total, data.cart_price);
-            }
-        });
-    });
-});
-
-// Remove item
-document.querySelectorAll('.remove-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-        const itemId = this.getAttribute('data-item-id');
-        const cartItem = this.closest('.cart-item');
-        
-        if (confirm('Are you sure you want to remove this item?')) {
-            fetch('{% url "remove_from_cart" %}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-                },
-                body: JSON.stringify({
-                    item_id: itemId
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    cartItem.remove();
-                    updateCartTotals(data.cart_total, data.cart_price);
-                }
-            });
-        }
-    });
-});
-
-// Select all functionality
-document.getElementById('select-all').addEventListener('change', function() {
-    const isChecked = this.checked;
-    document.querySelectorAll('.item-select').forEach(checkbox => {
-        checkbox.checked = isChecked;
-    });
-});
-
-// Delete selected items
-document.getElementById('delete-selected').addEventListener('click', function() {
-    const selectedItems = document.querySelectorAll('.item-select:checked');
-    if (selectedItems.length === 0) {
-        alert('Please select items to delete');
-        return;
-    }
-    
-    if (confirm(`Are you sure you want to delete ${selectedItems.length} selected item(s)?`)) {
-        const promises = Array.from(selectedItems).map(checkbox => {
-            const itemId = checkbox.closest('.cart-item').getAttribute('data-item-id');
-            return fetch('{% url "remove_from_cart" %}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-                },
-                body: JSON.stringify({
-                    item_id: itemId
-                })
-            });
-        });
-        
-        Promise.all(promises).then(() => {
-            location.reload();
-        });
-    }
-});
-
-function updateCartTotals(totalItems, totalPrice) {
-    document.getElementById('cart-count').textContent = totalItems;
-    document.querySelector('.subtotal-amount').textContent = `$${totalPrice.toFixed(2)}`;
-    document.querySelector('.total-amount').textContent = `$${(totalPrice + 4).toFixed(2)}`;
-}
-</script>
 {% endblock %}

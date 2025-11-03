@@ -20,6 +20,7 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
     
     # AJAX endpoints
+    path('api/get-cart-count/', views.get_cart_count, name='get_cart_count'),
     path('api/add-to-cart/', views.add_to_cart, name='add_to_cart'),
     path('api/update-cart-item/', views.update_cart_item, name='update_cart_item'),
     path('api/remove-from-cart/', views.remove_from_cart, name='remove_from_cart'),

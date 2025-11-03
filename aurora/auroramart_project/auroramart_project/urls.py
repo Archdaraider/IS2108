@@ -26,12 +26,12 @@ urlpatterns = [
     path('', include('storefront.urls')),
 ]
 
-# Add Social Auth URLs (Google OAuth) only if social_django is installed
+# Add Social Auth URLs (Google OAuth) - always include if social_django is installed
+# Must be added BEFORE the storefront URLs to avoid conflicts
 try:
-    from django.conf import settings
-    if getattr(settings, 'SOCIAL_AUTH_ENABLED', False):
-        urlpatterns.append(path('oauth/', include('social_django.urls', namespace='social')))
-except:
+    import social_django
+    urlpatterns.insert(0, path('oauth/', include('social_django.urls', namespace='social')))
+except ImportError:
     pass
 
 if settings.DEBUG:

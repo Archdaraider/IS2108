@@ -400,6 +400,19 @@ body {
     box-shadow: 0 8px 25px rgba(0,0,0,0.1);
 }
 
+.product-card-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    position: relative;
+    z-index: 1;
+}
+
+.product-card-link:hover {
+    text-decoration: none;
+    color: inherit;
+}
+
 .product-image {
     position: relative;
     aspect-ratio: 1;
@@ -441,10 +454,23 @@ body {
     gap: 0.5rem;
     opacity: 0;
     transition: opacity 0.2s;
+    z-index: 10;
+    pointer-events: none;
 }
 
 .product-card:hover .product-actions {
     opacity: 1;
+}
+
+.product-actions button {
+    pointer-events: auto;
+}
+
+.product-cart-actions {
+    position: relative;
+    z-index: 10;
+    margin-top: 1rem;
+    pointer-events: auto;
 }
 
 .action-btn {
@@ -622,6 +648,8 @@ body {
     border-radius: 12px;
     padding: 1.5rem;
     height: fit-content;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .filter-section h3 {
@@ -633,6 +661,8 @@ body {
 
 .filter-group {
     margin-bottom: 2rem;
+    min-width: 0;
+    width: 100%;
 }
 
 .filter-group h4 {
@@ -645,14 +675,24 @@ body {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    min-width: 0;
+    width: 100%;
 }
 
 .price-input {
     flex: 1;
+    min-width: 0;
+    max-width: 100%;
     padding: 0.5rem;
     border: 1px solid #d2d2d7;
     border-radius: 6px;
     font-size: 0.875rem;
+    box-sizing: border-box;
+}
+
+.price-inputs span {
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .rating-filters {
@@ -969,20 +1009,76 @@ body {
     width: fit-content;
 }
 
-.quantity-btn {
+/* Quantity Picker - Blue Button Style */
+.quantity-picker,
+.quantity-picker-inline {
+    display: flex;
+    align-items: center;
+    background: #007bff;
+    border-radius: 8px;
+    padding: 0;
+    overflow: hidden;
+    width: 100%;
+    justify-content: space-between;
+    box-sizing: border-box;
+    min-height: 48px; /* Match button height: 0.75rem top + 0.75rem bottom + 1rem line-height ≈ 48px */
+}
+
+/* For product cards, ensure quantity picker takes full width and matches button */
+.product-cart-actions .quantity-picker,
+.product-cart-actions .add-to-cart-btn {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.quantity-picker .quantity-btn,
+.quantity-picker-inline .quantity-btn {
     width: 40px;
     height: 40px;
-    border: 1px solid #d2d2d7;
-    background: white;
-    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: white;
+    border-radius: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background-color 0.2s;
+    font-size: 1.2rem;
+    font-weight: 600;
+    padding: 0;
 }
 
-.quantity-btn:hover {
+.quantity-picker .quantity-btn:hover,
+.quantity-picker-inline .quantity-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.quantity-picker .quantity-value,
+.quantity-picker-inline .quantity-value {
+    min-width: 40px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 1rem;
+    color: white;
+    padding: 0 0.5rem;
+}
+
+/* Old quantity button styles for cart page */
+.quantity-controls .quantity-btn {
+    width: 30px;
+    height: 30px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.quantity-controls .quantity-btn:hover {
     background: #f5f5f7;
 }
 
@@ -1058,6 +1154,7 @@ body {
     background: white;
     border: 1px solid #e8e8ea;
     border-radius: 12px;
+    position: relative;
 }
 
 .item-checkbox input {
@@ -1065,11 +1162,27 @@ body {
     height: 20px;
 }
 
+.cart-item-link {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: 1rem;
+    text-decoration: none;
+    color: inherit;
+    align-items: center;
+    grid-column: 2 / 4;
+}
+
+.cart-item-link:hover {
+    text-decoration: none;
+    color: inherit;
+}
+
 .item-image {
     width: 100px;
     height: 100px;
     border-radius: 8px;
     overflow: hidden;
+    flex-shrink: 0;
 }
 
 .item-image img {
@@ -1079,7 +1192,9 @@ body {
 }
 
 .item-details {
-    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .item-name {
@@ -1109,12 +1224,21 @@ body {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    position: relative;
+    z-index: 10;
+    pointer-events: auto;
+    align-items: center;
+    justify-content: center;
 }
 
 .item-quantity {
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 10;
+    pointer-events: auto;
 }
 
 .quantity-controls {
@@ -1124,6 +1248,7 @@ body {
     border: 1px solid #d2d2d7;
     border-radius: 6px;
     padding: 0.25rem;
+    background: white;
 }
 
 .quantity-btn {

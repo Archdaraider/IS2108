@@ -16,6 +16,13 @@
     <!-- Meta tags for SEO -->
     <meta name="description" content="{% block description %}AuroraMart - Your one-stop online shopping destination for electronics, fashion, home & kitchen, and more.{% endblock %}">
     <meta name="keywords" content="online shopping, e-commerce, electronics, fashion, home, kitchen, groceries">
+    
+    <!-- CSRF Token for AJAX -->
+    {% csrf_token %}
+    <script>
+        // Make CSRF token available to JavaScript
+        window.csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+    </script>
 </head>
 <body>
     <!-- Header -->
@@ -45,7 +52,7 @@
                     <a href="{% url 'shopping_cart' %}" class="action-link cart-link">
                         <i class="fas fa-shopping-cart"></i>
                         <span class="action-text">My Cart</span>
-                        <span class="cart-count" id="cart-count">0</span>
+                        <span class="cart-count" id="cart-count">{% if cart_total_items %}{{ cart_total_items }}{% else %}0{% endif %}</span>
                     </a>
 
                     <!-- User Account -->

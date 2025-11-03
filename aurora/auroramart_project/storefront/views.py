@@ -15,20 +15,17 @@ from adminpanel.models import Product, Customer, OrderItem
 from .models import Cart, CartItem, Wishlist, WishlistItem, ProductReview, Category, SubCategory, Banner, NewsletterSubscription
 from .recommendations import get_recommendations, get_category_recommendations
 from .forms import CustomerProfileForm
+from .cart_helpers import get_or_create_cart, add_product_to_cart, update_cart_item_quantity
 
 # --- Utility Functions ---
 
-def get_or_create_cart(request):
-    """Get or create a cart for the current user/session."""
-    if request.user.is_authenticated:
-        cart, created = Cart.objects.get_or_create(user=request.user)
-    else:
-        session_key = request.session.session_key
-        if not session_key:
-            request.session.create()
-            session_key = request.session.session_key
-        cart, created = Cart.objects.get_or_create(session_key=session_key)
-    return cart
+def get_cart_context(request):
+    """Get cart context for templates."""
+    cart = get_or_create_cart(request)
+    return {
+        'cart': cart,
+        'cart_total_items': cart.total_items,
+    }
 
 def get_or_create_wishlist(request):
     """Get or create a wishlist for the current user."""
@@ -51,12 +48,19 @@ def homepage(request):
     # Get categories for navigation
     categories = Category.objects.filter(is_active=True)
     
+    # Get cart context
+    cart_context = get_cart_context(request)
+    cart = cart_context['cart']
+    cart_product_ids = set(cart.items.values_list('product_id', flat=True))
+    
     context = {
         'featured_products': featured_products,
         'best_sellers': best_sellers,
         'banners': banners,
         'categories': categories,
-        'SOCIAL_AUTH_ENABLED': getattr(settings, 'SOCIAL_AUTH_ENABLED', False),
+        'cart_product_ids': cart_product_ids,
+        'cart': cart,
+        **cart_context,  # Add cart info to context
     }
     return render(request, 'storefront/homepage.html', context)
 
@@ -149,6 +153,13 @@ def product_list(request, category_slug=None, subcategory_slug=None):
     cart = get_or_create_cart(request)
     cart_product_ids = set(cart.items.values_list('product_id', flat=True))
     
+    # Get wishlist product IDs for logged-in users
+    wishlist_product_ids = set()
+    if request.user.is_authenticated:
+        wishlist = get_or_create_wishlist(request)
+        if wishlist:
+            wishlist_product_ids = set(wishlist.items.values_list('product_id', flat=True))
+    
     # Get "Next best action" recommendations using association rules
     next_best_products = []
     if category:
@@ -165,6 +176,9 @@ def product_list(request, category_slug=None, subcategory_slug=None):
                 stock__gt=0
             ).exclude(id__in=products[:5].values_list('id', flat=True)).order_by('-rating')[:8]
     
+    # Get cart context
+    cart_context = get_cart_context(request)
+    
     context = {
         'products': page_obj,
         'category': category,
@@ -175,6 +189,9 @@ def product_list(request, category_slug=None, subcategory_slug=None):
         'total_products': products.count(),
         'next_best_products': next_best_products,
         'cart_product_ids': cart_product_ids,
+        'wishlist_product_ids': wishlist_product_ids,
+        'cart': cart,
+        **cart_context,  # Add cart info to context
     }
     return render(request, 'storefront/product_list.html', context)
 
@@ -194,6 +211,14 @@ def product_detail(request, product_id):
     cart_item = cart.items.filter(product=product).first()
     in_cart = cart_item is not None
     cart_quantity = cart_item.quantity if cart_item else 0
+    cart_item_id = cart_item.id if cart_item else None
+    
+    # Check if product is in wishlist
+    in_wishlist = False
+    if request.user.is_authenticated:
+        wishlist = get_or_create_wishlist(request)
+        if wishlist:
+            in_wishlist = wishlist.items.filter(product=product).exists()
     
     # Get frequently bought together using association rules
     try:
@@ -221,6 +246,9 @@ def product_detail(request, product_id):
         product_images.append(product.image)
     # You can add more images here if you have multiple images per product
     
+    # Get cart context
+    cart_context = get_cart_context(request)
+    
     context = {
         'product': product,
         'reviews': reviews,
@@ -233,6 +261,9 @@ def product_detail(request, product_id):
         'product_images': product_images,
         'in_cart': in_cart,
         'cart_quantity': cart_quantity,
+        'cart_item_id': cart_item_id,
+        'in_wishlist': in_wishlist,
+        **cart_context,  # Add cart info to context
     }
     return render(request, 'storefront/product_detail.html', context)
 
@@ -241,9 +272,13 @@ def shopping_cart(request):
     cart = get_or_create_cart(request)
     cart_items = cart.items.all()
     
+    # Get cart context
+    cart_context = get_cart_context(request)
+    
     context = {
         'cart': cart,
         'cart_items': cart_items,
+        **cart_context,  # Add cart info to context
     }
     return render(request, 'storefront/shopping_cart.html', context)
 
@@ -256,12 +291,31 @@ def wishlist(request):
     else:
         wishlist_items = []
     
+    # Get cart context to check if wishlist items are in cart
+    cart = get_or_create_cart(request)
+    cart_product_ids = list(cart.items.values_list('product_id', flat=True))
+    
+    # Get cart context
+    cart_context = get_cart_context(request)
+    
     context = {
         'wishlist_items': wishlist_items,
+        'cart': cart,
+        'cart_product_ids': cart_product_ids,
+        **cart_context,  # Add cart info to context
     }
     return render(request, 'storefront/wishlist.html', context)
 
 # --- AJAX Views for Cart Operations ---
+
+def get_cart_count(request):
+    """Get current cart count via AJAX."""
+    cart = get_or_create_cart(request)
+    return JsonResponse({
+        'success': True,
+        'cart_total': cart.total_items,
+        'cart_price': float(cart.total_price)
+    })
 
 @require_POST
 def add_to_cart(request):
@@ -271,28 +325,23 @@ def add_to_cart(request):
         product_id = data.get('product_id')
         quantity = int(data.get('quantity', 1))
         
-        product = get_object_or_404(Product, id=product_id)
         cart = get_or_create_cart(request)
+        success, message, cart_item, cart_total = add_product_to_cart(cart, product_id, quantity)
         
-        # Check if item already exists in cart
-        cart_item, created = CartItem.objects.get_or_create(
-            cart=cart,
-            product=product,
-            defaults={'quantity': quantity}
-        )
-        
-        if not created:
-            cart_item.quantity += quantity
-            cart_item.save()
-        
-        return JsonResponse({
-            'success': True,
-            'message': f'{product.name} added to cart',
-            'cart_total': cart.total_items,
-            'cart_price': float(cart.total_price),
-            'cart_item_id': cart_item.id,
-            'quantity': cart_item.quantity
-        })
+        if success:
+            return JsonResponse({
+                'success': True,
+                'message': message,
+                'cart_total': cart_total,
+                'cart_price': float(cart.total_price),
+                'cart_item_id': cart_item.id if cart_item else None,
+                'quantity': cart_item.quantity if cart_item else quantity
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'message': message
+            })
     
     except Exception as e:
         return JsonResponse({
@@ -306,7 +355,7 @@ def update_cart_item(request):
     try:
         data = json.loads(request.body)
         item_id = data.get('item_id')
-        product_id = data.get('product_id')  # Support product_id as well
+        product_id = data.get('product_id')
         quantity = int(data.get('quantity', 1))
         
         # Support both cart item ID and product ID
@@ -326,26 +375,30 @@ def update_cart_item(request):
                 'message': 'Item ID or Product ID required'
             })
         
-        if quantity <= 0:
-            cart_item.delete()
-            return JsonResponse({
-                'success': True,
-                'removed': True,
-                'cart_total': cart_item.cart.total_items,
-                'cart_price': float(cart_item.cart.total_price)
-            })
-        else:
-            cart_item.quantity = quantity
-            cart_item.save()
+        # Use helper function
+        success, removed, updated_cart_item, cart_total = update_cart_item_quantity(cart_item, quantity)
         
-        cart = cart_item.cart
-        return JsonResponse({
-            'success': True,
-            'cart_total': cart.total_items,
-            'cart_price': float(cart.total_price),
-            'item_total': float(cart_item.total_price),
-            'quantity': cart_item.quantity
-        })
+        if success:
+            if removed:
+                return JsonResponse({
+                    'success': True,
+                    'removed': True,
+                    'cart_total': cart_total,
+                    'cart_price': float(cart_item.cart.total_price)
+                })
+            else:
+                return JsonResponse({
+                    'success': True,
+                    'cart_total': cart_total,
+                    'cart_price': float(updated_cart_item.cart.total_price),
+                    'item_total': float(updated_cart_item.total_price),
+                    'quantity': updated_cart_item.quantity
+                })
+        else:
+            return JsonResponse({
+                'success': False,
+                'message': 'Error updating cart item'
+            })
     
     except Exception as e:
         return JsonResponse({
@@ -382,7 +435,7 @@ def remove_from_cart(request):
 @login_required
 @require_POST
 def add_to_wishlist(request):
-    """Add product to wishlist via AJAX."""
+    """Toggle product in wishlist via AJAX (add if not present, remove if present)."""
     try:
         data = json.loads(request.body)
         product_id = data.get('product_id')
@@ -391,20 +444,29 @@ def add_to_wishlist(request):
         wishlist = get_or_create_wishlist(request)
         
         if wishlist:
-            wishlist_item, created = WishlistItem.objects.get_or_create(
+            wishlist_item = WishlistItem.objects.filter(
                 wishlist=wishlist,
                 product=product
-            )
+            ).first()
             
-            if created:
+            if wishlist_item:
+                # Item exists, remove it
+                wishlist_item.delete()
                 return JsonResponse({
                     'success': True,
-                    'message': f'{product.name} added to wishlist'
+                    'message': f'{product.name} removed from wishlist',
+                    'in_wishlist': False
                 })
             else:
+                # Item doesn't exist, add it
+                WishlistItem.objects.create(
+                    wishlist=wishlist,
+                    product=product
+                )
                 return JsonResponse({
-                    'success': False,
-                    'message': 'Item already in wishlist'
+                    'success': True,
+                    'message': f'{product.name} added to wishlist',
+                    'in_wishlist': True
                 })
         else:
             return JsonResponse({
@@ -415,7 +477,7 @@ def add_to_wishlist(request):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'message': 'Error adding item to wishlist'
+            'message': 'Error updating wishlist'
         })
 
 @login_required
@@ -463,15 +525,52 @@ def login_view(request):
             user = authenticate(request, username=email_or_username, password=password)
         
         if user:
+            # Merge session cart with user cart on login
+            session_key = request.session.session_key
+            if session_key:
+                session_cart = Cart.objects.filter(session_key=session_key).first()
+                if session_cart and session_cart.items.exists():
+                    # Get or create user cart
+                    user_cart, created = Cart.objects.get_or_create(user=user, defaults={'session_key': None})
+                    
+                    # Merge items from session cart to user cart
+                    for session_item in session_cart.items.all():
+                        user_item, item_created = CartItem.objects.get_or_create(
+                            cart=user_cart,
+                            product=session_item.product,
+                            defaults={'quantity': session_item.quantity}
+                        )
+                        if not item_created:
+                            # Item already exists in user cart, merge quantities
+                            user_item.quantity += session_item.quantity
+                            if user_item.quantity > user_item.product.stock:
+                                user_item.quantity = user_item.product.stock
+                            user_item.save()
+                    
+                    # Delete session cart after merging
+                    session_cart.delete()
+            
             login(request, user)
             next_url = request.GET.get('next', 'homepage')
             return redirect(next_url)
         else:
             messages.error(request, 'Invalid email/username or password')
     
-    context = {
-        'SOCIAL_AUTH_ENABLED': getattr(settings, 'SOCIAL_AUTH_ENABLED', False),
-    }
+    # Get cart context
+    cart_context = get_cart_context(request)
+    
+    # Always show Google OAuth (even if credentials not configured, button will show)
+    try:
+        import social_django
+        context = {
+            'SOCIAL_AUTH_ENABLED': True,  # Always True if social_django is installed
+            **cart_context,  # Add cart info to context
+        }
+    except ImportError:
+        context = {
+            'SOCIAL_AUTH_ENABLED': False,
+            **cart_context,  # Add cart info to context
+        }
     return render(request, 'storefront/login.html', context)
 
 def register_view(request):
@@ -510,9 +609,21 @@ def register_view(request):
                 messages.success(request, 'Account created! Please complete your profile to continue.')
                 return redirect('profile_onboarding')
     
-    context = {
-        'SOCIAL_AUTH_ENABLED': getattr(settings, 'SOCIAL_AUTH_ENABLED', False),
-    }
+    # Get cart context
+    cart_context = get_cart_context(request)
+    
+    # Always show Google OAuth (even if credentials not configured, button will show)
+    try:
+        import social_django
+        context = {
+            'SOCIAL_AUTH_ENABLED': True,  # Always True if social_django is installed
+            **cart_context,  # Add cart info to context
+        }
+    except ImportError:
+        context = {
+            'SOCIAL_AUTH_ENABLED': False,
+            **cart_context,  # Add cart info to context
+        }
     return render(request, 'storefront/register.html', context)
 
 @login_required
@@ -548,7 +659,14 @@ def profile_onboarding(request):
     else:
         form = CustomerProfileForm()
     
-    return render(request, 'storefront/profile_onboarding.html', { 'form': form })
+    # Get cart context
+    cart_context = get_cart_context(request)
+    
+    context = {
+        'form': form,
+        **cart_context,  # Add cart info to context
+    }
+    return render(request, 'storefront/profile_onboarding.html', context)
 
 def logout_view(request):
     """Logout view."""

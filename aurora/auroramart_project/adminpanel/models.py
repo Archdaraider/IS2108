@@ -177,7 +177,6 @@ class Product(models.Model):
     @property
     def total_sold(self):
         """Calculate total quantity sold from order items."""
-        from adminpanel.models import OrderItem
         total = OrderItem.objects.filter(
             product=self,
             order__fulfillment_status__in=['PROCESSING', 'SHIPPED', 'DELIVERED']
@@ -195,6 +194,14 @@ class Product(models.Model):
         """Get count of reviews for this product."""
         from storefront.models import ProductReview
         return ProductReview.objects.filter(product=self).count()
+    
+    @property
+    def avg_rating(self):
+        """Get average rating from reviews, or return default rating if no reviews."""
+        from storefront.models import ProductReview
+        from django.db.models import Avg
+        avg = ProductReview.objects.filter(product=self).aggregate(Avg('rating'))['rating__avg']
+        return float(avg) if avg else float(self.rating)
 
 class Order(models.Model):
     """

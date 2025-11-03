@@ -165,54 +165,74 @@
             <!-- Products Grid -->
             <div class="product-grid">
                 {% for product in products %}
-                <div class="product-card">
-                    <div class="product-image">
-                        {% if product.image %}
-                            <img src="{{ product.image.url }}" alt="{{ product.name }}">
-                        {% else %}
-                            <div class="product-placeholder">
-                                <i class="fas fa-image"></i>
-                            </div>
-                        {% endif %}
-                        
-                        <!-- Product Badges -->
-                        {% if product.stock <= product.reorder_threshold %}
-                        <div class="product-badge sold-out">SOLD OUT</div>
-                        {% endif %}
-                        
-                        <div class="product-actions">
-                            <button class="action-btn wishlist-btn" data-product-id="{{ product.id }}">
-                                <i class="fas fa-heart"></i>
-                            </button>
-                            <button class="action-btn quick-view-btn" data-product-id="{{ product.id }}">
-                                <i class="fas fa-eye"></i>
-                            </button>
+                <div class="product-card" data-product-url="{% url 'product_detail' product.id %}">
+                    <a href="{% url 'product_detail' product.id %}" class="product-card-link">
+                        <div class="product-image">
+                            {% if product.image %}
+                                <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                            {% else %}
+                                <div class="product-placeholder">
+                                    <i class="fas fa-image"></i>
+                                </div>
+                            {% endif %}
+                            
+                            <!-- Product Badges -->
+                            {% if product.stock <= product.reorder_threshold %}
+                            <div class="product-badge sold-out">SOLD OUT</div>
+                            {% endif %}
                         </div>
+                        
+                        <div class="product-info">
+                            <div class="product-price">${{ product.price|floatformat:2 }}</div>
+                            <h3 class="product-name">{{ product.name }}</h3>
+                            <div class="product-category">{{ product.category }}</div>
+                            <div class="product-rating">
+                                <div class="stars">
+                                    {% for i in "12345" %}
+                                        {% if forloop.counter <= product.avg_rating %}
+                                            <i class="fas fa-star"></i>
+                                        {% else %}
+                                            <i class="far fa-star"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                                <span class="rating-text">{{ product.avg_rating|floatformat:1 }} ({{ product.reviews_count|default:0 }})</span>
+                                {% if product.total_sold > 0 %}
+                                    <span class="sold-count">{{ product.total_sold }}+ Sold</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </a>
+                    
+                    <!-- Actions overlay - not part of clickable link -->
+                    <div class="product-actions">
+                        <button class="action-btn wishlist-btn" data-product-id="{{ product.id }}" type="button">
+                            {% if product.id in wishlist_product_ids %}
+                                <i class="fas fa-heart" style="color: #dc3545;"></i>
+                            {% else %}
+                                <i class="far fa-heart"></i>
+                            {% endif %}
+                        </button>
                     </div>
                     
-                    <div class="product-info">
-                        <div class="product-price">${{ product.price|floatformat:2 }}</div>
-                        <h3 class="product-name">
-                            <a href="{% url 'product_detail' product.id %}">{{ product.name }}</a>
-                        </h3>
-                        <div class="product-category">{{ product.category }}</div>
-                        <div class="product-rating">
-                            <div class="stars">
-                                {% for i in "12345" %}
-                                    {% if forloop.counter <= product.rating %}
-                                        <i class="fas fa-star"></i>
-                                    {% else %}
-                                        <i class="far fa-star"></i>
+                    <!-- Add to cart / Quantity picker - not part of clickable link -->
+                    <div class="product-cart-actions">
+                        {% if product.stock > 0 %}
+                            {% if product.id in cart_product_ids %}
+                                {% for item in cart.items.all %}
+                                    {% if item.product_id == product.id %}
+                                        <div class="quantity-picker" data-product-id="{{ product.id }}" data-cart-item-id="{{ item.id }}">
+                                            <button class="quantity-btn minus" type="button">-</button>
+                                            <span class="quantity-value">{{ item.quantity }}</span>
+                                            <button class="quantity-btn plus" type="button">+</button>
+                                        </div>
                                     {% endif %}
                                 {% endfor %}
-                            </div>
-                            <span class="rating-text">{{ product.rating }} (2.8k)</span>
-                        </div>
-                        
-                        {% if product.stock > 0 %}
-                            <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ product.id }}">
-                                Add to cart
-                            </button>
+                            {% else %}
+                                <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ product.id }}" type="button">
+                                    Add to cart
+                                </button>
+                            {% endif %}
                         {% else %}
                             <button class="btn btn-secondary" disabled>
                                 Out of Stock
@@ -256,42 +276,83 @@
             {% endif %}
         </main>
     </div>
+    
+    <!-- Next Best Action Section -->
+    {% if next_best_products %}
+    <section class="next-best-action-section">
+        <div class="section-header">
+            <h2>Next best action</h2>
+            <p>Customers browsing this category also loved.</p>
+        </div>
+        
+        <div class="product-carousel">
+            <div class="product-grid">
+                {% for product in next_best_products %}
+                <div class="product-card" data-product-url="{% url 'product_detail' product.id %}">
+                    <a href="{% url 'product_detail' product.id %}" class="product-card-link">
+                        <div class="product-image">
+                            {% if product.image %}
+                                <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                            {% else %}
+                                <div class="product-placeholder">
+                                    <i class="fas fa-image"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="product-info">
+                            <div class="product-price">${{ product.price|floatformat:2 }}</div>
+                            <h3 class="product-name">{{ product.name }}</h3>
+                            <div class="product-category">{{ product.category }}</div>
+                            <div class="product-rating">
+                                <div class="stars">
+                                    {% for i in "12345" %}
+                                        {% if forloop.counter <= product.avg_rating %}
+                                            <i class="fas fa-star"></i>
+                                        {% else %}
+                                            <i class="far fa-star"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                                <span class="rating-text">{{ product.avg_rating|floatformat:1 }} ({{ product.reviews_count|default:0 }})</span>
+                                {% if product.total_sold > 0 %}
+                                    <span class="sold-count">{{ product.total_sold }}+ Sold</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </a>
+                    <div class="product-actions">
+                        <button class="action-btn wishlist-btn" data-product-id="{{ product.id }}" type="button">
+                            <i class="fas fa-heart"></i>
+                        </button>
+                    </div>
+                    <div class="product-cart-actions">
+                        {% if product.id in cart_product_ids %}
+                            {% for item in cart.items.all %}
+                                {% if item.product_id == product.id %}
+                                    <div class="quantity-picker" data-product-id="{{ product.id }}" data-cart-item-id="{{ item.id }}">
+                                        <button class="quantity-btn minus" type="button">-</button>
+                                        <span class="quantity-value">{{ item.quantity }}</span>
+                                        <button class="quantity-btn plus" type="button">+</button>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ product.id }}" type="button">
+                                Add to cart
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <button class="carousel-btn carousel-next">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+    </section>
+    {% endif %}
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script>
-// Sort functionality
-document.getElementById('sort-select').addEventListener('change', function() {
-    const url = new URL(window.location);
-    url.searchParams.set('sort', this.value);
-    window.location.href = url.toString();
-});
-
-// Filter functionality
-function applyFilters() {
-    const url = new URL(window.location);
-    
-    // Price filter
-    const minPrice = document.getElementById('min-price').value;
-    const maxPrice = document.getElementById('max-price').value;
-    if (minPrice) url.searchParams.set('min_price', minPrice);
-    if (maxPrice) url.searchParams.set('max_price', maxPrice);
-    
-    // Rating filter
-    const selectedRating = document.querySelector('input[name="rating"]:checked');
-    if (selectedRating) url.searchParams.set('rating', selectedRating.value);
-    
-    window.location.href = url.toString();
-}
-
-// Apply filters on change
-document.querySelectorAll('.price-input').forEach(input => {
-    input.addEventListener('change', applyFilters);
-});
-
-document.querySelectorAll('input[name="rating"]').forEach(input => {
-    input.addEventListener('change', applyFilters);
-});
-</script>
 {% endblock %}

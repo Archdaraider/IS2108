@@ -42,22 +42,34 @@
                 <div class="product-rating">
                     <div class="stars">
                         {% for i in "12345" %}
-                            {% if forloop.counter <= item.product.rating %}
+                            {% if forloop.counter <= item.product.avg_rating %}
                                 <i class="fas fa-star"></i>
                             {% else %}
                                 <i class="far fa-star"></i>
                             {% endif %}
                         {% endfor %}
                     </div>
-                    <span class="rating-text">{{ item.product.rating }}</span>
+                    <span class="rating-text">{{ item.product.avg_rating|floatformat:1 }} ({{ item.product.reviews_count|default:0 }})</span>
                 </div>
                 
                 <div class="product-price">${{ item.product.price|floatformat:2 }}</div>
                 
                 {% if item.product.stock > 0 %}
-                    <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ item.product.id }}">
-                        Add to Cart
-                    </button>
+                    {% if item.product.id in cart_product_ids %}
+                        {% for cart_item in cart.items.all %}
+                            {% if cart_item.product_id == item.product.id %}
+                            <div class="quantity-picker" data-product-id="{{ item.product.id }}" data-cart-item-id="{{ cart_item.id }}">
+                                <button class="quantity-btn minus" type="button">-</button>
+                                <span class="quantity-value">{{ cart_item.quantity }}</span>
+                                <button class="quantity-btn plus" type="button">+</button>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ item.product.id }}">
+                            Add to Cart
+                        </button>
+                    {% endif %}
                 {% else %}
                     <button class="btn btn-secondary" disabled>
                         Out of Stock
@@ -81,77 +93,4 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-// Remove from wishlist
-document.querySelectorAll('.remove-wishlist-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-        const itemId = this.getAttribute('data-item-id');
-        fetch('{% url "remove_from_wishlist" %}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
-            },
-            body: JSON.stringify({
-                'item_id': itemId
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Remove the item from the DOM
-                const itemElement = document.querySelector(`[data-item-id="${itemId}"]`);
-                if (itemElement) {
-                    itemElement.remove();
-                }
-                // Show success message
-                alert(data.message || 'Item removed from wishlist');
-                // Reload page to update count
-                location.reload();
-            } else {
-                alert(data.message || 'Error removing item');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error removing item from wishlist');
-        });
-    });
-});
-
-// Add to cart from wishlist
-document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-        const productId = this.getAttribute('data-product-id');
-        fetch('{% url "add_to_cart" %}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
-            },
-            body: JSON.stringify({
-                'product_id': productId,
-                'quantity': 1
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(data.message || 'Product added to cart');
-                // Update cart count if element exists
-                const cartCount = document.getElementById('cart-count');
-                if (cartCount) {
-                    cartCount.textContent = data.cart_total || 0;
-                }
-            } else {
-                alert(data.message || 'Error adding to cart');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error adding product to cart');
-        });
-    });
-});
-</script>
 {% endblock %}

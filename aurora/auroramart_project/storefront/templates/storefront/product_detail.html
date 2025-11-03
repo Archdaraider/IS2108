@@ -28,14 +28,19 @@
                 {% endif %}
             </div>
             
-            <!-- Thumbnail Images -->
+            <!-- Thumbnail Images Slider -->
             <div class="thumbnail-images">
-                {% if product.image %}
-                <div class="thumbnail active">
-                    <img src="{{ product.image.url }}" alt="{{ product.name }}">
-                </div>
+                {% if product_images %}
+                    {% for image in product_images %}
+                    <div class="thumbnail {% if forloop.first %}active{% endif %}" data-image-url="{{ image.url }}">
+                        <img src="{{ image.url }}" alt="{{ product.name }}">
+                    </div>
+                    {% endfor %}
+                {% elif product.image %}
+                    <div class="thumbnail active" data-image-url="{{ product.image.url }}">
+                        <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                    </div>
                 {% endif %}
-                <!-- Add more thumbnails here if you have multiple images -->
             </div>
         </div>
 
@@ -59,10 +64,10 @@
 
             <div class="product-rating-section">
                 <div class="rating-display">
-                    <span class="rating-value">{{ product.rating }}</span>
+                    <span class="rating-value">{{ avg_rating|floatformat:1 }}</span>
                     <div class="stars">
                         {% for i in "12345" %}
-                            {% if forloop.counter <= product.rating %}
+                            {% if forloop.counter <= avg_rating|floatformat:0 %}
                                 <i class="fas fa-star"></i>
                             {% else %}
                                 <i class="far fa-star"></i>
@@ -70,7 +75,7 @@
                         {% endfor %}
                     </div>
                 </div>
-                <span class="rating-count">| {{ product.rating|floatformat:1 }}k Ratings | 10k+ Sold</span>
+                <span class="rating-count">| {{ reviews_count }} Ratings | {{ total_sold|default:0 }}+ Sold</span>
             </div>
 
             <div class="product-description">
@@ -81,26 +86,22 @@
                 <div class="price">${{ product.price|floatformat:2 }}</div>
             </div>
 
-            <div class="product-options">
-                <div class="quantity-selector">
-                    <label for="quantity">Quantity:</label>
-                    <div class="quantity-controls">
-                        <button class="quantity-btn minus" type="button">-</button>
-                        <input type="number" id="quantity" value="1" min="1" max="{{ product.stock }}">
-                        <button class="quantity-btn plus" type="button">+</button>
-                    </div>
-                </div>
-                
-                <div class="stock-info">
-                    <span class="stock-count">{{ product.stock }} pieces available</span>
-                </div>
-            </div>
-
             <div class="product-actions">
                 {% if product.stock > 0 %}
-                    <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ product.id }}">
-                        Add to Cart
-                    </button>
+                    {% if in_cart %}
+                        <div class="quantity-picker-inline" data-product-id="{{ product.id }}" data-cart-item-id="{{ cart_item_id }}">
+                            <button class="quantity-btn minus" type="button">-</button>
+                            <span class="quantity-value">{{ cart_quantity }}</span>
+                            <button class="quantity-btn plus" type="button">+</button>
+                        </div>
+                    {% else %}
+                        <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ product.id }}">
+                            Add to Cart
+                        </button>
+                    {% endif %}
+                    <div class="stock-info">
+                        <span class="stock-count">{{ product.stock }} pieces available</span>
+                    </div>
                 {% else %}
                     <button class="btn btn-secondary" disabled>
                         Out of Stock
@@ -108,8 +109,12 @@
                 {% endif %}
                 
                 <button class="btn btn-outline wishlist-btn" data-product-id="{{ product.id }}">
-                    <i class="fas fa-heart"></i>
-                    Favourite (2k)
+                    {% if in_wishlist %}
+                        <i class="fas fa-heart" style="color: #dc3545;"></i>
+                    {% else %}
+                        <i class="far fa-heart"></i>
+                    {% endif %}
+                    Favourite ({{ favorites_count|default:0 }})
                 </button>
             </div>
         </div>
@@ -148,14 +153,17 @@
                         <div class="product-rating">
                             <div class="stars">
                                 {% for i in "12345" %}
-                                    {% if forloop.counter <= related_product.rating %}
+                                    {% if forloop.counter <= related_product.avg_rating %}
                                         <i class="fas fa-star"></i>
                                     {% else %}
                                         <i class="far fa-star"></i>
                                     {% endif %}
                                 {% endfor %}
                             </div>
-                            <span class="rating-text">{{ related_product.rating }} (2.8k)</span>
+                            <span class="rating-text">{{ related_product.avg_rating|floatformat:1 }} ({{ related_product.reviews_count|default:0 }})</span>
+                            {% if related_product.total_sold > 0 %}
+                                <span class="sold-count">{{ related_product.total_sold }}+ Sold</span>
+                            {% endif %}
                         </div>
                         <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ related_product.id }}">
                             Add to cart
@@ -203,14 +211,17 @@
                         <div class="product-rating">
                             <div class="stars">
                                 {% for i in "12345" %}
-                                    {% if forloop.counter <= related_product.rating %}
+                                    {% if forloop.counter <= related_product.avg_rating %}
                                         <i class="fas fa-star"></i>
                                     {% else %}
                                         <i class="far fa-star"></i>
                                     {% endif %}
                                 {% endfor %}
                             </div>
-                            <span class="rating-text">{{ related_product.rating }} (2.8k)</span>
+                            <span class="rating-text">{{ related_product.avg_rating|floatformat:1 }} ({{ related_product.reviews_count|default:0 }})</span>
+                            {% if related_product.total_sold > 0 %}
+                                <span class="sold-count">{{ related_product.total_sold }}+ Sold</span>
+                            {% endif %}
                         </div>
                         <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ related_product.id }}">
                             Add to cart
@@ -285,38 +296,4 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-// Quantity controls
-document.querySelector('.quantity-btn.minus').addEventListener('click', function() {
-    const quantityInput = document.getElementById('quantity');
-    const currentValue = parseInt(quantityInput.value);
-    if (currentValue > 1) {
-        quantityInput.value = currentValue - 1;
-    }
-});
-
-document.querySelector('.quantity-btn.plus').addEventListener('click', function() {
-    const quantityInput = document.getElementById('quantity');
-    const currentValue = parseInt(quantityInput.value);
-    const maxValue = parseInt(quantityInput.getAttribute('max'));
-    if (currentValue < maxValue) {
-        quantityInput.value = currentValue + 1;
-    }
-});
-
-// Image gallery functionality
-document.querySelectorAll('.thumbnail').forEach(thumbnail => {
-    thumbnail.addEventListener('click', function() {
-        const mainImage = document.getElementById('main-product-image');
-        const thumbnailImg = this.querySelector('img');
-        if (mainImage && thumbnailImg) {
-            mainImage.src = thumbnailImg.src;
-        }
-        
-        // Update active thumbnail
-        document.querySelectorAll('.thumbnail').forEach(t => t.classList.remove('active'));
-        this.classList.add('active');
-    });
-});
-</script>
 {% endblock %}

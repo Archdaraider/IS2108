@@ -68,6 +68,7 @@
         <div class="product-grid">
             {% for product in featured_products %}
             <div class="product-card">
+                <a href="{% url 'product_detail' product.id %}" class="product-card-link">
                 <div class="product-image">
                     {% if product.image %}
                         <img src="{{ product.image.url }}" alt="{{ product.name }}">
@@ -80,9 +81,6 @@
                         <button class="action-btn wishlist-btn" data-product-id="{{ product.id }}">
                             <i class="fas fa-heart"></i>
                         </button>
-                        <button class="action-btn quick-view-btn" data-product-id="{{ product.id }}">
-                            <i class="fas fa-eye"></i>
-                        </button>
                     </div>
                 </div>
                 <div class="product-info">
@@ -92,18 +90,39 @@
                     <div class="product-rating">
                         <div class="stars">
                             {% for i in "12345" %}
-                                {% if forloop.counter <= product.rating %}
+                                {% if forloop.counter <= product.avg_rating %}
                                     <i class="fas fa-star"></i>
                                 {% else %}
                                     <i class="far fa-star"></i>
                                 {% endif %}
                             {% endfor %}
                         </div>
-                        <span class="rating-text">{{ product.rating }} (2.8k)</span>
+                        <span class="rating-text">{{ product.avg_rating|floatformat:1 }} ({{ product.reviews_count|default:0 }})</span>
                     </div>
-                    <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ product.id }}">
-                        Add to cart
-                    </button>
+                </a>
+                </div>
+                <div class="product-cart-actions">
+                    {% if product.stock > 0 %}
+                        {% if product.id in cart_product_ids %}
+                            {% for item in cart.items.all %}
+                                {% if item.product_id == product.id %}
+                                    <div class="quantity-picker" data-product-id="{{ product.id }}" data-cart-item-id="{{ item.id }}">
+                                        <button class="quantity-btn minus" type="button">-</button>
+                                        <span class="quantity-value">{{ item.quantity }}</span>
+                                        <button class="quantity-btn plus" type="button">+</button>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ product.id }}" type="button">
+                                Add to cart
+                            </button>
+                        {% endif %}
+                    {% else %}
+                        <button class="btn btn-secondary" disabled>
+                            Out of Stock
+                        </button>
+                    {% endif %}
                 </div>
             </div>
             {% empty %}
@@ -127,6 +146,7 @@
         <div class="product-grid">
             {% for product in best_sellers %}
             <div class="product-card">
+                <a href="{% url 'product_detail' product.id %}" class="product-card-link">
                 <div class="product-image">
                     {% if product.image %}
                         <img src="{{ product.image.url }}" alt="{{ product.name }}">
@@ -139,9 +159,6 @@
                         <button class="action-btn wishlist-btn" data-product-id="{{ product.id }}">
                             <i class="fas fa-heart"></i>
                         </button>
-                        <button class="action-btn quick-view-btn" data-product-id="{{ product.id }}">
-                            <i class="fas fa-eye"></i>
-                        </button>
                     </div>
                 </div>
                 <div class="product-info">
@@ -151,18 +168,39 @@
                     <div class="product-rating">
                         <div class="stars">
                             {% for i in "12345" %}
-                                {% if forloop.counter <= product.rating %}
+                                {% if forloop.counter <= product.avg_rating %}
                                     <i class="fas fa-star"></i>
                                 {% else %}
                                     <i class="far fa-star"></i>
                                 {% endif %}
                             {% endfor %}
                         </div>
-                        <span class="rating-text">{{ product.rating }} (2.8k)</span>
+                        <span class="rating-text">{{ product.avg_rating|floatformat:1 }} ({{ product.reviews_count|default:0 }})</span>
                     </div>
-                    <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ product.id }}">
-                        Add to cart
-                    </button>
+                </a>
+                </div>
+                <div class="product-cart-actions">
+                    {% if product.stock > 0 %}
+                        {% if product.id in cart_product_ids %}
+                            {% for item in cart.items.all %}
+                                {% if item.product_id == product.id %}
+                                    <div class="quantity-picker" data-product-id="{{ product.id }}" data-cart-item-id="{{ item.id }}">
+                                        <button class="quantity-btn minus" type="button">-</button>
+                                        <span class="quantity-value">{{ item.quantity }}</span>
+                                        <button class="quantity-btn plus" type="button">+</button>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ product.id }}" type="button">
+                                Add to cart
+                            </button>
+                        {% endif %}
+                    {% else %}
+                        <button class="btn btn-secondary" disabled>
+                            Out of Stock
+                        </button>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}

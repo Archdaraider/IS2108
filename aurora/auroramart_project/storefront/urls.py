@@ -1,4 +1,5 @@
 from django.urls import path
+from django.contrib.auth import views as auth_views
 from . import views
 
 urlpatterns = [
@@ -23,6 +24,19 @@ urlpatterns = [
     path('register/', views.register_view, name='register'),
     path('onboarding/', views.profile_onboarding, name='profile_onboarding'),
     path('logout/', views.logout_view, name='logout'),
+    
+    # Password Reset (custom view to block Google OAuth users)
+    path('password-reset/', views.CustomPasswordResetView.as_view(), name='password_reset'),
+    path('password-reset/done/', auth_views.PasswordResetDoneView.as_view(
+        template_name='storefront/password_reset_done.html'
+    ), name='password_reset_done'),
+    path('password-reset-confirm/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(
+        template_name='storefront/password_reset_confirm.html',
+        success_url='/password-reset-complete/'
+    ), name='password_reset_confirm'),
+    path('password-reset-complete/', auth_views.PasswordResetCompleteView.as_view(
+        template_name='storefront/password_reset_complete.html'
+    ), name='password_reset_complete'),
     
     # AJAX endpoints
     path('api/get-cart-count/', views.get_cart_count, name='get_cart_count'),
@@ -52,4 +66,13 @@ urlpatterns = [
     path('account/reviews/', views.account_reviews, name='account_reviews'),
     path('account/returns/', views.account_returns, name='account_returns'),
     path('account/cancellations/', views.account_cancellations, name='account_cancellations'),
+    
+    # Return/Refund
+    path('orders/<int:order_id>/return/', views.return_type_selection, name='return_type_selection'),
+    path('orders/<int:order_id>/return/request/', views.return_request, name='return_request'),
+    path('orders/<int:order_id>/return/remove-item/<int:item_index>/', views.remove_return_item, name='remove_return_item'),
+    
+    # Buy Again
+    path('orders/<int:order_id>/buy-again/', views.buy_again, name='buy_again'),
+    path('orders/<int:order_id>/buy-again-item/<int:item_id>/', views.buy_again_item, name='buy_again_item'),
 ]

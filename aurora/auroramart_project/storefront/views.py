@@ -10,12 +10,13 @@ from django.core.paginator import Paginator
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
+from django.contrib.auth.views import PasswordResetView as BasePasswordResetView
 import json
 
 from adminpanel.models import Product, Customer, Order, OrderItem
-from .models import Cart, CartItem, Wishlist, WishlistItem, ProductReview, Category, SubCategory, Banner, NewsletterSubscription, SavedAddress, SavedPaymentMethod, DeliveryServiceReview
+from .models import Cart, CartItem, Wishlist, WishlistItem, ProductReview, Category, SubCategory, Banner, NewsletterSubscription, SavedAddress, SavedPaymentMethod, DeliveryServiceReview, ReturnRequest, ReturnRequestItem
 from .recommendations import get_recommendations, get_category_recommendations
-from .forms import CustomerProfileForm, CheckoutForm, AddressForm, PaymentMethodForm, UserProfileForm
+from .forms import CustomerProfileForm, CheckoutForm, AddressForm, PaymentMethodForm, UserProfileForm, ReturnRequestForm, ReturnItemForm, ReturnRequestSubmissionForm
 from .cart_helpers import get_or_create_cart, add_product_to_cart, update_cart_item_quantity
 from .business_logic import (
     add_to_cart_logic, update_cart_quantity_logic, remove_from_cart_logic,
@@ -70,6 +71,21 @@ def homepage(request):
     
     # Get banners
     banners = Banner.objects.filter(is_active=True).order_by('display_order')
+    
+    # Add static banner image (AuroraMart Banner 1.png) as first banner
+    class StaticBanner:
+        def __init__(self):
+            self.title = "Welcome to AuroraMart"
+            self.subtitle = "Discover amazing products at great prices"
+            self.link_url = reverse('product_list')
+            self.image = None
+            self.image_url = 'images/AuroraMart Banner 1.png'  # Set as attribute, not property
+    
+    # Add static banner to the beginning of the list
+    banners_list = list(banners)
+    static_banner = StaticBanner()
+    banners_list.insert(0, static_banner)
+    banners = banners_list
     
     # Get categories for navigation
     categories = Category.objects.filter(is_active=True)
@@ -212,27 +228,86 @@ def product_list(request, category_slug=None, subcategory_slug=None):
                 'count': product_count
             })
     
-    # Get "Next best action" recommendations using association rules
-    next_best_products = []
+    # Prepare products with "Next best action" sections every 8 products
+    # Group products into chunks of 8 and generate recommendations for each chunk
+    products_list = list(page_obj)
+    next_best_actions_dict = {}  # Dictionary mapping index to recommendations
+    
     if category:
-        try:
-            next_best_products = get_category_recommendations(
-                category.name, 
-                exclude_skus=list(products[:5].values_list('sku', flat=True)),
-                top_n=8
-            )
-        except Exception as e:
-            # Fallback to popular products in category
-            next_best_products = Product.objects.filter(
-                category=category.name,
-                stock__gt=0
-            ).exclude(id__in=products[:5].values_list('id', flat=True)).order_by('-rating')[:8]
+        # Process products in chunks of 8
+        chunk_size = 8
+        seen_product_ids = set()
+        seen_product_skus = set()
+        
+        for i in range(0, len(products_list), chunk_size):
+            chunk = products_list[i:i + chunk_size]
+            
+            # Track seen products
+            for product in chunk:
+                seen_product_ids.add(product.id)
+                if product.sku:
+                    seen_product_skus.add(product.sku)
+            
+            # Generate recommendations after each chunk (only if not the last chunk)
+            if i + chunk_size < len(products_list):
+                try:
+                    # Get recommendations based on products in current chunk
+                    chunk_skus = [p.sku for p in chunk if p.sku]
+                    if chunk_skus:
+                        recommendations = get_recommendations(
+                            chunk_skus,
+                            top_n=4  # Show 4 products in "Next best action"
+                        )
+                    else:
+                        # Fallback: use category recommendations
+                        recommendations = get_category_recommendations(
+                            category.name,
+                            exclude_skus=list(seen_product_skus),
+                            top_n=4
+                        )
+                    
+                    # Filter out already seen products
+                    recommendations = [p for p in recommendations if p.id not in seen_product_ids]
+                    
+                    # If we don't have enough, fill with category products
+                    if len(recommendations) < 4:
+                        additional = Product.objects.filter(
+                            category=category.name,
+                            stock__gt=0
+                        ).exclude(id__in=seen_product_ids).exclude(
+                            id__in=[p.id for p in recommendations]
+                        ).order_by('-rating')[:4 - len(recommendations)]
+                        recommendations = list(recommendations) + list(additional)
+                    
+                    # Store recommendations at the index after this chunk
+                    next_best_actions_dict[i + chunk_size] = recommendations[:4]
+                    
+                    # Add recommended product IDs to seen set
+                    for rec_product in recommendations[:4]:
+                        seen_product_ids.add(rec_product.id)
+                        if rec_product.sku:
+                            seen_product_skus.add(rec_product.sku)
+                            
+                except Exception as e:
+                    # Fallback: use popular products in category
+                    fallback_recs = Product.objects.filter(
+                        category=category.name,
+                        stock__gt=0
+                    ).exclude(id__in=seen_product_ids).order_by('-rating')[:4]
+                    
+                    if fallback_recs.exists():
+                        next_best_actions_dict[i + chunk_size] = list(fallback_recs)
+                        for rec_product in fallback_recs:
+                            seen_product_ids.add(rec_product.id)
+                            if rec_product.sku:
+                                seen_product_skus.add(rec_product.sku)
     
     # Get cart context
     cart_context = get_cart_context(request)
     
     context = {
         'products': page_obj,
+        'next_best_actions_dict': next_best_actions_dict,
         'category': category,
         'category_slug': category_slug,
         'subcategory_slug': subcategory_slug,
@@ -241,10 +316,10 @@ def product_list(request, category_slug=None, subcategory_slug=None):
         'search_query': search_query,
         'sort_by': sort_by,
         'total_products': products.count(),
-        'next_best_products': next_best_products,
         'cart_product_ids': cart_product_ids,
         'wishlist_product_ids': wishlist_product_ids,
         'cart': cart,
+        'page_obj': page_obj,  # Keep for pagination
         **cart_context,  # Add cart info to context
     }
     return render(request, 'storefront/product_list.html', context)
@@ -1241,6 +1316,57 @@ def remove_from_wishlist(request):
 
 # --- Authentication Views ---
 
+class CustomPasswordResetView(BasePasswordResetView):
+    """Custom password reset view that blocks Google OAuth users."""
+    template_name = 'storefront/password_reset.html'
+    email_template_name = 'storefront/password_reset_email.html'
+    subject_template_name = 'storefront/password_reset_subject.txt'
+    success_url = '/password-reset/done/'
+    
+    def post(self, request, *args, **kwargs):
+        email = request.POST.get('email', '').strip()
+        
+        if email:
+            # Check if any users with this email exist
+            users_with_email = User.objects.filter(email=email)
+            
+            if users_with_email.exists():
+                # Check if any of these users signed up with Google OAuth
+                try:
+                    import social_django
+                    from social_django.models import UserSocialAuth
+                    
+                    # Check if any user with this email has Google OAuth
+                    user_ids = users_with_email.values_list('id', flat=True)
+                    has_google_auth = UserSocialAuth.objects.filter(
+                        user_id__in=user_ids,
+                        provider='google-oauth2'
+                    ).exists()
+                    
+                    if has_google_auth:
+                        messages.error(
+                            request,
+                            'Password reset is not available for accounts signed up with Google. '
+                            'Please sign in using your Google account.'
+                        )
+                        # Return form with error message
+                        from django.contrib.auth.forms import PasswordResetForm
+                        form = PasswordResetForm()
+                        return render(request, self.template_name, {'form': form})
+                except ImportError:
+                    # social_django not installed, proceed normally
+                    pass
+                except Exception:
+                    # If there's any error checking, proceed normally
+                    pass
+                    
+            # If no users exist, Django's default behavior is to still show success
+            # to prevent email enumeration, so we'll keep that behavior
+            # (users_with_email.exists() will be False, but we proceed anyway)
+        
+        # Proceed with normal password reset for email/password users
+        return super().post(request, *args, **kwargs)
+
 def login_view(request):
     """Customer login page with email support."""
     if request.user.is_authenticated:
@@ -1254,9 +1380,15 @@ def login_view(request):
         user = None
         if '@' in email_or_username:
             try:
-                user_obj = User.objects.get(email=email_or_username)
-                user = authenticate(request, username=user_obj.username, password=password)
-            except User.DoesNotExist:
+                # Handle case where multiple users might have the same email
+                user_objs = User.objects.filter(email=email_or_username)
+                # Try to authenticate with each user until one succeeds
+                for user_obj in user_objs:
+                    authenticated_user = authenticate(request, username=user_obj.username, password=password)
+                    if authenticated_user:
+                        user = authenticated_user
+                        break
+            except Exception:
                 pass
         else:
             user = authenticate(request, username=email_or_username, password=password)
@@ -1517,6 +1649,9 @@ def profile_onboarding(request):
             approximate_dob = date(today.year - customer.age, 1, 1)
             
             form = CustomerProfileForm(initial={
+                'birth_month': str(approximate_dob.month),
+                'birth_day': approximate_dob.day,
+                'birth_year': approximate_dob.year,
                 'date_of_birth': approximate_dob,
                 'gender': customer.gender,
                 'employment_status': customer.employment_status,
@@ -1675,7 +1810,13 @@ def account_profile(request):
                         from datetime import date, timedelta
                         if customer.age:
                             birth_year = date.today().year - customer.age
-                            customer_form = CustomerProfileForm(instance=customer, initial={'date_of_birth': date(birth_year, 1, 1)})
+                            approximate_dob = date(birth_year, 1, 1)
+                            customer_form = CustomerProfileForm(instance=customer, initial={
+                                'birth_month': str(approximate_dob.month),
+                                'birth_day': approximate_dob.day,
+                                'birth_year': approximate_dob.year,
+                                'date_of_birth': approximate_dob,
+                            })
                         else:
                             customer_form = CustomerProfileForm(instance=customer)
                         cart_context = get_cart_context(request)
@@ -1698,7 +1839,13 @@ def account_profile(request):
         from datetime import date, timedelta
         if customer.age:
             birth_year = date.today().year - customer.age
-            customer_form = CustomerProfileForm(instance=customer, initial={'date_of_birth': date(birth_year, 1, 1)})
+            approximate_dob = date(birth_year, 1, 1)
+            customer_form = CustomerProfileForm(instance=customer, initial={
+                'birth_month': str(approximate_dob.month),
+                'birth_day': approximate_dob.day,
+                'birth_year': approximate_dob.year,
+                'date_of_birth': approximate_dob,
+            })
         else:
             customer_form = CustomerProfileForm(instance=customer)
     
@@ -1926,3 +2073,295 @@ def account_cancellations(request):
         **cart_context,
     }
     return render(request, 'storefront/account_cancellations.html', context)
+
+# --- Return/Refund Views ---
+
+@login_required
+def return_type_selection(request, order_id):
+    """First step: User selects return type (not received vs not satisfied)."""
+    order = get_object_or_404(Order, id=order_id, user=request.user)
+    
+    if request.method == 'POST':
+        form = ReturnRequestForm(request.POST)
+        if form.is_valid():
+            return_type = form.cleaned_data['return_type']
+            # Store return_type in session and redirect to return request page
+            request.session['return_type'] = return_type
+            request.session['return_order_id'] = order_id
+            return redirect('return_request', order_id=order_id)
+    else:
+        form = ReturnRequestForm()
+    
+    cart_context = get_cart_context(request)
+    
+    context = {
+        'order': order,
+        'form': form,
+        **cart_context,
+    }
+    return render(request, 'storefront/return_type_selection.html', context)
+
+@login_required
+def return_request(request, order_id):
+    """Main return request page where user selects items and provides details."""
+    order = get_object_or_404(Order, id=order_id, user=request.user)
+    order_items = OrderItem.objects.filter(order=order)
+    
+    # Get return_type from session
+    return_type = request.session.get('return_type')
+    if not return_type:
+        # If no return_type in session, redirect to selection page
+        return redirect('return_type_selection', order_id=order_id)
+    
+    # Get items already in return request (if editing)
+    return_request_id = request.GET.get('return_request_id')
+    existing_items = []
+    if return_request_id:
+        try:
+            existing_return = ReturnRequest.objects.get(id=return_request_id, user=request.user, order=order)
+            existing_items = [item.order_item.id for item in existing_return.items.all()]
+        except ReturnRequest.DoesNotExist:
+            pass
+    
+    if request.method == 'POST':
+        # Handle adding items to return
+        if 'add_item' in request.POST:
+            order_item_id = int(request.POST.get('order_item_id'))
+            order_item = get_object_or_404(OrderItem, id=order_item_id, order=order)
+            
+            form = ReturnItemForm(request.POST, request.FILES)
+            if form.is_valid():
+                # Store item data in session for later processing
+                if 'return_items' not in request.session:
+                    request.session['return_items'] = []
+                
+                item_data = {
+                    'order_item_id': order_item_id,
+                    'quantity': form.cleaned_data['quantity'],
+                    'refund_reason': form.cleaned_data['refund_reason'],
+                    'additional_comments': form.cleaned_data['additional_comments'],
+                }
+                
+                # Handle image upload
+                if 'image' in request.FILES:
+                    from django.core.files.storage import default_storage
+                    image = request.FILES['image']
+                    file_path = default_storage.save(f'returns/temp_{request.user.id}_{order_item_id}_{image.name}', image)
+                    item_data['image_path'] = file_path
+                
+                request.session['return_items'].append(item_data)
+                request.session.modified = True
+                messages.success(request, f'Added {order_item.product.name} to return request.')
+                return redirect('return_request', order_id=order_id)
+        
+        # Handle final submission
+        elif 'submit_return' in request.POST:
+            submission_form = ReturnRequestSubmissionForm(request.POST)
+            if submission_form.is_valid():
+                return_items = request.session.get('return_items', [])
+                if not return_items:
+                    messages.error(request, 'Please add at least one item to return.')
+                    return redirect('return_request', order_id=order_id)
+                
+                # Combine additional comments from all items
+                all_comments = []
+                for item_data in return_items:
+                    if item_data.get('additional_comments'):
+                        all_comments.append(item_data['additional_comments'])
+                
+                # Create return request
+                return_request_obj = ReturnRequest.objects.create(
+                    order=order,
+                    user=request.user,
+                    return_type=return_type,
+                    refund_reason=return_items[0]['refund_reason'],  # Use first item's reason as primary
+                    additional_comments='\n\n'.join(all_comments) if all_comments else '',
+                    refund_method=submission_form.cleaned_data['refund_method'],
+                    accepted_policy=submission_form.cleaned_data['accepted_policy'],
+                )
+                
+                # Create return request items
+                for item_data in return_items:
+                    order_item = get_object_or_404(OrderItem, id=item_data['order_item_id'], order=order)
+                    
+                    return_item = ReturnRequestItem.objects.create(
+                        return_request=return_request_obj,
+                        order_item=order_item,
+                        quantity=item_data['quantity'],
+                    )
+                    
+                    # Move uploaded image from temp to final location
+                    if 'image_path' in item_data:
+                        from django.core.files.storage import default_storage
+                        from django.core.files.base import ContentFile
+                        import os
+                        
+                        temp_path = item_data['image_path']
+                        if default_storage.exists(temp_path):
+                            with default_storage.open(temp_path, 'rb') as f:
+                                file_content = f.read()
+                                file_name = os.path.basename(temp_path).replace('temp_', '')
+                                return_item.image.save(file_name, ContentFile(file_content), save=True)
+                            default_storage.delete(temp_path)
+                
+                # Clear session data
+                del request.session['return_type']
+                del request.session['return_order_id']
+                del request.session['return_items']
+                request.session.modified = True
+                
+                messages.success(request, 'Return request submitted successfully! Refund will be processed in 5-7 business days.')
+                return redirect('order_detail', order_id=order_id)
+    
+    # Get items in session
+    return_items = request.session.get('return_items', [])
+    return_item_ids = [item['order_item_id'] for item in return_items]
+    
+    # Prepare forms for each order item
+    item_forms = []
+    for item in order_items:
+        # Check if item is already in return request
+        existing_data = next((i for i in return_items if i['order_item_id'] == item.id), None)
+        if existing_data:
+            form = ReturnItemForm(initial={
+                'order_item_id': item.id,
+                'quantity': existing_data['quantity'],
+                'refund_reason': existing_data['refund_reason'],
+                'additional_comments': existing_data['additional_comments'],
+            })
+        else:
+            form = ReturnItemForm(initial={
+                'order_item_id': item.id,
+                'quantity': item.quantity,
+            })
+        item_forms.append((item, form))
+    
+    submission_form = ReturnRequestSubmissionForm()
+    
+    cart_context = get_cart_context(request)
+    
+    context = {
+        'order': order,
+        'order_items': order_items,
+        'item_forms': item_forms,
+        'return_items': return_items,
+        'return_item_ids': return_item_ids,
+        'submission_form': submission_form,
+        'return_type': return_type,
+        **cart_context,
+    }
+    return render(request, 'storefront/return_request.html', context)
+
+@login_required
+def remove_return_item(request, order_id, item_index):
+    """Remove an item from the return request session."""
+    return_items = request.session.get('return_items', [])
+    if 0 <= item_index < len(return_items):
+        # Delete associated image if exists
+        item_data = return_items[item_index]
+        if 'image_path' in item_data:
+            from django.core.files.storage import default_storage
+            if default_storage.exists(item_data['image_path']):
+                default_storage.delete(item_data['image_path'])
+        
+        return_items.pop(item_index)
+        request.session['return_items'] = return_items
+        request.session.modified = True
+        messages.success(request, 'Item removed from return request.')
+    
+    return redirect('return_request', order_id=order_id)
+
+@login_required
+def buy_again(request, order_id):
+    """Add all items from a previous order back to the cart."""
+    from adminpanel.models import Order, OrderItem
+    from .cart_helpers import get_or_create_cart, add_product_to_cart
+    
+    # Get order and verify it belongs to the user
+    try:
+        customer = Customer.objects.get(user=request.user)
+        order = get_object_or_404(Order, id=order_id, customer=customer)
+    except Customer.DoesNotExist:
+        messages.error(request, 'Customer profile not found.')
+        return redirect('my_orders')
+    
+    # Get all order items
+    order_items = OrderItem.objects.filter(order=order).select_related('product')
+    
+    if not order_items.exists():
+        messages.error(request, 'This order has no items.')
+        return redirect('my_orders')
+    
+    # Add items to cart
+    cart = get_or_create_cart(request)
+    added_count = 0
+    skipped_count = 0
+    skipped_items = []
+    
+    for order_item in order_items:
+        product = order_item.product
+        
+        # Check if product is still available
+        if product.stock <= 0:
+            skipped_count += 1
+            skipped_items.append(product.name)
+            continue
+        
+        # Add to cart (use original quantity, but cap at current stock)
+        quantity_to_add = min(order_item.quantity, product.stock)
+        success, message, cart_item, cart_total = add_product_to_cart(cart, product.id, quantity_to_add)
+        
+        if success:
+            added_count += 1
+        else:
+            skipped_count += 1
+            skipped_items.append(product.name)
+    
+    # Show appropriate messages
+    if added_count > 0:
+        if skipped_count > 0:
+            messages.warning(
+                request, 
+                f'{added_count} item(s) added to cart. {skipped_count} item(s) could not be added (out of stock or unavailable).'
+            )
+        else:
+            messages.success(request, f'All {added_count} item(s) from this order have been added to your cart.')
+    else:
+        messages.error(request, 'No items could be added to cart. All items may be out of stock.')
+    
+    return redirect('shopping_cart')
+
+@login_required
+def buy_again_item(request, order_id, item_id):
+    """Add a single item from a previous order back to the cart."""
+    from adminpanel.models import Order, OrderItem
+    from .cart_helpers import get_or_create_cart, add_product_to_cart
+    
+    # Get order and verify it belongs to the user
+    try:
+        customer = Customer.objects.get(user=request.user)
+        order = get_object_or_404(Order, id=order_id, customer=customer)
+    except Customer.DoesNotExist:
+        messages.error(request, 'Customer profile not found.')
+        return redirect('my_orders')
+    
+    # Get the specific order item
+    order_item = get_object_or_404(OrderItem, id=item_id, order=order)
+    product = order_item.product
+    
+    # Check if product is still available
+    if product.stock <= 0:
+        messages.error(request, f'{product.name} is currently out of stock.')
+        return redirect('order_detail', order_id=order_id)
+    
+    # Add to cart (use original quantity, but cap at current stock)
+    cart = get_or_create_cart(request)
+    quantity_to_add = min(order_item.quantity, product.stock)
+    success, message, cart_item, cart_total = add_product_to_cart(cart, product.id, quantity_to_add)
+    
+    if success:
+        messages.success(request, f'{product.name} added to cart.')
+    else:
+        messages.error(request, message)
+    
+    return redirect('order_detail', order_id=order_id)

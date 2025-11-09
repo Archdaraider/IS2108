@@ -1,0 +1,235 @@
+{% extends 'storefront/base.html' %}
+{% load static %}
+
+{% block title %}Return Request - AuroraMart{% endblock %}
+
+{% block content %}
+<div class="container" style="padding: 2rem 20px; max-width: 1200px; margin: 0 auto;">
+    <!-- Breadcrumbs -->
+    <nav class="breadcrumbs">
+        <a href="{% url 'homepage' %}">Home</a>
+        <span class="breadcrumb-separator">></span>
+        <a href="{% url 'my_orders' %}">My Orders</a>
+        <span class="breadcrumb-separator">></span>
+        <a href="{% url 'order_detail' order.id %}">Order {{ order.oID }}</a>
+        <span class="breadcrumb-separator">></span>
+        <span class="breadcrumb-current">Return Request</span>
+    </nav>
+
+    <!-- Page Header -->
+    <div style="margin-bottom: 2rem;">
+        <h1 style="font-size: 2rem; font-weight: 600; color: #1d1d1f; margin: 0 0 0.5rem 0;">Return Request</h1>
+        <p style="color: #6e6e73; font-size: 0.875rem;">Order ID: <strong>{{ order.oID }}</strong> | Return Type: <strong>{{ return_type|title }}</strong></p>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}" style="background-color: {% if message.tags == 'error' %}#fee{% else %}#efe{% endif %}; color: {% if message.tags == 'error' %}#c33{% else %}#3c3{% endif %}; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1.5rem;">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Product Listing Section -->
+    <div style="background: white; border: 1px solid #e8e8ea; border-radius: 8px; padding: 2rem; margin-bottom: 2rem;">
+        <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1.5rem; color: #1d1d1f;">Select Items to Return</h2>
+        
+        <div style="display: flex; flex-direction: column; gap: 2rem;">
+            {% for item, form in item_forms %}
+                {% if item.id not in return_item_ids %}
+                <div style="border: 1px solid #e8e8ea; border-radius: 8px; padding: 1.5rem;">
+                    <div style="display: flex; gap: 1.5rem; align-items: flex-start;">
+                        <!-- Product Image -->
+                        <div style="width: 120px; height: 120px; border-radius: 8px; overflow: hidden; background: #f5f5f7; flex-shrink: 0;">
+                            {% if item.product.image %}
+                                <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                            {% else %}
+                                <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-image" style="color: #d2d2d7; font-size: 2rem;"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Product Details -->
+                        <div style="flex: 1;">
+                            <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem; color: #1d1d1f;">
+                                {{ item.product.name }}
+                            </h3>
+                            <div style="color: #6e6e73; font-size: 0.875rem; margin-bottom: 0.5rem;">
+                                Quantity: {{ item.quantity }} × ${{ item.unit_price|floatformat:2 }} = ${{ item.total_price|floatformat:2 }}
+                            </div>
+                            
+                            <!-- Return Form -->
+                            <form method="POST" enctype="multipart/form-data" style="margin-top: 1rem;">
+                                {% csrf_token %}
+                                {{ form.order_item_id }}
+                                
+                                <div style="display: flex; flex-direction: column; gap: 1rem;">
+                                    <div>
+                                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #1d1d1f;">Quantity to Return</label>
+                                        {{ form.quantity }}
+                                        {% if form.quantity.errors %}
+                                            <div style="color: #dc3545; font-size: 0.875rem; margin-top: 0.25rem;">{{ form.quantity.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div>
+                                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #1d1d1f;">Refund Reason</label>
+                                        {{ form.refund_reason }}
+                                        {% if form.refund_reason.errors %}
+                                            <div style="color: #dc3545; font-size: 0.875rem; margin-top: 0.25rem;">{{ form.refund_reason.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div>
+                                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #1d1d1f;">Upload Image (Optional)</label>
+                                        {{ form.image }}
+                                        {% if form.image.errors %}
+                                            <div style="color: #dc3545; font-size: 0.875rem; margin-top: 0.25rem;">{{ form.image.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div>
+                                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #1d1d1f;">Additional Comments</label>
+                                        {{ form.additional_comments }}
+                                        {% if form.additional_comments.errors %}
+                                            <div style="color: #dc3545; font-size: 0.875rem; margin-top: 0.25rem;">{{ form.additional_comments.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <button type="submit" name="add_item" style="padding: 0.75rem 1.5rem; border: none; border-radius: 8px; background: #20b2aa; color: white; font-weight: 500; cursor: pointer; transition: background 0.2s; align-self: flex-start;">
+                                        Add to Return Request
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Items Already Added to Return -->
+    {% if return_items %}
+    <div style="background: white; border: 1px solid #e8e8ea; border-radius: 8px; padding: 2rem; margin-bottom: 2rem;">
+        <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1.5rem; color: #1d1d1f;">Items in Return Request</h2>
+        
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+            {% for item_data in return_items %}
+                {% for item in order_items %}
+                    {% if item.id == item_data.order_item_id %}
+                    <div style="display: flex; gap: 1.5rem; padding: 1.5rem; background: #f5f5f7; border-radius: 8px; align-items: center;">
+                        <!-- Product Image -->
+                        <div style="width: 80px; height: 80px; border-radius: 8px; overflow: hidden; background: white; flex-shrink: 0;">
+                            {% if item.product.image %}
+                                <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                            {% else %}
+                                <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-image" style="color: #d2d2d7; font-size: 1.5rem;"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Product Details -->
+                        <div style="flex: 1;">
+                            <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.25rem; color: #1d1d1f;">
+                                {{ item.product.name }}
+                            </h3>
+                            <div style="color: #6e6e73; font-size: 0.875rem;">
+                                Quantity: {{ item_data.quantity }} | Reason: {{ item_data.refund_reason|title }}
+                            </div>
+                        </div>
+                        
+                        <!-- Remove Button -->
+                        <a href="{% url 'remove_return_item' order.id forloop.parentloop.counter0 %}" style="padding: 0.5rem 1rem; border: 1px solid #dc3545; border-radius: 8px; background: white; color: #dc3545; text-decoration: none; font-weight: 500; transition: all 0.2s;" onmouseover="this.style.background='#dc3545'; this.style.color='white';" onmouseout="this.style.background='white'; this.style.color='#dc3545';">
+                            Remove
+                        </a>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Final Submission Form -->
+    {% if return_items %}
+    <div style="background: white; border: 1px solid #e8e8ea; border-radius: 8px; padding: 2rem;">
+        <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1.5rem; color: #1d1d1f;">Complete Return Request</h2>
+        
+        <form method="POST">
+            {% csrf_token %}
+            
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.75rem; font-weight: 500; color: #1d1d1f;">Preferred Refund Option</label>
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    {% for choice in submission_form.refund_method.field.choices %}
+                        {% if choice.0 %}
+                        <label style="display: flex; align-items: center; padding: 1rem; border: 2px solid #e8e8ea; border-radius: 8px; cursor: pointer; transition: all 0.2s; background: white;" onmouseover="this.style.borderColor='#20b2aa'; this.style.background='#f5f5f7';" onmouseout="this.style.borderColor='#e8e8ea'; this.style.background='white';">
+                            <input type="radio" name="refund_method" value="{{ choice.0 }}" required style="margin-right: 1rem; width: 18px; height: 18px; cursor: pointer;">
+                            <span style="font-size: 0.9375rem; color: #1d1d1f;">{{ choice.1 }}</span>
+                        </label>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                {% if submission_form.refund_method.errors %}
+                    <div style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">{{ submission_form.refund_method.errors }}</div>
+                {% endif %}
+            </div>
+            
+            <div style="margin-bottom: 1.5rem; padding: 1rem; background: #f5f5f7; border-radius: 8px;">
+                <p style="color: #6e6e73; font-size: 0.875rem; margin: 0;">
+                    <i class="fas fa-info-circle" style="color: #20b2aa; margin-right: 0.5rem;"></i>
+                    Refund will be processed in <strong>5-7 business days</strong> after approval.
+                </p>
+            </div>
+            
+            <div style="margin-bottom: 2rem;">
+                <label style="display: flex; align-items: flex-start; cursor: pointer;">
+                    <input type="checkbox" name="accepted_policy" required style="margin-right: 0.75rem; margin-top: 0.25rem; width: 18px; height: 18px; cursor: pointer;">
+                    <span style="font-size: 0.9375rem; color: #1d1d1f;">I have read and accepted the return policy of AuroraMart</span>
+                </label>
+                {% if submission_form.accepted_policy.errors %}
+                    <div style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">{{ submission_form.accepted_policy.errors }}</div>
+                {% endif %}
+            </div>
+            
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <a href="{% url 'order_detail' order.id %}" style="padding: 0.75rem 1.5rem; border: 1px solid #e8e8ea; border-radius: 8px; background: white; color: #1d1d1f; text-decoration: none; font-weight: 500; transition: background 0.2s;" onmouseover="this.style.background='#f5f5f7';" onmouseout="this.style.background='white';">
+                    Cancel
+                </a>
+                <button type="submit" name="submit_return" style="padding: 0.75rem 1.5rem; border: none; border-radius: 8px; background: #20b2aa; color: white; font-weight: 500; cursor: pointer; transition: background 0.2s;">
+                    Submit Return Request
+                </button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    .form-control {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #e8e8ea;
+        border-radius: 6px;
+        font-size: 0.9375rem;
+        color: #1d1d1f;
+        background: white;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: #20b2aa;
+        box-shadow: 0 0 0 3px rgba(32, 178, 170, 0.1);
+    }
+    
+    textarea.form-control {
+        resize: vertical;
+        min-height: 80px;
+    }
+</style>
+{% endblock %}
+

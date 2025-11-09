@@ -15,7 +15,8 @@
         <div class="orders-list">
             {% for order_data in orders_data %}
                 {% with order=order_data.order %}
-                <div class="order-card" style="background: white; border: 1px solid #e8e8ea; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                <a href="{% url 'order_detail' order.id %}" class="order-card-link" style="text-decoration: none; color: inherit; display: block;">
+                <div class="order-card" style="background: white; border: 1px solid #e8e8ea; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; cursor: pointer; transition: box-shadow 0.2s;">
                     <!-- Order Header -->
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                         <!-- Store Info -->
@@ -24,12 +25,14 @@
                                 <img src="{% static 'images/AuroraMart Logo.png' %}" alt="AuroraMart" style="width: 100%; height: 100%; object-fit: contain; padding: 4px;" onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=\'fas fa-store\' style=\'color: #007bff; font-size: 1.5rem;\'></i>';">
                             </div>
                             <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                <a href="{% url 'homepage' %}" style="text-decoration: none; color: #1d1d1f; font-weight: 500; font-size: 1rem;">AuroraMart</a>
+                                <span style="color: #1d1d1f; font-weight: 500; font-size: 1rem;">AuroraMart</span>
                                 <i class="fas fa-chevron-right" style="color: #6e6e73; font-size: 0.75rem;"></i>
                             </div>
                         </div>
-                        <!-- To Review Link -->
-                        <a href="{% url 'order_detail' order.id %}" class="review-link" style="color: #007bff; text-decoration: none; font-size: 0.875rem; font-weight: 500;">To review</a>
+                        <!-- View Details Button -->
+                        <a href="{% url 'order_detail' order.id %}" class="btn-view-details" style="background: #20b2aa; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background 0.2s; text-decoration: none; display: inline-block; white-space: nowrap;" onclick="event.stopPropagation();">
+                            View Details
+                        </a>
                     </div>
 
                     <!-- Order ID and Date -->
@@ -69,17 +72,8 @@
                     <div style="margin-bottom: 1rem; color: #1d1d1f; font-size: 0.875rem; font-weight: 500;">
                         Total ({{ order_data.total_items }} Item{{ order_data.total_items|pluralize }}): ${{ order.total_amount|floatformat:2 }}
                     </div>
-
-                    <!-- Action Buttons -->
-                    <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1rem;">
-                        <button class="btn-return-refund" style="background: #f5f5f7; color: #1d1d1f; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background 0.2s;">
-                            Return/Refund
-                        </button>
-                        <a href="{% url 'order_detail' order.id %}" class="btn-review" style="background: #ff6b9d; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background 0.2s; text-decoration: none; display: inline-block;">
-                            To Review
-                        </a>
-                    </div>
                 </div>
+                </a>
                 {% endwith %}
             {% endfor %}
         </div>
@@ -94,16 +88,17 @@
 </div>
 
 <style>
-    .btn-return-refund:hover {
-        background: #e8e8ea !important;
+    .order-card-link {
+        text-decoration: none;
+        color: inherit;
     }
     
-    .btn-review:hover {
-        background: #ff4d7a !important;
+    .order-card-link:hover .order-card {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
     
-    .review-link:hover {
-        text-decoration: underline !important;
+    .btn-view-details:hover {
+        background: #1a9a94 !important;
     }
 </style>
 {% endblock %}

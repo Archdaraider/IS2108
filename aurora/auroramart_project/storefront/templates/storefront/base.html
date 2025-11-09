@@ -43,12 +43,15 @@
                             <input type="text" name="search" class="search-input" value="{{ search_query|default:'' }}" id="search-input" placeholder=" " data-subcategories="{% if predicted_subcategories %}{% for subcat in predicted_subcategories %}{{ subcat }}{% if not forloop.last %},{% endif %}{% endfor %}{% else %}product{% endif %}">
                             <span class="search-placeholder" id="animated-placeholder">
                                 <span class="placeholder-prefix">Search </span>
-                                <span class="placeholder-text" id="placeholder-text">product</span>
+                                <span class="placeholder-text-container">
+                                    <span class="placeholder-text" id="placeholder-text">product</span>
+                                    <span class="placeholder-text placeholder-text-next" id="placeholder-text-next"></span>
+                                </span>
                             </span>
+                            <button type="submit" class="search-button">
+                                <i class="fas fa-search"></i>
+                            </button>
                         </div>
-                        <button type="submit" class="search-button">
-                            <i class="fas fa-search"></i>
-                        </button>
                     </form>
                 </div>
 
@@ -114,33 +117,12 @@
                 </div>
             </div>
 
-            <!-- Navigation -->
-            <nav class="main-nav">
-                <div class="nav-categories">
-                    <a href="{% url 'product_list' %}" class="nav-link">All Products</a>
-                    {% for item in navigation_categories %}
-                    <div class="nav-category-dropdown">
-                        <a href="{% url 'category_products' item.category.slug %}" class="nav-link nav-category-link">
-                            {{ item.category.name }}
-                            {% if item.subcategories %}
-                            <i class="fas fa-chevron-down" style="margin-left: 0.25rem; font-size: 0.75rem;"></i>
-                            {% endif %}
-                        </a>
-                        {% if item.subcategories %}
-                        <div class="nav-subcategory-dropdown">
-                            {% for subcategory in item.subcategories %}
-                            <a href="{% url 'subcategory_products' item.category.slug subcategory.slug %}" class="nav-subcategory-link">
-                                {{ subcategory.name }}
-                            </a>
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                    </div>
-                    {% endfor %}
-                </div>
-            </nav>
         </div>
     </header>
+
+    <!-- Category Browser Sidebar (only on product pages) -->
+    {% block category_sidebar %}
+    {% endblock %}
 
     <!-- Main Content -->
     <main class="main-content">

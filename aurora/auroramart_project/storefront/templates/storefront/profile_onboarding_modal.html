@@ -16,11 +16,29 @@
                 <div class="form-grid">
                     {{ profile_form.non_field_errors }}
                     <div class="form-row">
-                        {{ profile_form.date_of_birth.label_tag }}
+                        <label for="birth-month">Date of Birth</label>
+                        <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
+                            <div style="flex: 1;">
+                                {{ profile_form.birth_month }}
+                                {% if profile_form.birth_month.errors %}
+                                    <div class="form-error">{{ profile_form.birth_month.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div style="flex: 0 0 80px;">
+                                {{ profile_form.birth_day }}
+                                {% if profile_form.birth_day.errors %}
+                                    <div class="form-error">{{ profile_form.birth_day.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div style="flex: 0 0 100px;">
+                                {{ profile_form.birth_year }}
+                                {% if profile_form.birth_year.errors %}
+                                    <div class="form-error">{{ profile_form.birth_year.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
                         {{ profile_form.date_of_birth }}
-                        {% if profile_form.date_of_birth.errors %}
-                            <div class="form-error">{{ profile_form.date_of_birth.errors }}</div>
-                        {% endif %}
+                        <small style="color: #6e6e73; font-size: 0.75rem; margin-top: 0.25rem; display: block;">You must be at least 14 years old to register.</small>
                     </div>
                     <div class="form-row">
                         {{ profile_form.gender.label_tag }}

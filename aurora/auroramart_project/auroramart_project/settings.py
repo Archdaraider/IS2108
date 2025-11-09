@@ -198,6 +198,31 @@ LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'homepage'
 LOGOUT_REDIRECT_URL = 'homepage'
 
+# Email Configuration (for password reset)
+# Read email settings from .env file or environment variables
+EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@auroramart.com')
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+
+# Use SMTP if credentials are provided, otherwise use console backend for development
+if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    print(f"Email configured: Using SMTP ({EMAIL_HOST})")
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+    print("Email not configured: Emails will be printed to console.")
+    print("To enable email sending, add these to your .env file:")
+    print("  EMAIL_HOST=smtp.gmail.com")
+    print("  EMAIL_PORT=587")
+    print("  EMAIL_USE_TLS=True")
+    print("  EMAIL_HOST_USER=your-email@gmail.com")
+    print("  EMAIL_HOST_PASSWORD=your-app-password")
+    print("  DEFAULT_FROM_EMAIL=noreply@auroramart.com")
+
 # Social Auth Redirect (custom handling in views)
 SOCIAL_AUTH_LOGIN_REDIRECT_URL = 'oauth_redirect_handler'
 SOCIAL_AUTH_NEW_USER_REDIRECT_URL = 'oauth_redirect_handler'  # Will check and show modal if needed

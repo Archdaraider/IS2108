@@ -1,5 +1,6 @@
 {% extends 'storefront/base.html' %}
 {% load static %}
+{% load subcategory_icons %}
 
 {% block title %}
     {% if category %}
@@ -7,6 +8,47 @@
     {% else %}
         Products - AuroraMart
     {% endif %}
+{% endblock %}
+
+{% block category_sidebar %}
+{% if navigation_categories %}
+<aside class="category-browser-sidebar">
+    <div class="category-browser-header">
+        <a href="{% url 'homepage' %}" style="text-decoration: none; color: inherit;">
+            <h3 style="font-size: 1.125rem; font-weight: 600; color: #1d1d1f; margin: 0; padding: 1rem 1.5rem; border-bottom: 1px solid #e8e8ea;">AuroraMart</h3>
+        </a>
+    </div>
+    <nav class="category-browser-nav">
+        <a href="{% url 'product_list' %}" class="category-browser-item">
+            <span>All Products</span>
+        </a>
+        {% for item in navigation_categories %}
+        <div class="category-browser-item-wrapper">
+            <a href="{% url 'category_products' item.category.slug %}" class="category-browser-item {% if item.subcategories %}has-subcategories{% endif %}">
+                <span>{{ item.category.name }}</span>
+                {% if item.subcategories %}
+                <i class="fas fa-chevron-right category-arrow"></i>
+                {% endif %}
+            </a>
+            {% if item.subcategories %}
+            <div class="category-subcategory-panel">
+                <div class="subcategory-panel-header">
+                    <h4>{{ item.category.name }}</h4>
+                </div>
+                <div class="subcategory-panel-content">
+                    {% for subcategory in item.subcategories %}
+                    <a href="{% url 'subcategory_products' item.category.slug subcategory.slug %}" class="subcategory-link">
+                        {{ subcategory.name }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </nav>
+</aside>
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -191,7 +233,7 @@
                 {% for subcat in subcategories %}
                 <a href="{% url 'subcategory_products' category.slug subcat.slug %}" 
                    class="tab-link {% if subcategory and subcategory.slug == subcat.slug %}active{% endif %}">
-                    <i class="fas fa-image"></i>
+                    <i class="fas {{ subcat.name|subcategory_icon }}"></i>
                     {{ subcat.name }} ({{ subcat.count }})
                 </a>
                 {% endfor %}
@@ -201,6 +243,134 @@
             <!-- Products Grid -->
             <div class="product-grid">
                 {% for product in products %}
+                {% if forloop.counter0|divisibleby:8 and forloop.counter0 > 0 %}
+                    <!-- Next Best Action Section -->
+                    {% for action_index, action_products in next_best_actions_dict.items %}
+                        {% if action_index == forloop.parentloop.counter0 %}
+                        <div class="next-best-action-wrapper" style="grid-column: 1 / -1; width: 100%; margin: 2rem 0;">
+                            <div class="next-best-action-section" style="background: linear-gradient(135deg, #f5f5f7 0%, #ffffff 100%); border: 2px solid #20b2aa; border-radius: 12px; padding: 2rem; margin: 2rem 0;">
+                                <div class="section-header" style="text-align: center; margin-bottom: 1.5rem;">
+                                    <h2 style="font-size: 1.5rem; font-weight: 600; color: #1d1d1f; margin: 0 0 0.5rem 0; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                                        <i class="fas fa-sparkles" style="color: #20b2aa;"></i>
+                                        Next Best Action
+                                    </h2>
+                                    <p style="color: #6e6e73; font-size: 0.9375rem; margin: 0;">Explore these recommended products based on what you're viewing</p>
+                                </div>
+                                
+                                <div class="product-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-top: 1.5rem;">
+                                    {% for rec_product in action_products %}
+                                    <div class="product-card" data-product-url="{% url 'product_detail' rec_product.id %}">
+                                        <a href="{% url 'product_detail' rec_product.id %}" class="product-card-link">
+                                            <div class="product-image">
+                                                {% if rec_product.image %}
+                                                    <img src="{{ rec_product.image.url }}" alt="{{ rec_product.name }}">
+                                                {% else %}
+                                                    <div class="product-placeholder">
+                                                        <i class="fas fa-image"></i>
+                                                    </div>
+                                                {% endif %}
+                                                
+                                                <!-- Product Badges -->
+                                                {% if rec_product.stock <= 0 %}
+                                                <div class="product-badge sold-out">SOLD OUT</div>
+                                                {% endif %}
+                                            </div>
+                                            
+                                            <div class="product-info">
+                                                <div class="product-price">${{ rec_product.price|floatformat:2 }}</div>
+                                                <h3 class="product-name">{{ rec_product.name }}</h3>
+                                                <div class="product-category">{{ rec_product.category }}</div>
+                                                <div class="product-stock" style="font-size: 0.875rem; color: {% if rec_product.stock > 0 %}#28a745{% else %}#dc3545{% endif %}; margin: 0.25rem 0;">
+                                                    <i class="fas fa-box" style="margin-right: 0.25rem;"></i>
+                                                    {% if rec_product.stock > 0 %}
+                                                        Stock: {{ rec_product.stock }} item{{ rec_product.stock|pluralize }}
+                                                    {% else %}
+                                                        Out of Stock
+                                                    {% endif %}
+                                                </div>
+                                                <div class="product-rating">
+                                                    <div class="stars">
+                                                        {% with rating=rec_product.rating|default:0 %}
+                                                        {% for i in "12345" %}
+                                                            {% if forloop.counter <= rating %}
+                                                                <i class="fas fa-star"></i>
+                                                            {% else %}
+                                                                <i class="far fa-star"></i>
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                        {% endwith %}
+                                                    </div>
+                                                    <span class="rating-text">{{ rec_product.rating|default:0|floatformat:1 }}</span>
+                                                </div>
+                                            </div>
+                                        </a>
+                                        
+                                        <!-- Actions overlay -->
+                                        <div class="product-actions">
+                                            <form method="post" action="{% url 'add_to_wishlist' %}" style="display: inline;">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="product_id" value="{{ rec_product.id }}">
+                                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                                <button type="submit" class="action-btn wishlist-btn">
+                                                    {% if rec_product.id in wishlist_product_ids %}
+                                                        <i class="fas fa-heart" style="color: #dc3545;"></i>
+                                                    {% else %}
+                                                        <i class="far fa-heart"></i>
+                                                    {% endif %}
+                                                </button>
+                                            </form>
+                                        </div>
+                                        
+                                        <!-- Add to cart -->
+                                        <div class="product-cart-actions">
+                                            {% if rec_product.stock > 0 %}
+                                                {% if rec_product.id in cart_product_ids %}
+                                                    {% for item in cart.items.all %}
+                                                        {% if item.product_id == rec_product.id %}
+                                                            <div class="quantity-picker">
+                                                                <form method="post" action="{% url 'update_cart_item' %}" style="display: inline;" class="cart-update-form">
+                                                                    {% csrf_token %}
+                                                                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                                                                    <input type="hidden" name="action" value="decrease">
+                                                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                                                    <button type="submit" class="quantity-btn minus">-</button>
+                                                                </form>
+                                                                <span class="quantity-value">{{ item.quantity }}</span>
+                                                                <form method="post" action="{% url 'update_cart_item' %}" style="display: inline;" class="cart-update-form">
+                                                                    {% csrf_token %}
+                                                                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                                                                    <input type="hidden" name="action" value="increase">
+                                                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                                                    <button type="submit" class="quantity-btn plus">+</button>
+                                                                </form>
+                                                            </div>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                {% else %}
+                                                    <form method="post" action="{% url 'add_to_cart' %}" style="display: inline;" class="add-to-cart-form">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="product_id" value="{{ rec_product.id }}">
+                                                        <input type="hidden" name="quantity" value="1">
+                                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                                        <button type="submit" class="btn btn-primary add-to-cart-btn">
+                                                            Add to cart
+                                                        </button>
+                                                    </form>
+                                                {% endif %}
+                                            {% else %}
+                                                <button class="btn btn-secondary" disabled>
+                                                    Out of Stock
+                                                </button>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
                 <div class="product-card" data-product-url="{% url 'product_detail' product.id %}">
                     <a href="{% url 'product_detail' product.id %}" class="product-card-link">
                         <div class="product-image">
@@ -318,24 +488,24 @@
             </div>
 
             <!-- Pagination -->
-            {% if products.has_other_pages %}
+            {% if page_obj.has_other_pages %}
             <div class="pagination">
-                {% if products.has_previous %}
-                    <a href="?page={{ products.previous_page_number }}" class="pagination-btn">
+                {% if page_obj.has_previous %}
+                    <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" class="pagination-btn">
                         <i class="fas fa-chevron-left"></i>
                     </a>
                 {% endif %}
                 
-                {% for num in products.paginator.page_range %}
-                    {% if products.number == num %}
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
                         <span class="pagination-number active">{{ num }}</span>
-                    {% elif num > products.number|add:'-3' and num < products.number|add:'3' %}
-                        <a href="?page={{ num }}" class="pagination-number">{{ num }}</a>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <a href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" class="pagination-number">{{ num }}</a>
                     {% endif %}
                 {% endfor %}
                 
-                {% if products.has_next %}
-                    <a href="?page={{ products.next_page_number }}" class="pagination-btn">
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" class="pagination-btn">
                         <i class="fas fa-chevron-right"></i>
                     </a>
                 {% endif %}

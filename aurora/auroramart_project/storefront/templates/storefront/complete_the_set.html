@@ -1,0 +1,134 @@
+{% extends 'storefront/base.html' %}
+{% load static %}
+
+{% block title %}Complete the Set - AuroraMart{% endblock %}
+
+{% block content %}
+<div class="container" style="padding: 2rem 20px;">
+    <!-- Breadcrumbs -->
+    <nav class="breadcrumbs">
+        <a href="{% url 'homepage' %}">Home</a>
+        <span class="breadcrumb-separator">></span>
+        <a href="{% url 'shopping_cart' %}">Shopping Cart</a>
+        <span class="breadcrumb-separator">></span>
+        <span class="breadcrumb-current">Complete the Set</span>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="page-header" style="margin-bottom: 2rem;">
+        <div class="page-title">
+            <h1 style="font-size: 2rem; font-weight: 600; color: #1d1d1f; margin: 0;">Complete the Set</h1>
+            <p style="color: #6e6e73; font-size: 1rem; margin-top: 0.5rem;">Customers browsing this category also loved.</p>
+        </div>
+    </div>
+
+    <!-- Products Grid -->
+    {% if recommended_products %}
+        <div class="product-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem;">
+            {% for product in recommended_products %}
+            <div class="product-card">
+                <a href="{% url 'product_detail' product.id %}" class="product-card-link">
+                <div class="product-image">
+                    {% if product.image %}
+                        <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                    {% else %}
+                        <div class="product-placeholder">
+                            <i class="fas fa-image"></i>
+                        </div>
+                    {% endif %}
+                    <div class="product-actions">
+                        <form method="post" action="{% url 'add_to_wishlist' %}" style="display: inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="product_id" value="{{ product.id }}">
+                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                            <button type="submit" class="action-btn wishlist-btn">
+                                {% if product.id in wishlist_product_ids %}
+                                    <i class="fas fa-heart" style="color: #dc3545;"></i>
+                                {% else %}
+                                    <i class="far fa-heart"></i>
+                                {% endif %}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                <div class="product-info">
+                    <div class="product-price">${{ product.price|floatformat:2 }}</div>
+                    <h3 class="product-name">{{ product.name }}</h3>
+                    <div class="product-category">{{ product.category }}</div>
+                    <div class="product-stock" style="font-size: 0.875rem; color: {% if product.stock > 0 %}#28a745{% else %}#dc3545{% endif %}; margin: 0.25rem 0;">
+                        <i class="fas fa-box" style="margin-right: 0.25rem;"></i>
+                        {% if product.stock > 0 %}
+                            Stock: {{ product.stock }} item{{ product.stock|pluralize }}
+                        {% else %}
+                            Out of Stock
+                        {% endif %}
+                    </div>
+                    <div class="product-rating">
+                        <div class="stars">
+                            {% for i in "12345" %}
+                                {% if forloop.counter <= product.avg_rating %}
+                                    <i class="fas fa-star"></i>
+                                {% else %}
+                                    <i class="far fa-star"></i>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        <span class="rating-text">{{ product.avg_rating|floatformat:1 }} ({{ product.reviews_count|default:0 }})</span>
+                    </div>
+                </a>
+                </div>
+                <div class="product-cart-actions">
+                    {% if product.stock > 0 %}
+                        {% if product.id in cart_product_ids %}
+                            {% for item in cart.items.all %}
+                                {% if item.product_id == product.id %}
+                                    <div class="quantity-picker">
+                                        <form method="post" action="{% url 'update_cart_item' %}" style="display: inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="item_id" value="{{ item.id }}">
+                                            <input type="hidden" name="action" value="decrease">
+                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                            <button type="submit" class="quantity-btn minus">-</button>
+                                        </form>
+                                        <span class="quantity-value">{{ item.quantity }}</span>
+                                        <form method="post" action="{% url 'update_cart_item' %}" style="display: inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="item_id" value="{{ item.id }}">
+                                            <input type="hidden" name="action" value="increase">
+                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                            <button type="submit" class="quantity-btn plus">+</button>
+                                        </form>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <form method="post" action="{% url 'add_to_cart' %}" style="display: inline;" class="add-to-cart-form">
+                                {% csrf_token %}
+                                <input type="hidden" name="product_id" value="{{ product.id }}">
+                                <input type="hidden" name="quantity" value="1">
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                <button type="submit" class="btn btn-primary add-to-cart-btn">
+                                    Add to cart
+                                </button>
+                            </form>
+                        {% endif %}
+                    {% else %}
+                        <button class="btn btn-secondary" disabled>
+                            Out of Stock
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="no-products" style="text-align: center; padding: 4rem 2rem;">
+            <i class="fas fa-box-open" style="font-size: 4rem; color: #d2d2d7; margin-bottom: 1rem;"></i>
+            <h2 style="font-size: 1.5rem; color: #1d1d1f; margin-bottom: 0.5rem;">No recommendations available</h2>
+            <p style="color: #6e6e73; margin-bottom: 2rem;">Add items to your cart to see recommendations!</p>
+            <a href="{% url 'product_list' %}" class="btn btn-primary" style="display: inline-block; width: auto; padding: 0.75rem 2rem;">Browse Products</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+

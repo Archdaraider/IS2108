@@ -1,27 +1,128 @@
-from django.urls import path
-from . import views
+{% extends 'storefront/base.html' %}
+{% load static %}
 
-urlpatterns = [
-    # Main storefront pages
-    path('', views.homepage, name='homepage'),
-    path('products/', views.product_list, name='product_list'),
-    path('products/<int:product_id>/', views.product_detail, name='product_detail'),
-    path('cart/', views.shopping_cart, name='shopping_cart'),
-    path('wishlist/', views.wishlist, name='wishlist'),
-    
-    # Category pages
-    path('category/<slug:category_slug>/', views.product_list, name='category_products'),
-    path('category/<slug:category_slug>/<slug:subcategory_slug>/', views.product_list, name='subcategory_products'),
-    
-    # Authentication
-    path('login/', views.login_view, name='login'),
-    path('register/', views.register_view, name='register'),
-    
-    # AJAX endpoints
-    path('api/add-to-cart/', views.add_to_cart, name='add_to_cart'),
-    path('api/update-cart-item/', views.update_cart_item, name='update_cart_item'),
-    path('api/remove-from-cart/', views.remove_from_cart, name='remove_from_cart'),
-    path('api/add-to-wishlist/', views.add_to_wishlist, name='add_to_wishlist'),
-    path('api/remove-from-wishlist/', views.remove_from_wishlist, name='remove_from_wishlist'),
-    path('api/subscribe-newsletter/', views.subscribe_newsletter, name='subscribe_newsletter'),
-]
+{% block title %}My Wishlist - AuroraMart{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1>My Wishlist</h1>
+        <p class="wishlist-count">{{ wishlist_items|length }} item{{ wishlist_items|length|pluralize }} saved</p>
+    </div>
+
+    <!-- Wishlist Items -->
+    {% if wishlist_items %}
+    <div class="wishlist-grid">
+        {% for item in wishlist_items %}
+        <div class="wishlist-item" data-item-id="{{ item.id }}">
+            <div class="product-image">
+                <a href="{% url 'product_detail' item.product.id %}">
+                    {% if item.product.image %}
+                        <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}">
+                    {% else %}
+                        <div class="product-placeholder">
+                            <i class="fas fa-image"></i>
+                        </div>
+                    {% endif %}
+                </a>
+                
+                <!-- Remove from Wishlist Button -->
+                <form method="post" action="{% url 'remove_from_wishlist' %}" style="display: inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button type="submit" class="remove-wishlist-btn" title="Remove from wishlist">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </form>
+            </div>
+            
+            <div class="product-info">
+                <h3 class="product-name">
+                    <a href="{% url 'product_detail' item.product.id %}">{{ item.product.name }}</a>
+                </h3>
+                <div class="product-category">{{ item.product.category }} - {{ item.product.subcategory }}</div>
+                
+                <div class="product-stock" style="font-size: 0.875rem; color: {% if item.product.stock > 0 %}#28a745{% else %}#dc3545{% endif %}; margin: 0.25rem 0;">
+                    <i class="fas fa-box" style="margin-right: 0.25rem;"></i>
+                    {% if item.product.stock > 0 %}
+                        Stock: {{ item.product.stock }} item{{ item.product.stock|pluralize }}
+                    {% else %}
+                        Out of Stock
+                    {% endif %}
+                </div>
+                
+                <div class="product-rating">
+                    <div class="stars">
+                        {% for i in "12345" %}
+                            {% if forloop.counter <= item.product.avg_rating %}
+                                <i class="fas fa-star"></i>
+                            {% else %}
+                                <i class="far fa-star"></i>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    <span class="rating-text">{{ item.product.avg_rating|floatformat:1 }} ({{ item.product.reviews_count|default:0 }})</span>
+                </div>
+                
+                <div class="product-price">${{ item.product.price|floatformat:2 }}</div>
+                
+                {% if item.product.stock > 0 %}
+                    {% if item.product.id in cart_product_ids %}
+                        {% for cart_item in cart.items.all %}
+                            {% if cart_item.product_id == item.product.id %}
+                            <div class="quantity-picker">
+                                <form method="post" action="{% url 'update_cart_item' %}" style="display: inline;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="item_id" value="{{ cart_item.id }}">
+                                    <input type="hidden" name="action" value="decrease">
+                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                    <button type="submit" class="quantity-btn minus">-</button>
+                                </form>
+                                <span class="quantity-value">{{ cart_item.quantity }}</span>
+                                <form method="post" action="{% url 'update_cart_item' %}" style="display: inline;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="item_id" value="{{ cart_item.id }}">
+                                    <input type="hidden" name="action" value="increase">
+                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                    <button type="submit" class="quantity-btn plus">+</button>
+                                </form>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <form method="post" action="{% url 'add_to_cart' %}" style="display: inline;" class="add-to-cart-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="product_id" value="{{ item.product.id }}">
+                            <input type="hidden" name="quantity" value="1">
+                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                            <button type="submit" class="btn btn-primary add-to-cart-btn">
+                                Add to Cart
+                            </button>
+                        </form>
+                    {% endif %}
+                {% else %}
+                    <button class="btn btn-secondary" disabled>
+                        Out of Stock
+                    </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-wishlist">
+        <div class="empty-state">
+            <i class="fas fa-heart"></i>
+            <h2>Your wishlist is empty</h2>
+            <p>Start adding items you love to your wishlist!</p>
+            <a href="{% url 'product_list' %}" class="btn btn-primary">Browse Products</a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% endblock %}

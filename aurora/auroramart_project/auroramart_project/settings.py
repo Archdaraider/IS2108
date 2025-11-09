@@ -12,9 +12,14 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+from decouple import config, Csv, AutoConfig
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load .env file from project root
+# Explicitly configure decouple to look for .env in BASE_DIR
+config = AutoConfig(search_path=BASE_DIR)
 
 
 # Quick-start development settings - unsuitable for production
@@ -42,6 +47,16 @@ INSTALLED_APPS = [
     'storefront',
 ]
 
+# Add social_django if available (for Google OAuth)
+try:
+    import social_django
+    INSTALLED_APPS.append('social_django')
+    SOCIAL_AUTH_ENABLED = True
+except ImportError:
+    SOCIAL_AUTH_ENABLED = False
+    print("Note: social_django not installed. Google OAuth will not be available.")
+    print("Install it with: pip install social-auth-app-django")
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -51,6 +66,10 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# Add social_django middleware if available
+if SOCIAL_AUTH_ENABLED:
+    MIDDLEWARE.append('social_django.middleware.SocialAuthExceptionMiddleware')
 
 ROOT_URLCONF = 'auroramart_project.urls'
 
@@ -67,6 +86,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'django.template.context_processors.media',
                 'django.template.context_processors.static',
+                'storefront.context_processors.categories',
             ],
         },
     },
@@ -129,3 +149,55 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Authentication Backends
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',  # Default Django authentication
+]
+
+# Social Auth Settings (Google OAuth)
+# Read from .env file or environment variables
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = config('GOOGLE_OAUTH2_CLIENT_ID', default='')
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = config('GOOGLE_OAUTH2_CLIENT_SECRET', default='')
+
+# Only enable Google OAuth if credentials are provided
+if SOCIAL_AUTH_ENABLED and SOCIAL_AUTH_GOOGLE_OAUTH2_KEY and SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET:
+    AUTHENTICATION_BACKENDS.insert(0, 'social_core.backends.google.GoogleOAuth2')
+    
+    # Note: You need to configure these with your Google OAuth credentials
+    # Get them from: https://console.cloud.google.com/apis/credentials
+    # Add authorized redirect URI: http://127.0.0.1:8000/oauth/complete/google-oauth2/
+    
+    SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = [
+        'https://www.googleapis.com/auth/userinfo.email',
+        'https://www.googleapis.com/auth/userinfo.profile',
+    ]
+    
+    # Social Auth Pipeline with custom step to create Customer profile
+    SOCIAL_AUTH_PIPELINE = (
+        'social_core.pipeline.social_auth.social_details',
+        'social_core.pipeline.social_auth.social_uid',
+        'social_core.pipeline.social_auth.auth_allowed',
+        'social_core.pipeline.social_auth.social_user',
+        'social_core.pipeline.user.get_username',
+        'social_core.pipeline.user.create_user',
+        'social_core.pipeline.social_auth.associate_user',
+        'social_core.pipeline.social_auth.load_extra_data',
+        'social_core.pipeline.user.user_details',
+        'storefront.pipeline.create_customer_profile',  # Custom pipeline to create Customer
+    )
+else:
+    if SOCIAL_AUTH_ENABLED:
+        print("Warning: Google OAuth credentials not set. Set GOOGLE_OAUTH2_CLIENT_ID and GOOGLE_OAUTH2_CLIENT_SECRET environment variables.")
+        print("Google OAuth buttons will still appear but won't work until credentials are configured.")
+    SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = []
+    SOCIAL_AUTH_PIPELINE = ()
+
+# Login URLs
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'homepage'
+LOGOUT_REDIRECT_URL = 'homepage'
+
+# Social Auth Redirect (custom handling in views)
+SOCIAL_AUTH_LOGIN_REDIRECT_URL = 'oauth_redirect_handler'
+SOCIAL_AUTH_NEW_USER_REDIRECT_URL = 'oauth_redirect_handler'  # Will check and show modal if needed

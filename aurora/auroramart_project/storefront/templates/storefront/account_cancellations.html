@@ -1,0 +1,25 @@
+{% extends 'storefront/account_base.html' %}
+{% load static %}
+
+{% block title %}My Cancellations - AuroraMart{% endblock %}
+
+{% block account_content %}
+<div class="account-cancellations-page">
+    <h1 style="font-size: 1.75rem; font-weight: 600; margin-bottom: 2rem; color: #1d1d1f;">My Cancellations</h1>
+    
+    {% if cancellations %}
+        <div class="cancellations-list" style="display: grid; gap: 1.5rem;">
+            {% for cancellation in cancellations %}
+            <!-- Cancellation items will be displayed here -->
+            {% endfor %}
+        </div>
+    {% else %}
+        <div style="text-align: center; padding: 3rem; color: #6e6e73;">
+            <i class="fas fa-times-circle" style="font-size: 3rem; margin-bottom: 1rem; color: #d2d2d7;"></i>
+            <p style="font-size: 1.125rem; margin-bottom: 0.5rem;">No cancelled orders yet</p>
+            <p style="font-size: 0.9375rem; color: #6e6e73;">When you cancel an order, it will appear here.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+

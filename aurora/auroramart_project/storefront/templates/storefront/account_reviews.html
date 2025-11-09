@@ -1,0 +1,106 @@
+{% extends 'storefront/account_base.html' %}
+{% load static %}
+
+{% block title %}My Reviews - AuroraMart{% endblock %}
+
+{% block account_content %}
+<div class="account-reviews-page">
+    <h1 style="font-size: 1.75rem; font-weight: 600; margin-bottom: 2rem; color: #1d1d1f;">My Reviews</h1>
+    
+    <!-- Product Reviews Section -->
+    <div class="reviews-section" style="margin-bottom: 3rem;">
+        <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1.5rem; color: #1d1d1f;">Product Reviews</h2>
+        
+        {% if product_reviews %}
+            <div class="reviews-list" style="display: grid; gap: 1.5rem;">
+                {% for review in product_reviews %}
+                <div class="review-card" style="border: 1px solid #e8e8ea; border-radius: 8px; padding: 1.5rem; background: white;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+                        <div style="flex: 1;">
+                            <a href="{% url 'product_detail' review.product.id %}" style="text-decoration: none; color: #007bff; font-weight: 500; font-size: 1.125rem;">
+                                {{ review.product.name }}
+                            </a>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
+                                {% for i in "12345"|make_list %}
+                                    {% if forloop.counter <= review.rating %}
+                                        <i class="fas fa-star" style="color: #ffc107;"></i>
+                                    {% else %}
+                                        <i class="far fa-star" style="color: #d2d2d7;"></i>
+                                    {% endif %}
+                                {% endfor %}
+                                <span style="color: #6e6e73; font-size: 0.875rem; margin-left: 0.5rem;">{{ review.created_at|date:"M d, Y" }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if review.title %}
+                    <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; color: #1d1d1f;">{{ review.title }}</h3>
+                    {% endif %}
+                    
+                    {% if review.comment %}
+                    <p style="color: #6e6e73; font-size: 0.9375rem; line-height: 1.6; margin-bottom: 0.5rem;">{{ review.comment }}</p>
+                    {% endif %}
+                    
+                    {% if review.image %}
+                    <div style="margin-top: 1rem;">
+                        <img src="{{ review.image.url }}" alt="Review image" style="max-width: 200px; border-radius: 6px;">
+                    </div>
+                    {% endif %}
+                    
+                    <div style="margin-top: 1rem; color: #6e6e73; font-size: 0.875rem;">
+                        <i class="fas fa-thumbs-up" style="margin-right: 0.25rem;"></i>
+                        {{ review.helpful_count }} helpful
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div style="text-align: center; padding: 3rem; color: #6e6e73;">
+                <i class="fas fa-star" style="font-size: 3rem; margin-bottom: 1rem; color: #d2d2d7;"></i>
+                <p style="font-size: 1.125rem;">No product reviews yet</p>
+            </div>
+        {% endif %}
+    </div>
+    
+    <!-- Delivery Reviews Section -->
+    <div class="reviews-section">
+        <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1.5rem; color: #1d1d1f;">Delivery Service Reviews</h2>
+        
+        {% if delivery_reviews %}
+            <div class="reviews-list" style="display: grid; gap: 1.5rem;">
+                {% for review in delivery_reviews %}
+                <div class="review-card" style="border: 1px solid #e8e8ea; border-radius: 8px; padding: 1.5rem; background: white;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+                        <div style="flex: 1;">
+                            <a href="{% url 'order_detail' review.order.id %}" style="text-decoration: none; color: #007bff; font-weight: 500; font-size: 1.125rem;">
+                                Order #{{ review.order.id }}
+                            </a>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
+                                {% for i in "12345"|make_list %}
+                                    {% if forloop.counter <= review.rating %}
+                                        <i class="fas fa-star" style="color: #ffc107;"></i>
+                                    {% else %}
+                                        <i class="far fa-star" style="color: #d2d2d7;"></i>
+                                    {% endif %}
+                                {% endfor %}
+                                <span style="color: #6e6e73; font-size: 0.875rem; margin-left: 0.5rem;">{{ review.created_at|date:"M d, Y" }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if review.comment %}
+                    <p style="color: #6e6e73; font-size: 0.9375rem; line-height: 1.6;">{{ review.comment }}</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div style="text-align: center; padding: 3rem; color: #6e6e73;">
+                <i class="fas fa-truck" style="font-size: 3rem; margin-bottom: 1rem; color: #d2d2d7;"></i>
+                <p style="font-size: 1.125rem;">No delivery reviews yet</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

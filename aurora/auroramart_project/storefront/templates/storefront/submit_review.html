@@ -1,0 +1,380 @@
+{% extends 'storefront/base.html' %}
+{% load static %}
+
+{% block title %}Review {{ product.name }} - AuroraMart{% endblock %}
+
+{% block content %}
+<div class="container" style="padding: 2rem 20px; max-width: 800px;">
+    <!-- Breadcrumbs -->
+    <nav class="breadcrumbs">
+        <a href="{% url 'homepage' %}">Home</a>
+        <span class="breadcrumb-separator">></span>
+        <a href="{% url 'my_orders' %}">My Orders</a>
+        <span class="breadcrumb-separator">></span>
+        <a href="{% url 'order_detail' order.id %}">Order {{ order.oID }}</a>
+        <span class="breadcrumb-separator">></span>
+        <span class="breadcrumb-current">Review Product</span>
+    </nav>
+
+    <!-- Page Header -->
+    <div style="margin-bottom: 2rem;">
+        <h1 style="font-size: 2rem; font-weight: 600; color: #1d1d1f; margin: 0 0 1rem 0;">
+            {% if existing_review %}Edit Review{% else %}Write a Review{% endif %}
+        </h1>
+        <p style="color: #6e6e73; font-size: 1rem;">Share your experience with this product</p>
+    </div>
+
+    <!-- Product Info -->
+    <div style="background: white; border: 1px solid #e8e8ea; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem;">
+        <div style="display: flex; gap: 1.5rem;">
+            <div style="width: 120px; height: 120px; border-radius: 8px; overflow: hidden; background: #f5f5f7; flex-shrink: 0;">
+                {% if product.image %}
+                    <img src="{{ product.image.url }}" alt="{{ product.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                {% else %}
+                    <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-image" style="color: #d2d2d7; font-size: 2rem;"></i>
+                    </div>
+                {% endif %}
+            </div>
+            <div style="flex: 1;">
+                <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; color: #1d1d1f;">
+                    <a href="{% url 'product_detail' product.id %}" style="text-decoration: none; color: inherit;">{{ product.name }}</a>
+                </h2>
+                <div style="color: #6e6e73; font-size: 0.875rem; margin-bottom: 0.5rem;">
+                    {{ product.category }} {{ product.subcategory }}
+                </div>
+                <div style="font-size: 1.1rem; font-weight: 600; color: #1d1d1f;">
+                    ${{ product.price|floatformat:2 }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Review Form -->
+    <div style="background: white; border: 1px solid #e8e8ea; border-radius: 8px; padding: 2rem; margin-bottom: 2rem;">
+        <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1.5rem; color: #1d1d1f;">Product Review</h2>
+        <form method="post" enctype="multipart/form-data" id="product-review-form">
+            {% csrf_token %}
+            
+            <!-- Rating -->
+            <div class="form-group" style="margin-bottom: 2rem;">
+                <label style="display: block; font-weight: 600; margin-bottom: 1rem; color: #1d1d1f;">{{ form.rating.label }}</label>
+                <div class="star-rating" style="display: flex; gap: 0.25rem; align-items: center;">
+                    {% for i in "12345" %}
+                        <label for="rating_{{ forloop.counter }}" class="star-label" data-rating="{{ forloop.counter }}" style="font-size: 2rem; color: #d2d2d7; cursor: pointer; transition: color 0.2s; margin: 0; padding: 0.25rem; display: inline-block;">
+                            <i class="fas fa-star"></i>
+                        </label>
+                    {% endfor %}
+                </div>
+                <input type="hidden" name="rating" id="rating_hidden" value="{% if form.rating.value %}{{ form.rating.value }}{% elif existing_review %}{{ existing_review.rating }}{% else %}0{% endif %}" required>
+                {% if form.rating.errors %}
+                    <div style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                        {{ form.rating.errors }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Title -->
+            <div class="form-group" style="margin-bottom: 2rem;">
+                {{ form.title.label_tag }}
+                {{ form.title }}
+                {% if form.title.errors %}
+                    <div style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                        {{ form.title.errors }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Comment -->
+            <div class="form-group" style="margin-bottom: 2rem;">
+                {{ form.comment.label_tag }}
+                {{ form.comment }}
+                {% if form.comment.errors %}
+                    <div style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                        {{ form.comment.errors }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Image Upload -->
+            <div class="form-group" style="margin-bottom: 2rem;">
+                <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; color: #1d1d1f;">{{ form.image.label }}</label>
+                <div style="position: relative;">
+                    <input type="file" name="image" id="id_image" accept="image/*" style="display: none;" onchange="handleImageUpload(this)">
+                    <label for="id_image" class="image-upload-label" style="display: block; width: 200px; height: 200px; border: 2px dashed #d2d2d7; border-radius: 8px; cursor: pointer; position: relative; overflow: hidden; background: #f5f5f7; transition: all 0.2s;">
+                        <div id="image-preview" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column; color: #6e6e73;">
+                            {% if existing_review and existing_review.images.exists %}
+                                <img src="{{ existing_review.images.first.image.url }}" alt="Review photo" id="preview-img" style="max-width: 100%; max-height: 100%; object-fit: cover; border-radius: 6px;">
+                            {% else %}
+                                <i class="fas fa-plus" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
+                                <span style="font-size: 0.875rem;">Upload Photo</span>
+                            {% endif %}
+                        </div>
+                    </label>
+                </div>
+                {% if form.image.help_text %}
+                    <div style="color: #6e6e73; font-size: 0.875rem; margin-top: 0.5rem;">
+                        {{ form.image.help_text }}
+                    </div>
+                {% endif %}
+                {% if form.image.errors %}
+                    <div style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                        {{ form.image.errors }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Anonymous Toggle -->
+            <div class="form-group" style="margin-bottom: 2rem; display: flex; align-items: center; gap: 0.75rem;">
+                <input type="checkbox" name="is_anonymous" id="id_is_anonymous" class="form-check-input" {% if form.is_anonymous.value or existing_review.is_anonymous %}checked{% endif %} style="width: 20px; height: 20px; cursor: pointer;">
+                <label for="id_is_anonymous" style="margin: 0; cursor: pointer; font-weight: 500; color: #1d1d1f;">
+                    Post as anonymous
+                </label>
+            </div>
+
+            <!-- Form Errors -->
+            {% if form.non_field_errors %}
+                <div style="color: #dc3545; font-size: 0.875rem; margin-bottom: 1rem;">
+                    {{ form.non_field_errors }}
+                </div>
+            {% endif %}
+
+            <!-- Submit Buttons -->
+            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
+                <a href="{% url 'order_detail' order.id %}" class="btn btn-outline" style="padding: 0.75rem 1.5rem; text-decoration: none;">
+                    Cancel
+                </a>
+                <button type="submit" name="submit_product_review" class="btn btn-primary" style="padding: 0.75rem 1.5rem;">
+                    {% if existing_review %}Update Review{% else %}Submit Review{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Delivery Service Review Form -->
+    <div style="background: white; border: 1px solid #e8e8ea; border-radius: 8px; padding: 2rem;">
+        <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1.5rem; color: #1d1d1f;">Delivery Service Review</h2>
+        <form method="post" id="delivery-review-form">
+            {% csrf_token %}
+            
+            <!-- Delivery Rating -->
+            <div class="form-group" style="margin-bottom: 2rem;">
+                <label style="display: block; font-weight: 600; margin-bottom: 1rem; color: #1d1d1f;">Rate the delivery service</label>
+                <div class="star-rating-delivery" style="display: flex; gap: 0.25rem; align-items: center;">
+                    {% for i in "12345" %}
+                        <label for="delivery_rating_{{ forloop.counter }}" class="star-label-delivery" data-rating="{{ forloop.counter }}" style="font-size: 2rem; color: #d2d2d7; cursor: pointer; transition: color 0.2s; margin: 0; padding: 0.25rem; display: inline-block;">
+                            <i class="fas fa-star"></i>
+                        </label>
+                    {% endfor %}
+                </div>
+                <input type="hidden" name="delivery_rating" id="delivery_rating_hidden" value="{% if existing_delivery_review %}{{ existing_delivery_review.rating }}{% else %}0{% endif %}" required>
+                {% if delivery_form.rating.errors %}
+                    <div style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                        {{ delivery_form.rating.errors }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Delivery Comment -->
+            <div class="form-group" style="margin-bottom: 2rem;">
+                {{ delivery_form.comment.label_tag }}
+                {{ delivery_form.comment }}
+                {% if delivery_form.comment.errors %}
+                    <div style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                        {{ delivery_form.comment.errors }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Submit Button -->
+            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
+                <button type="submit" name="submit_delivery_review" class="btn btn-primary" style="padding: 0.75rem 1.5rem;">
+                    {% if existing_delivery_review %}Update Delivery Review{% else %}Submit Delivery Review{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: #1d1d1f;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #d2d2d7;
+        border-radius: 6px;
+        font-size: 1rem;
+        transition: border-color 0.2s;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: #007bff;
+    }
+    
+    /* Removed CSS hover rules - handled by JavaScript for better precision */
+    
+    .image-upload-label:hover {
+        border-color: #007bff;
+        background: #f0f7ff;
+    }
+    
+    /* Removed CSS hover rules - handled by JavaScript for better precision */
+</style>
+
+<script>
+    // Product star rating interaction - improved hover precision
+    document.addEventListener('DOMContentLoaded', function() {
+        const starLabels = document.querySelectorAll('.star-label');
+        const hiddenInput = document.getElementById('rating_hidden');
+        let selectedRating = parseInt(hiddenInput.value) || 0;
+        let hoverRating = 0; // Track current hover rating
+        
+        function updateStars(rating) {
+            starLabels.forEach(function(l, i) {
+                const starRating = parseInt(l.getAttribute('data-rating'));
+                if (starRating <= rating) {
+                    l.style.color = '#ffc107';
+                } else {
+                    l.style.color = '#d2d2d7';
+                }
+            });
+        }
+        
+        starLabels.forEach(function(label) {
+            // Click handler - set the selected rating
+            label.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const rating = parseInt(this.getAttribute('data-rating'));
+                selectedRating = rating;
+                hiddenInput.value = rating;
+                hoverRating = rating; // Keep hover in sync
+                updateStars(rating);
+            });
+            
+            // Mouse enter - show hover preview
+            label.addEventListener('mouseenter', function(e) {
+                e.stopPropagation();
+                const rating = parseInt(this.getAttribute('data-rating'));
+                hoverRating = rating;
+                updateStars(rating);
+            });
+            
+            // Mouse leave - reset to selected rating
+            label.addEventListener('mouseleave', function(e) {
+                // Only reset if we're leaving the entire star container
+                // Use a small delay to check if we're moving to another star
+                setTimeout(function() {
+                    const starContainer = document.querySelector('.star-rating');
+                    if (starContainer && !starContainer.matches(':hover')) {
+                        updateStars(selectedRating);
+                        hoverRating = selectedRating;
+                    }
+                }, 50);
+            });
+        });
+        
+        // Reset stars on mouse leave from entire container
+        const productStarRating = document.querySelector('.star-rating');
+        if (productStarRating) {
+            productStarRating.addEventListener('mouseleave', function() {
+                updateStars(selectedRating);
+                hoverRating = selectedRating;
+            });
+        }
+        
+        // Initialize stars based on existing rating
+        if (selectedRating > 0) {
+            updateStars(selectedRating);
+        }
+    });
+    
+    // Delivery star rating interaction - improved hover precision
+    document.addEventListener('DOMContentLoaded', function() {
+        const deliveryStarLabels = document.querySelectorAll('.star-label-delivery');
+        const deliveryHiddenInput = document.getElementById('delivery_rating_hidden');
+        
+        if (deliveryStarLabels.length > 0 && deliveryHiddenInput) {
+            let selectedDeliveryRating = parseInt(deliveryHiddenInput.value) || 0;
+            let hoverDeliveryRating = 0;
+            
+            function updateDeliveryStars(rating) {
+                deliveryStarLabels.forEach(function(l, i) {
+                    const starRating = parseInt(l.getAttribute('data-rating'));
+                    if (starRating <= rating) {
+                        l.style.color = '#ffc107';
+                    } else {
+                        l.style.color = '#d2d2d7';
+                    }
+                });
+            }
+            
+            deliveryStarLabels.forEach(function(label) {
+                // Click handler - set the selected rating
+                label.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const rating = parseInt(this.getAttribute('data-rating'));
+                    selectedDeliveryRating = rating;
+                    deliveryHiddenInput.value = rating;
+                    hoverDeliveryRating = rating;
+                    updateDeliveryStars(rating);
+                });
+                
+                // Mouse enter - show hover preview
+                label.addEventListener('mouseenter', function(e) {
+                    e.stopPropagation();
+                    const rating = parseInt(this.getAttribute('data-rating'));
+                    hoverDeliveryRating = rating;
+                    updateDeliveryStars(rating);
+                });
+                
+                // Mouse leave - reset to selected rating
+                label.addEventListener('mouseleave', function(e) {
+                    setTimeout(function() {
+                        const deliveryContainer = document.querySelector('.star-rating-delivery');
+                        if (deliveryContainer && !deliveryContainer.matches(':hover')) {
+                            updateDeliveryStars(selectedDeliveryRating);
+                            hoverDeliveryRating = selectedDeliveryRating;
+                        }
+                    }, 50);
+                });
+            });
+            
+            // Reset stars on mouse leave from entire container
+            const deliveryStarRating = document.querySelector('.star-rating-delivery');
+            if (deliveryStarRating) {
+                deliveryStarRating.addEventListener('mouseleave', function() {
+                    updateDeliveryStars(selectedDeliveryRating);
+                    hoverDeliveryRating = selectedDeliveryRating;
+                });
+            }
+            
+            // Initialize stars based on existing rating
+            if (selectedDeliveryRating > 0) {
+                updateDeliveryStars(selectedDeliveryRating);
+            }
+        }
+    });
+    
+    // Image upload preview
+    function handleImageUpload(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('image-preview');
+                preview.innerHTML = '<img src="' + e.target.result + '" id="preview-img" style="max-width: 100%; max-height: 100%; object-fit: cover; border-radius: 6px;">';
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+</script>
+{% endblock %}
+

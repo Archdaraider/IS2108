@@ -1,0 +1,534 @@
+{% extends 'storefront/base.html' %}
+{% load static %}
+
+{% block title %}Checkout - AuroraMart{% endblock %}
+
+{% block content %}
+<div class="container" style="padding: 2rem 20px;">
+    <!-- Breadcrumbs -->
+    <nav class="breadcrumbs" style="margin-bottom: 1.5rem;">
+        <a href="{% url 'homepage' %}">Home</a>
+        <span class="breadcrumb-separator">></span>
+        <a href="{% url 'shopping_cart' %}">Cart</a>
+        <span class="breadcrumb-separator">></span>
+        <span class="breadcrumb-current">Checkout</span>
+    </nav>
+
+    <!-- Page Header -->
+    <div style="margin-bottom: 2rem;">
+        <h1 style="font-size: 2rem; font-weight: 600; color: #1d1d1f; margin: 0;">Checkout</h1>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 400px; gap: 2rem;">
+        <!-- Checkout Form -->
+        <div class="checkout-form-section">
+            <form method="post" class="checkout-form">
+                {% csrf_token %}
+                
+                <!-- Shipping Address -->
+                <div class="form-section" style="background: white; border: 1px solid #e8e8ea; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                    <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1.5rem; color: #1d1d1f;">Shipping Address</h2>
+                    
+                    <!-- Saved Addresses -->
+                    <div id="saved-addresses" class="saved-addresses-section">
+                        {% for saved_address in saved_addresses %}
+                        <div class="saved-item" style="border: 1px solid #e8e8ea; border-radius: 6px; padding: 1rem; margin-bottom: 0.75rem; cursor: pointer; transition: background 0.2s;">
+                            <input type="radio" name="saved_address_id" value="{{ saved_address.id }}" id="address_{{ saved_address.id }}" style="margin-right: 0.75rem;" {% if request.POST.saved_address_id == saved_address.id|stringformat:"s" %}checked{% endif %} onchange="document.getElementById('new-address-form').style.display='none'; var btn = document.getElementById('add-address-btn'); if(btn) btn.style.display='block'; document.getElementById('use_new_address').value='0'; document.querySelectorAll('input[name=full_name], input[name=phone_number], input[name=address], input[name=city], input[name=postal_code], input[name=country], input[name=floor_unit_number]').forEach(function(inp) { inp.required = false; });">
+                            <label for="address_{{ saved_address.id }}" style="cursor: pointer; margin: 0; flex: 1;">
+                                <div style="font-weight: 500; margin-bottom: 0.25rem;">{{ saved_address.full_name }}</div>
+                                <div style="font-size: 0.875rem; color: #6e6e73;">
+                                    {{ saved_address.address }}{% if saved_address.floor_unit_number %}, {{ saved_address.floor_unit_number }}{% endif %}<br>
+                                    {{ saved_address.city }}, {{ saved_address.postal_code }}<br>
+                                    {{ saved_address.country }}<br>
+                                    {{ saved_address.phone_number }}
+                                </div>
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Add New Address Button -->
+                    <button type="button" class="btn btn-primary" id="add-address-btn" style="width: 100%; margin-bottom: 1rem; {% if not saved_addresses %}display: block;{% endif %}" onclick="var form = document.getElementById('new-address-form'); var btn = document.getElementById('add-address-btn'); form.style.display='block'; btn.style.display='none'; var radios = document.querySelectorAll('input[name=saved_address_id]'); for(var i = 0; i < radios.length; i++) { radios[i].checked = false; } document.getElementById('use_new_address').value='1';">
+                        <i class="fas fa-plus"></i> Add New Address
+                    </button>
+                    
+                    <!-- New Address Form (always hidden by default) -->
+                    <div id="new-address-form" class="new-address-form" style="display: none;">
+                        <div class="form-group">
+                            {{ form.full_name.label_tag }}
+                            {{ form.full_name }}
+                            {% if form.full_name.errors %}
+                                <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                                    {{ form.full_name.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    
+                    <div class="form-group">
+                        {{ form.phone_number.label_tag }}
+                        {{ form.phone_number }}
+                        {% if form.phone_number.errors %}
+                            <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                                {{ form.phone_number.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        {{ form.address.label_tag }}
+                        {{ form.address }}
+                        {% if form.address.errors %}
+                            <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                                {{ form.address.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            {{ form.city.label_tag }}
+                            {{ form.city }}
+                            {% if form.city.errors %}
+                                <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                                    {{ form.city.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.postal_code.label_tag }}
+                            {{ form.postal_code }}
+                            {% if form.postal_code.errors %}
+                                <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                                    {{ form.postal_code.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        {{ form.country.label_tag }}
+                        {{ form.country }}
+                        {% if form.country.errors %}
+                            <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                                {{ form.country.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        {{ form.floor_unit_number.label_tag }}
+                        {{ form.floor_unit_number }}
+                        {% if form.floor_unit_number.help_text %}
+                            <small style="color: #6e6e73; font-size: 0.75rem; display: block; margin-top: 0.25rem;">{{ form.floor_unit_number.help_text }}</small>
+                        {% endif %}
+                        {% if form.floor_unit_number.errors %}
+                            <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                                {{ form.floor_unit_number.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group" style="display: flex; gap: 1rem; align-items: center;">
+                        <button type="button" class="btn btn-primary" id="save-address-btn" onclick="saveAddress()" style="flex: 1;">
+                            <i class="fas fa-save"></i> Save
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="showAddAnotherAddress()" style="flex: 1;">
+                            <i class="fas fa-plus"></i> Add Another Address
+                        </button>
+                    </div>
+                    
+                    <input type="hidden" name="use_new_address" id="use_new_address" value="0">
+                    </div>
+                </div>
+
+                <!-- Payment Method -->
+                <div class="form-section payment-method-section" style="background: white; border: 1px solid #e8e8ea; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                    <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1.5rem; color: #1d1d1f;">Payment Method</h2>
+                    
+                    <!-- Saved Payment Methods -->
+                    <div id="saved-payments" class="saved-payments-section">
+                        {% for saved_payment in saved_payment_methods %}
+                        <div class="saved-item" style="border: 1px solid #e8e8ea; border-radius: 6px; padding: 1rem; margin-bottom: 0.75rem; cursor: pointer; transition: background 0.2s;">
+                            <input type="radio" name="saved_payment_id" value="{{ saved_payment.id }}" id="payment_{{ saved_payment.id }}" style="margin-right: 0.75rem;" {% if request.POST.saved_payment_id == saved_payment.id|stringformat:"s" %}checked{% endif %} onchange="document.getElementById('new-payment-form').style.display='none'; var btn = document.getElementById('add-payment-btn'); if(btn) btn.style.display='block'; document.getElementById('use_new_payment').value='0'; document.querySelectorAll('input[name=payment_method], input[name=card_number], input[name=card_expiry], input[name=card_cvv], input[name=cardholder_name]').forEach(function(inp) { inp.required = false; });">
+                            <label for="payment_{{ saved_payment.id }}" style="cursor: pointer; margin: 0; flex: 1;">
+                                {% if saved_payment.payment_type == 'card' %}
+                                    <div style="font-weight: 500;">Card ending in {{ saved_payment.card_last_four }}</div>
+                                    <div style="font-size: 0.875rem; color: #6e6e73;">{{ saved_payment.cardholder_name }} • Expires {{ saved_payment.card_expiry }}</div>
+                                {% else %}
+                                    <div style="font-weight: 500;">{{ saved_payment.get_payment_type_display }}</div>
+                                {% endif %}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Add New Payment Button -->
+                    {% if not saved_payment_methods %}
+                    <!-- Show form by default if no saved payment methods -->
+                    <div id="new-payment-form" class="new-payment-form">
+                    {% else %}
+                    <button type="button" class="btn btn-primary" id="add-payment-btn" style="width: 100%; margin-bottom: 1rem;" onclick="document.getElementById('new-payment-form').style.display='block'; document.getElementById('add-payment-btn').style.display='none'; document.getElementById('use_new_payment').value='1'; document.querySelectorAll('input[name=saved_payment_id]').forEach(function(r) { r.checked = false; });">
+                        <i class="fas fa-plus"></i> Add New Payment Method
+                    </button>
+                    
+                    <!-- New Payment Form (hidden by default) -->
+                    <div id="new-payment-form" class="new-payment-form" style="display: none;">
+                    {% endif %}
+                        <div class="form-group">
+                            {{ form.payment_method.label_tag }}
+                            <div class="payment-options" style="margin-top: 1rem;">
+                                <div class="payment-option" style="display: flex; align-items: center; padding: 0.75rem; border: 1px solid #e8e8ea; border-radius: 6px; margin-bottom: 0.75rem; cursor: pointer; transition: background 0.2s;">
+                                    <div style="margin-right: 0.75rem;">
+                                        <input type="radio" name="payment_method" value="card" id="id_payment_method_0" {% if request.POST.payment_method == 'card' or not request.POST.payment_method %}checked{% endif %} onchange="document.getElementById('card-details').style.display='block';">
+                                    </div>
+                                    <label for="id_payment_method_0" style="cursor: pointer; margin: 0; flex: 1;">
+                                        Credit/Debit Card
+                                    </label>
+                                </div>
+                                <div class="payment-option" style="display: flex; align-items: center; padding: 0.75rem; border: 1px solid #e8e8ea; border-radius: 6px; margin-bottom: 0.75rem; cursor: pointer; transition: background 0.2s;">
+                                    <div style="margin-right: 0.75rem;">
+                                        <input type="radio" name="payment_method" value="paynow" id="id_payment_method_1" {% if request.POST.payment_method == 'paynow' %}checked{% endif %} onchange="document.getElementById('card-details').style.display='none';">
+                                    </div>
+                                    <label for="id_payment_method_1" style="cursor: pointer; margin: 0; flex: 1;">
+                                        PayNow
+                                    </label>
+                                </div>
+                            </div>
+                            {% if form.payment_method.errors %}
+                                <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                                    {{ form.payment_method.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <input type="hidden" name="use_new_payment" id="use_new_payment" value="0">
+                    
+                    <!-- Card Details (shown when Credit/Debit Card is selected) -->
+                    <div id="card-details" class="card-details-section" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #e8e8ea; {% if request.POST.payment_method == 'card' or not request.POST.payment_method %}display: block;{% else %}display: none;{% endif %}">
+                        <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: #1d1d1f;">Card Details</h3>
+                        
+                        <div class="form-group">
+                            {{ form.card_type.label_tag }}
+                            <div style="display: flex; gap: 1rem; margin-top: 0.5rem;">
+                                <div style="display: flex; align-items: center; padding: 0.75rem; border: 1px solid #e8e8ea; border-radius: 6px; flex: 1; cursor: pointer;">
+                                    <input type="radio" name="card_type" value="visa" id="id_card_type_0" style="margin-right: 0.5rem;" {% if request.POST.card_type == 'visa' or not request.POST.card_type %}checked{% endif %}>
+                                    <label for="id_card_type_0" style="cursor: pointer; margin: 0; flex: 1; display: flex; align-items: center; gap: 0.5rem;">
+                                        <i class="fab fa-cc-visa" style="font-size: 1.5rem; color: #1a1f71;"></i>
+                                        <span>Visa</span>
+                                    </label>
+                                </div>
+                                <div style="display: flex; align-items: center; padding: 0.75rem; border: 1px solid #e8e8ea; border-radius: 6px; flex: 1; cursor: pointer;">
+                                    <input type="radio" name="card_type" value="mastercard" id="id_card_type_1" style="margin-right: 0.5rem;" {% if request.POST.card_type == 'mastercard' %}checked{% endif %}>
+                                    <label for="id_card_type_1" style="cursor: pointer; margin: 0; flex: 1; display: flex; align-items: center; gap: 0.5rem;">
+                                        <i class="fab fa-cc-mastercard" style="font-size: 1.5rem; color: #eb001b;"></i>
+                                        <span>Mastercard</span>
+                                    </label>
+                                </div>
+                            </div>
+                            {% if form.card_type.errors %}
+                                <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                                    {{ form.card_type.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.cardholder_name.label_tag }}
+                            <input type="text" name="cardholder_name" id="id_cardholder_name" class="form-control" placeholder="Name on card" value="{% if form.cardholder_name.value %}{{ form.cardholder_name.value }}{% elif request.POST.cardholder_name %}{{ request.POST.cardholder_name }}{% endif %}">
+                            {% if form.cardholder_name.errors %}
+                                <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                                    {{ form.cardholder_name.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.card_number.label_tag }}
+                            <input type="text" name="card_number" id="id_card_number" class="form-control" placeholder="1234 5678 9012 3456" maxlength="19" value="{% if form.card_number.value %}{{ form.card_number.value }}{% elif request.POST.card_number %}{{ request.POST.card_number }}{% endif %}" oninput="formatCardNumber(this)">
+                            {% if form.card_number.errors %}
+                                <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                                    {{ form.card_number.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div class="form-group">
+                                {{ form.card_expiry.label_tag }}
+                                <input type="text" name="card_expiry" id="id_card_expiry" class="form-control" placeholder="MM/YY" maxlength="5" value="{% if form.card_expiry.value %}{{ form.card_expiry.value }}{% elif request.POST.card_expiry %}{{ request.POST.card_expiry }}{% endif %}" oninput="formatExpiryDate(this)">
+                                {% if form.card_expiry.errors %}
+                                    <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                                        {{ form.card_expiry.errors }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="form-group">
+                                {{ form.card_cvv.label_tag }}
+                                <input type="password" name="card_cvv" id="id_card_cvv" class="form-control" placeholder="123" maxlength="3" value="{% if request.POST.card_cvv %}{{ request.POST.card_cvv }}{% endif %}" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 3);">
+                                {% if form.card_cvv.errors %}
+                                    <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                                        {{ form.card_cvv.errors }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    </div>
+                </div>
+                
+                <!-- Delivery Time -->
+                <div class="form-section" style="background: white; border: 1px solid #e8e8ea; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                    <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem; color: #1d1d1f;">Delivery Time</h2>
+                    <div class="form-group">
+                        <div class="delivery-options" style="margin-top: 1rem;">
+                            <div class="delivery-option" style="display: flex; align-items: center; padding: 1rem; border: 1px solid #e8e8ea; border-radius: 6px; margin-bottom: 0.75rem; cursor: pointer; transition: background 0.2s;">
+                                <div style="margin-right: 0.75rem;">
+                                    <input type="radio" name="delivery_time" value="standard" id="id_delivery_time_0" {% if request.POST.delivery_time == 'standard' or not request.POST.delivery_time %}checked{% endif %} onchange="updateOrderSummary()">
+                                </div>
+                                <label for="id_delivery_time_0" style="cursor: pointer; margin: 0; flex: 1;">
+                                    <div style="font-weight: 500; margin-bottom: 0.25rem;">Standard Delivery</div>
+                                    <div style="font-size: 0.875rem; color: #6e6e73;">Free • 5-7 business days</div>
+                                </label>
+                            </div>
+                            <div class="delivery-option" style="display: flex; align-items: center; padding: 1rem; border: 1px solid #e8e8ea; border-radius: 6px; margin-bottom: 0.75rem; cursor: pointer; transition: background 0.2s;">
+                                <div style="margin-right: 0.75rem;">
+                                    <input type="radio" name="delivery_time" value="express" id="id_delivery_time_1" {% if request.POST.delivery_time == 'express' %}checked{% endif %} onchange="updateOrderSummary()">
+                                </div>
+                                <label for="id_delivery_time_1" style="cursor: pointer; margin: 0; flex: 1;">
+                                    <div style="font-weight: 500; margin-bottom: 0.25rem;">Express Delivery</div>
+                                    <div style="font-size: 0.875rem; color: #6e6e73;">$4.99 • 2-3 business days</div>
+                                </label>
+                            </div>
+                            <div class="delivery-option" style="display: flex; align-items: center; padding: 1rem; border: 1px solid #e8e8ea; border-radius: 6px; margin-bottom: 0.75rem; cursor: pointer; transition: background 0.2s;">
+                                <div style="margin-right: 0.75rem;">
+                                    <input type="radio" name="delivery_time" value="overnight" id="id_delivery_time_2" {% if request.POST.delivery_time == 'overnight' %}checked{% endif %} onchange="updateOrderSummary()">
+                                </div>
+                                <label for="id_delivery_time_2" style="cursor: pointer; margin: 0; flex: 1;">
+                                    <div style="font-weight: 500; margin-bottom: 0.25rem;">Overnight Delivery</div>
+                                    <div style="font-size: 0.875rem; color: #6e6e73;">$12.99 • Next business day</div>
+                                </label>
+                            </div>
+                        </div>
+                        {% if form.delivery_time.errors %}
+                            <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                                {{ form.delivery_time.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn btn-primary" id="place-order-btn" style="width: 100%; padding: 1rem; font-size: 1rem; margin-top: 1rem; cursor: pointer; z-index: 10; position: relative;">
+                    Place Order
+                </button>
+            </form>
+        </div>
+
+        <!-- Order Summary -->
+        <div class="order-summary-sidebar" style="position: sticky; top: 100px; height: fit-content;">
+            <div style="background: white; border: 1px solid #e8e8ea; border-radius: 8px; padding: 1.5rem;">
+                <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1.5rem; color: #1d1d1f;">Order Summary</h2>
+                
+                <!-- Order Items -->
+                <div style="margin-bottom: 1.5rem; max-height: 300px; overflow-y: auto;">
+                    {% for item in cart_items %}
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #e8e8ea;">
+                        <div style="width: 60px; height: 60px; border-radius: 6px; overflow: hidden; background: #f5f5f7; flex-shrink: 0;">
+                            {% if item.product.image %}
+                                <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                            {% else %}
+                                <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #d2d2d7;">
+                                    <i class="fas fa-image"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <h3 style="font-size: 0.875rem; font-weight: 500; margin-bottom: 0.25rem; color: #1d1d1f; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                {{ item.product.name }}
+                            </h3>
+                            <div style="font-size: 0.75rem; color: #6e6e73; margin-bottom: 0.25rem;">
+                                Qty: {{ item.quantity }}
+                            </div>
+                            <div style="font-size: 0.875rem; font-weight: 500; color: #1d1d1f;">
+                                ${{ item.total_price|floatformat:2 }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Price Breakdown -->
+                <div style="border-top: 1px solid #e8e8ea; padding-top: 1rem;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem; font-size: 0.875rem; color: #1d1d1f;">
+                        <span>Subtotal ({{ cart.total_items }} item{{ cart.total_items|pluralize }})</span>
+                        <span>${{ subtotal|floatformat:2 }}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem; font-size: 0.875rem; color: #1d1d1f;">
+                        <span>Shipping Fee</span>
+                        <span id="shipping-fee-display">${{ shipping_fee|floatformat:2 }}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding-top: 1rem; border-top: 1px solid #e8e8ea; margin-top: 1rem; font-size: 1.125rem; font-weight: 600; color: #1d1d1f;">
+                        <span>Total</span>
+                        <span id="total-display">${{ total|floatformat:2 }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 0.75rem;
+        font-weight: 500;
+        color: #1d1d1f;
+        font-size: 0.875rem;
+    }
+    
+    .form-group textarea,
+    .form-group input[type="text"],
+    .form-group input[type="tel"] {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #d2d2d7;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-family: inherit;
+        transition: border-color 0.2s;
+    }
+    
+    .form-group textarea:focus,
+    .form-group input[type="text"]:focus,
+    .form-group input[type="tel"]:focus {
+        outline: none;
+        border-color: #007bff;
+    }
+    
+    .payment-option:hover {
+        background: #f5f5f7;
+    }
+    
+    .payment-option input[type="radio"] {
+        margin: 0;
+        cursor: pointer;
+    }
+    
+    .payment-option input[type="radio"]:checked + label {
+        font-weight: 600;
+    }
+    
+    /* Show card details only when Credit/Debit Card is selected */
+    .payment-method-section:has(input[type="radio"][value="card"]:checked) .card-details-section {
+        display: block !important;
+    }
+    
+    @media (max-width: 968px) {
+        .container > div {
+            grid-template-columns: 1fr !important;
+        }
+        
+        .order-summary-sidebar {
+            position: static !important;
+        }
+    }
+</style>
+
+<script>
+    // Format card number with spaces every 4 digits
+    function formatCardNumber(input) {
+        var value = input.value.replace(/\s/g, '');
+        var formattedValue = value.match(/.{1,4}/g);
+        if (formattedValue) {
+            input.value = formattedValue.join(' ');
+        } else {
+            input.value = value;
+        }
+    }
+    
+    // Format expiry date with slash
+    function formatExpiryDate(input) {
+        var value = input.value.replace(/\D/g, '');
+        if (value.length >= 2) {
+            input.value = value.substring(0, 2) + '/' + value.substring(2, 4);
+        } else {
+            input.value = value;
+        }
+    }
+    
+    // Update order summary when delivery time changes
+    function updateOrderSummary() {
+        var deliveryTime = document.querySelector('input[name="delivery_time"]:checked').value;
+        var subtotal = parseFloat('{{ subtotal }}');
+        var shippingFee = 0;
+        
+        if (deliveryTime === 'express') {
+            shippingFee = 4.99;
+        } else if (deliveryTime === 'overnight') {
+            shippingFee = 12.99;
+        }
+        
+        var total = subtotal + shippingFee;
+        
+        document.getElementById('shipping-fee-display').textContent = '$' + shippingFee.toFixed(2);
+        document.getElementById('total-display').textContent = '$' + total.toFixed(2);
+    }
+    
+    // Save address function
+    function saveAddress() {
+        var form = document.querySelector('.checkout-form');
+        var formData = new FormData(form);
+        formData.append('save_address_only', 'true');
+        
+        fetch('{% url "checkout" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(function(response) {
+            return response.json();
+        })
+        .then(function(data) {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error saving address: ' + (data.error || 'Please fill in all required fields'));
+            }
+        })
+        .catch(function(error) {
+            console.error('Error:', error);
+            alert('Error saving address. Please try again.');
+        });
+    }
+    
+    // Show add another address form
+    function showAddAnotherAddress() {
+        var form = document.getElementById('new-address-form');
+        // Clear the form
+        var inputs = form.querySelectorAll('input[type="text"], input[type="tel"]');
+        for (var i = 0; i < inputs.length; i++) {
+            var input = inputs[i];
+            if (input.name !== 'csrfmiddlewaretoken' && input.name !== 'use_new_address') {
+                input.value = '';
+            }
+        }
+        form.style.display = 'block';
+        var btn = document.getElementById('add-address-btn');
+        if (btn) btn.style.display = 'none';
+        var radios = document.querySelectorAll('input[name=saved_address_id]');
+        for (var i = 0; i < radios.length; i++) {
+            radios[i].checked = false;
+        }
+        document.getElementById('use_new_address').value = '1';
+    }
+</script>
+{% endblock %}
+

@@ -14,10 +14,10 @@
 
         <div class="auth-content">
             <!-- Social Login -->
-            <button class="btn btn-social google-btn">
+            <a href="{% url 'social:begin' 'google-oauth2' %}" class="btn btn-social google-btn">
                 <i class="fab fa-google"></i>
                 Continue with Google
-            </button>
+            </a>
 
             <div class="auth-divider">
                 <span>OR</span>

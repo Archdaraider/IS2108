@@ -28,14 +28,19 @@
                 {% endif %}
             </div>
             
-            <!-- Thumbnail Images -->
+            <!-- Thumbnail Images Slider -->
             <div class="thumbnail-images">
-                {% if product.image %}
-                <div class="thumbnail active">
-                    <img src="{{ product.image.url }}" alt="{{ product.name }}">
-                </div>
+                {% if product_images %}
+                    {% for image in product_images %}
+                    <div class="thumbnail {% if forloop.first %}active{% endif %}" data-image-url="{{ image.url }}">
+                        <img src="{{ image.url }}" alt="{{ product.name }}">
+                    </div>
+                    {% endfor %}
+                {% elif product.image %}
+                    <div class="thumbnail active" data-image-url="{{ product.image.url }}">
+                        <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                    </div>
                 {% endif %}
-                <!-- Add more thumbnails here if you have multiple images -->
             </div>
         </div>
 
@@ -51,26 +56,37 @@
                     <button class="action-btn share-btn">
                         <i class="fas fa-share"></i>
                     </button>
-                    <button class="action-btn wishlist-btn" data-product-id="{{ product.id }}">
-                        <i class="fas fa-heart"></i>
-                    </button>
+                    <form method="post" action="{% url 'add_to_wishlist' %}" style="display: inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="product_id" value="{{ product.id }}">
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        <button type="submit" class="action-btn wishlist-btn">
+                            {% if in_wishlist or product.id in wishlist_product_ids %}
+                                <i class="fas fa-heart" style="color: #dc3545;"></i>
+                            {% else %}
+                                <i class="far fa-heart"></i>
+                            {% endif %}
+                        </button>
+                    </form>
                 </div>
             </div>
 
             <div class="product-rating-section">
                 <div class="rating-display">
-                    <span class="rating-value">{{ product.rating }}</span>
+                    <span class="rating-value">{{ avg_rating|floatformat:1 }}</span>
                     <div class="stars">
                         {% for i in "12345" %}
-                            {% if forloop.counter <= product.rating %}
+                            {% if forloop.counter <= full_stars %}
                                 <i class="fas fa-star"></i>
+                            {% elif forloop.counter == full_stars|add:1 and has_half_star %}
+                                <i class="fas fa-star-half-alt"></i>
                             {% else %}
                                 <i class="far fa-star"></i>
                             {% endif %}
                         {% endfor %}
                     </div>
                 </div>
-                <span class="rating-count">| {{ product.rating|floatformat:1 }}k Ratings | 10k+ Sold</span>
+                <span class="rating-count">| {{ reviews_count }} Ratings | {{ total_sold|default:0 }}+ Sold</span>
             </div>
 
             <div class="product-description">
@@ -81,36 +97,62 @@
                 <div class="price">${{ product.price|floatformat:2 }}</div>
             </div>
 
-            <div class="product-options">
-                <div class="quantity-selector">
-                    <label for="quantity">Quantity:</label>
-                    <div class="quantity-controls">
-                        <button class="quantity-btn minus" type="button">-</button>
-                        <input type="number" id="quantity" value="1" min="1" max="{{ product.stock }}">
-                        <button class="quantity-btn plus" type="button">+</button>
-                    </div>
-                </div>
-                
-                <div class="stock-info">
-                    <span class="stock-count">{{ product.stock }} pieces available</span>
-                </div>
-            </div>
-
-            <div class="product-actions">
+            <!-- Add to Cart Button (below price) -->
+            <div class="product-cart-action" style="margin: 1.5rem 0; max-width: 300px;">
                 {% if product.stock > 0 %}
-                    <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ product.id }}">
-                        Add to Cart
-                    </button>
+                    {% if in_cart %}
+                        <div class="quantity-picker">
+                            <form method="post" action="{% url 'update_cart_item' %}" style="display: inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="item_id" value="{{ cart_item_id }}">
+                                <input type="hidden" name="action" value="decrease">
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                <button type="submit" class="quantity-btn minus">-</button>
+                            </form>
+                            <span class="quantity-value">{{ cart_quantity }}</span>
+                            <form method="post" action="{% url 'update_cart_item' %}" style="display: inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="item_id" value="{{ cart_item_id }}">
+                                <input type="hidden" name="action" value="increase">
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                <button type="submit" class="quantity-btn plus">+</button>
+                            </form>
+                        </div>
+                    {% else %}
+                        <form method="post" action="{% url 'add_to_cart' %}" style="display: inline; width: 100%;" class="add-to-cart-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="product_id" value="{{ product.id }}">
+                            <input type="hidden" name="quantity" value="1">
+                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                            <button type="submit" class="btn btn-primary add-to-cart-btn" style="width: 100%; padding: 0.75rem 2rem; font-size: 1rem;">
+                                Add to Cart
+                            </button>
+                        </form>
+                    {% endif %}
+                    <div class="stock-info" style="margin-top: 0.75rem;">
+                        <span class="stock-count">{{ product.stock }} pieces available</span>
+                    </div>
                 {% else %}
-                    <button class="btn btn-secondary" disabled>
+                    <button class="btn btn-secondary" disabled style="padding: 0.75rem 2rem; font-size: 1rem; width: 100%;">
                         Out of Stock
                     </button>
                 {% endif %}
-                
-                <button class="btn btn-outline wishlist-btn" data-product-id="{{ product.id }}">
-                    <i class="fas fa-heart"></i>
-                    Favourite (2k)
-                </button>
+            </div>
+
+            <div class="product-actions">
+                <form method="post" action="{% url 'add_to_wishlist' %}" style="display: inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="product_id" value="{{ product.id }}">
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button type="submit" class="btn btn-outline wishlist-btn">
+                        {% if in_wishlist or product.id in wishlist_product_ids %}
+                            <i class="fas fa-heart" style="color: #dc3545;"></i>
+                        {% else %}
+                            <i class="far fa-heart"></i>
+                        {% endif %}
+                        Favourite ({{ favorites_count|default:0 }})
+                    </button>
+                </form>
             </div>
         </div>
     </div>
@@ -136,30 +178,56 @@
                             </div>
                         {% endif %}
                         <div class="product-actions">
-                            <button class="action-btn wishlist-btn" data-product-id="{{ related_product.id }}">
-                                <i class="fas fa-heart"></i>
-                            </button>
+                            <form method="post" action="{% url 'add_to_wishlist' %}" style="display: inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="product_id" value="{{ related_product.id }}">
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                <button type="submit" class="action-btn wishlist-btn">
+                                    {% if related_product.id in wishlist_product_ids %}
+                                        <i class="fas fa-heart" style="color: #dc3545;"></i>
+                                    {% else %}
+                                        <i class="far fa-heart"></i>
+                                    {% endif %}
+                                </button>
+                            </form>
                         </div>
                     </div>
                     <div class="product-info">
                         <div class="product-price">${{ related_product.price|floatformat:2 }}</div>
                         <h3 class="product-name">{{ related_product.name }}</h3>
                         <div class="product-category">{{ related_product.category }}</div>
+                        <div class="product-stock" style="font-size: 0.875rem; color: {% if related_product.stock > 0 %}#28a745{% else %}#dc3545{% endif %}; margin: 0.25rem 0;">
+                            <i class="fas fa-box" style="margin-right: 0.25rem;"></i>
+                            {% if related_product.stock > 0 %}
+                                Stock: {{ related_product.stock }} item{{ related_product.stock|pluralize }}
+                            {% else %}
+                                Out of Stock
+                            {% endif %}
+                        </div>
                         <div class="product-rating">
                             <div class="stars">
                                 {% for i in "12345" %}
-                                    {% if forloop.counter <= related_product.rating %}
+                                    {% if forloop.counter <= related_product.avg_rating %}
                                         <i class="fas fa-star"></i>
                                     {% else %}
                                         <i class="far fa-star"></i>
                                     {% endif %}
                                 {% endfor %}
                             </div>
-                            <span class="rating-text">{{ related_product.rating }} (2.8k)</span>
+                            <span class="rating-text">{{ related_product.avg_rating|floatformat:1 }} ({{ related_product.reviews_count|default:0 }})</span>
+                            {% if related_product.total_sold > 0 %}
+                                <span class="sold-count">{{ related_product.total_sold }}+ Sold</span>
+                            {% endif %}
                         </div>
-                        <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ related_product.id }}">
-                            Add to cart
-                        </button>
+                        <form method="post" action="{% url 'add_to_cart' %}" style="display: inline;" class="add-to-cart-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="product_id" value="{{ related_product.id }}">
+                            <input type="hidden" name="quantity" value="1">
+                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                            <button type="submit" class="btn btn-primary add-to-cart-btn">
+                                Add to cart
+                            </button>
+                        </form>
                     </div>
                 </div>
                 {% endfor %}
@@ -191,30 +259,56 @@
                             </div>
                         {% endif %}
                         <div class="product-actions">
-                            <button class="action-btn wishlist-btn" data-product-id="{{ related_product.id }}">
-                                <i class="fas fa-heart"></i>
-                            </button>
+                            <form method="post" action="{% url 'add_to_wishlist' %}" style="display: inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="product_id" value="{{ related_product.id }}">
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                <button type="submit" class="action-btn wishlist-btn">
+                                    {% if related_product.id in wishlist_product_ids %}
+                                        <i class="fas fa-heart" style="color: #dc3545;"></i>
+                                    {% else %}
+                                        <i class="far fa-heart"></i>
+                                    {% endif %}
+                                </button>
+                            </form>
                         </div>
                     </div>
                     <div class="product-info">
                         <div class="product-price">${{ related_product.price|floatformat:2 }}</div>
                         <h3 class="product-name">{{ related_product.name }}</h3>
                         <div class="product-category">{{ related_product.category }}</div>
+                        <div class="product-stock" style="font-size: 0.875rem; color: {% if related_product.stock > 0 %}#28a745{% else %}#dc3545{% endif %}; margin: 0.25rem 0;">
+                            <i class="fas fa-box" style="margin-right: 0.25rem;"></i>
+                            {% if related_product.stock > 0 %}
+                                Stock: {{ related_product.stock }} item{{ related_product.stock|pluralize }}
+                            {% else %}
+                                Out of Stock
+                            {% endif %}
+                        </div>
                         <div class="product-rating">
                             <div class="stars">
                                 {% for i in "12345" %}
-                                    {% if forloop.counter <= related_product.rating %}
+                                    {% if forloop.counter <= related_product.avg_rating %}
                                         <i class="fas fa-star"></i>
                                     {% else %}
                                         <i class="far fa-star"></i>
                                     {% endif %}
                                 {% endfor %}
                             </div>
-                            <span class="rating-text">{{ related_product.rating }} (2.8k)</span>
+                            <span class="rating-text">{{ related_product.avg_rating|floatformat:1 }} ({{ related_product.reviews_count|default:0 }})</span>
+                            {% if related_product.total_sold > 0 %}
+                                <span class="sold-count">{{ related_product.total_sold }}+ Sold</span>
+                            {% endif %}
                         </div>
-                        <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ related_product.id }}">
-                            Add to cart
-                        </button>
+                        <form method="post" action="{% url 'add_to_cart' %}" style="display: inline;" class="add-to-cart-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="product_id" value="{{ related_product.id }}">
+                            <input type="hidden" name="quantity" value="1">
+                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                            <button type="submit" class="btn btn-primary add-to-cart-btn">
+                                Add to cart
+                            </button>
+                        </form>
                     </div>
                 </div>
                 {% endfor %}
@@ -229,94 +323,593 @@
     <!-- Product Reviews -->
     <section class="reviews-section">
         <div class="section-header">
-            <h2>Customer Reviews</h2>
-            <div class="reviews-summary">
-                <div class="average-rating">
-                    <span class="rating-value">{{ avg_rating|floatformat:1 }}</span>
-                    <div class="stars">
-                        {% for i in "12345" %}
-                            {% if forloop.counter <= avg_rating %}
-                                <i class="fas fa-star"></i>
-                            {% else %}
-                                <i class="far fa-star"></i>
-                            {% endif %}
-                        {% endfor %}
+            <h2>Ratings & Reviews</h2>
+        </div>
+
+        <!-- Rating Summary -->
+        <div class="rating-summary-section">
+            <div class="rating-overview">
+                <div class="rating-score">
+                    <span class="rating-value-large">{{ avg_rating|floatformat:1 }}</span>
+                    <span class="rating-out-of">/5</span>
+                </div>
+                <div class="rating-stars-large">
+                    {% for i in "12345" %}
+                        {% if forloop.counter <= avg_rating|floatformat:0|add:"0" %}
+                            <i class="fas fa-star star-filled"></i>
+                        {% else %}
+                            <i class="far fa-star star-empty"></i>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                <div class="rating-count-text">{{ reviews_count }} Rating{{ reviews_count|pluralize }}</div>
+            </div>
+            
+            <div class="rating-distribution">
+                <div class="rating-bar-item">
+                    <div class="star-label-with-icons">
+                        <i class="fas fa-star star-filled-small"></i>
+                        <i class="fas fa-star star-filled-small"></i>
+                        <i class="fas fa-star star-filled-small"></i>
+                        <i class="fas fa-star star-filled-small"></i>
+                        <i class="fas fa-star star-filled-small"></i>
                     </div>
-                    <span class="rating-count">Based on {{ reviews.count }} reviews</span>
+                    <div class="rating-bar-container">
+                        {% if reviews_count > 0 %}
+                            {% widthratio rating_distribution.5 reviews_count 100 as percentage %}
+                            <div class="rating-bar" style="width: {{ percentage }}%"></div>
+                        {% else %}
+                            <div class="rating-bar" style="width: 0%"></div>
+                        {% endif %}
+                    </div>
+                    <span class="rating-count">{{ rating_distribution.5|default:0 }}</span>
+                </div>
+                <div class="rating-bar-item">
+                    <div class="star-label-with-icons">
+                        <i class="fas fa-star star-filled-small"></i>
+                        <i class="fas fa-star star-filled-small"></i>
+                        <i class="fas fa-star star-filled-small"></i>
+                        <i class="fas fa-star star-filled-small"></i>
+                        <i class="far fa-star star-empty-small"></i>
+                    </div>
+                    <div class="rating-bar-container">
+                        {% if reviews_count > 0 %}
+                            {% widthratio rating_distribution.4 reviews_count 100 as percentage %}
+                            <div class="rating-bar" style="width: {{ percentage }}%"></div>
+                        {% else %}
+                            <div class="rating-bar" style="width: 0%"></div>
+                        {% endif %}
+                    </div>
+                    <span class="rating-count">{{ rating_distribution.4|default:0 }}</span>
+                </div>
+                <div class="rating-bar-item">
+                    <div class="star-label-with-icons">
+                        <i class="fas fa-star star-filled-small"></i>
+                        <i class="fas fa-star star-filled-small"></i>
+                        <i class="fas fa-star star-filled-small"></i>
+                        <i class="far fa-star star-empty-small"></i>
+                        <i class="far fa-star star-empty-small"></i>
+                    </div>
+                    <div class="rating-bar-container">
+                        {% if reviews_count > 0 %}
+                            {% widthratio rating_distribution.3 reviews_count 100 as percentage %}
+                            <div class="rating-bar" style="width: {{ percentage }}%"></div>
+                        {% else %}
+                            <div class="rating-bar" style="width: 0%"></div>
+                        {% endif %}
+                    </div>
+                    <span class="rating-count">{{ rating_distribution.3|default:0 }}</span>
+                </div>
+                <div class="rating-bar-item">
+                    <div class="star-label-with-icons">
+                        <i class="fas fa-star star-filled-small"></i>
+                        <i class="fas fa-star star-filled-small"></i>
+                        <i class="far fa-star star-empty-small"></i>
+                        <i class="far fa-star star-empty-small"></i>
+                        <i class="far fa-star star-empty-small"></i>
+                    </div>
+                    <div class="rating-bar-container">
+                        {% if reviews_count > 0 %}
+                            {% widthratio rating_distribution.2 reviews_count 100 as percentage %}
+                            <div class="rating-bar" style="width: {{ percentage }}%"></div>
+                        {% else %}
+                            <div class="rating-bar" style="width: 0%"></div>
+                        {% endif %}
+                    </div>
+                    <span class="rating-count">{{ rating_distribution.2|default:0 }}</span>
+                </div>
+                <div class="rating-bar-item">
+                    <div class="star-label-with-icons">
+                        <i class="fas fa-star star-filled-small"></i>
+                        <i class="far fa-star star-empty-small"></i>
+                        <i class="far fa-star star-empty-small"></i>
+                        <i class="far fa-star star-empty-small"></i>
+                        <i class="far fa-star star-empty-small"></i>
+                    </div>
+                    <div class="rating-bar-container">
+                        {% if reviews_count > 0 %}
+                            {% widthratio rating_distribution.1 reviews_count 100 as percentage %}
+                            <div class="rating-bar" style="width: {{ percentage }}%"></div>
+                        {% else %}
+                            <div class="rating-bar" style="width: 0%"></div>
+                        {% endif %}
+                    </div>
+                    <span class="rating-count">{{ rating_distribution.1|default:0 }}</span>
                 </div>
             </div>
         </div>
 
+        <!-- Sort and Filter Controls -->
+        <div class="reviews-controls">
+            <div class="sort-control">
+                <i class="fas fa-sort"></i>
+                <span>Sort:</span>
+                <select id="review-sort" class="review-sort-select">
+                    <option value="default" {% if sort_by == 'default' %}selected{% endif %}>Default</option>
+                    <option value="helpful" {% if sort_by == 'helpful' %}selected{% endif %}>Most Helpful</option>
+                    <option value="recent" {% if sort_by == 'recent' %}selected{% endif %}>Recent</option>
+                    <option value="rating_high" {% if sort_by == 'rating_high' %}selected{% endif %}>Rating: High to Low</option>
+                    <option value="rating_low" {% if sort_by == 'rating_low' %}selected{% endif %}>Rating: Low to High</option>
+                </select>
+            </div>
+            <div class="filter-control">
+                <i class="fas fa-filter"></i>
+                <span>Filter:</span>
+                <select id="review-filter" class="review-filter-select">
+                    <option value="" {% if not filter_rating %}selected{% endif %}>All star</option>
+                    <option value="5" {% if filter_rating == 5 %}selected{% endif %}>5 star</option>
+                    <option value="4" {% if filter_rating == 4 %}selected{% endif %}>4 star</option>
+                    <option value="3" {% if filter_rating == 3 %}selected{% endif %}>3 star</option>
+                    <option value="2" {% if filter_rating == 2 %}selected{% endif %}>2 star</option>
+                    <option value="1" {% if filter_rating == 1 %}selected{% endif %}>1 star</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Reviews List -->
         <div class="reviews-list">
+            <h3 class="reviews-list-title">Product Reviews</h3>
             {% for review in reviews %}
-            <div class="review-item">
+            <div class="review-item" data-review-id="{{ review.id }}">
                 <div class="review-header">
                     <div class="reviewer-info">
-                        <span class="reviewer-name">{{ review.user.username }}</span>
                         <div class="review-rating">
                             <div class="stars">
                                 {% for i in "12345" %}
                                     {% if forloop.counter <= review.rating %}
-                                        <i class="fas fa-star"></i>
+                                        <i class="fas fa-star star-filled-small"></i>
                                     {% else %}
-                                        <i class="far fa-star"></i>
+                                        <i class="far fa-star star-empty-small"></i>
                                     {% endif %}
                                 {% endfor %}
                             </div>
                         </div>
+                        <span class="reviewer-name">{{ review.get_masked_username }}</span>
+                        {% if review.is_verified_purchase %}
+                        <span class="verified-badge">
+                            <i class="fas fa-check-circle"></i> Verified Purchase
+                        </span>
+                        {% endif %}
                     </div>
-                    <span class="review-date">{{ review.created_at|date:"M d, Y" }}</span>
+                    <span class="review-date">{{ review.created_at|date:"d M Y" }}</span>
                 </div>
-                <h4 class="review-title">{{ review.title }}</h4>
                 <p class="review-comment">{{ review.comment }}</p>
-                {% if review.is_verified_purchase %}
-                <span class="verified-badge">Verified Purchase</span>
+                {% if review.images.all %}
+                <div class="review-images">
+                    {% for image in review.images.all %}
+                    <div class="review-image-item">
+                        <img src="{{ image.image.url }}" alt="Review image" class="review-image-thumbnail">
+                    </div>
+                    {% endfor %}
+                </div>
                 {% endif %}
+                <div class="review-actions">
+                    <button class="review-helpful-btn {% if review.id in user_helpful_review_ids %}active{% endif %}" 
+                            data-review-id="{{ review.id }}" 
+                            {% if not user.is_authenticated %}disabled title="Please login to mark as helpful"{% endif %}>
+                        <i class="fas fa-thumbs-up"></i>
+                        <span class="helpful-count">{{ review.helpful_count }}</span>
+                    </button>
+                    {% if user.is_authenticated %}
+                    <div class="review-more-menu">
+                        <button class="review-more-btn" data-review-id="{{ review.id }}">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <div class="review-dropdown" id="dropdown-{{ review.id }}" style="display: none;">
+                            <button class="dropdown-item not-helpful-btn" data-review-id="{{ review.id }}">Not Helpful</button>
+                            <button class="dropdown-item report-btn" data-review-id="{{ review.id }}">Report Abuse</button>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
             {% empty %}
             <div class="no-reviews">
-                <p>No reviews yet. Be the first to review this product!</p>
-                <button class="btn btn-primary">Write a Review</button>
+                <p>No reviews yet.</p>
             </div>
             {% endfor %}
         </div>
     </section>
+
+    <!-- Report Abuse Modal -->
+    <div id="report-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Select a reason</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="report-form">
+                    <div class="report-reasons">
+                        <label><input type="radio" name="reason" value="general_rejection" required> General rejection</label>
+                        <label><input type="radio" name="reason" value="abusive_language" required> Abusive Language</label>
+                        <label><input type="radio" name="reason" value="incorrect_info" required> Incorrect information</label>
+                        <label><input type="radio" name="reason" value="personal_details" required> Personal/order details</label>
+                        <label><input type="radio" name="reason" value="prohibited_content" required> Prohibited Content</label>
+                        <label><input type="radio" name="reason" value="external_link" required> External Link</label>
+                        <label><input type="radio" name="reason" value="wrong_translation" required> Wrong Translation</label>
+                    </div>
+                    <div class="form-group">
+                        <label for="additional-comments">Additional Comments</label>
+                        <textarea id="additional-comments" name="additional_comments" rows="3" placeholder="Please provide more details (optional)"></textarea>
+                    </div>
+                    <input type="hidden" id="report-review-id" name="review_id">
+                    <button type="submit" class="btn btn-danger">REPORT</button>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
+
+<style>
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+    background-color: white;
+    margin: 10% auto;
+    padding: 0;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid #e8e8ea;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1d1d1f;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #6e6e73;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-close:hover {
+    color: #1d1d1f;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.report-reasons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.report-reasons label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border: 1px solid #e8e8ea;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-size: 0.9375rem;
+    color: #1d1d1f;
+}
+
+.report-reasons label:hover {
+    background-color: #f5f5f7;
+}
+
+.report-reasons input[type="radio"] {
+    margin: 0;
+    cursor: pointer;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #1d1d1f;
+    font-size: 0.9375rem;
+}
+
+.form-group textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #d2d2d7;
+    border-radius: 8px;
+    font-size: 0.9375rem;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 80px;
+}
+
+.form-group textarea:focus {
+    outline: none;
+    border-color: #007bff;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    width: 100%;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+}
+</style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-// Quantity controls
-document.querySelector('.quantity-btn.minus').addEventListener('click', function() {
-    const quantityInput = document.getElementById('quantity');
-    const currentValue = parseInt(quantityInput.value);
-    if (currentValue > 1) {
-        quantityInput.value = currentValue - 1;
-    }
-});
-
-document.querySelector('.quantity-btn.plus').addEventListener('click', function() {
-    const quantityInput = document.getElementById('quantity');
-    const currentValue = parseInt(quantityInput.value);
-    const maxValue = parseInt(quantityInput.getAttribute('max'));
-    if (currentValue < maxValue) {
-        quantityInput.value = currentValue + 1;
-    }
-});
-
-// Image gallery functionality
-document.querySelectorAll('.thumbnail').forEach(thumbnail => {
-    thumbnail.addEventListener('click', function() {
-        const mainImage = document.getElementById('main-product-image');
-        const thumbnailImg = this.querySelector('img');
-        if (mainImage && thumbnailImg) {
-            mainImage.src = thumbnailImg.src;
+document.addEventListener('DOMContentLoaded', function() {
+    // Mark review as helpful button
+    document.querySelectorAll('.review-helpful-btn').forEach(function(btn) {
+        if (!btn.disabled) {
+            btn.addEventListener('click', function() {
+                const reviewId = this.getAttribute('data-review-id');
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '{% url "review_helpful" %}';
+                
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+                if (csrfToken) {
+                    const csrfInput = document.createElement('input');
+                    csrfInput.type = 'hidden';
+                    csrfInput.name = 'csrfmiddlewaretoken';
+                    csrfInput.value = csrfToken.value;
+                    form.appendChild(csrfInput);
+                }
+                
+                const reviewIdInput = document.createElement('input');
+                reviewIdInput.type = 'hidden';
+                reviewIdInput.name = 'review_id';
+                reviewIdInput.value = reviewId;
+                form.appendChild(reviewIdInput);
+                
+                const nextInput = document.createElement('input');
+                nextInput.type = 'hidden';
+                nextInput.name = 'next';
+                nextInput.value = window.location.href;
+                form.appendChild(nextInput);
+                
+                document.body.appendChild(form);
+                form.submit();
+            });
+        }
+    });
+    
+    // Three dots menu toggle
+    document.querySelectorAll('.review-more-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const reviewId = this.getAttribute('data-review-id');
+            const dropdown = document.getElementById('dropdown-' + reviewId);
+            const allDropdowns = document.querySelectorAll('.review-dropdown');
+            
+            // Close all other dropdowns
+            allDropdowns.forEach(function(d) {
+                if (d.id !== dropdown.id) {
+                    d.style.display = 'none';
+                }
+            });
+            
+            // Toggle current dropdown
+            if (dropdown.style.display === 'none' || dropdown.style.display === '') {
+                dropdown.style.display = 'block';
+            } else {
+                dropdown.style.display = 'none';
+            }
+        });
+    });
+    
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.review-more-menu')) {
+            document.querySelectorAll('.review-dropdown').forEach(function(dropdown) {
+                dropdown.style.display = 'none';
+            });
+        }
+    });
+    
+    // Not Helpful button
+    document.querySelectorAll('.not-helpful-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const reviewId = this.getAttribute('data-review-id');
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{% url "review_not_helpful" %}';
+            
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (csrfToken) {
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrfmiddlewaretoken';
+                csrfInput.value = csrfToken.value;
+                form.appendChild(csrfInput);
+            }
+            
+            const reviewIdInput = document.createElement('input');
+            reviewIdInput.type = 'hidden';
+            reviewIdInput.name = 'review_id';
+            reviewIdInput.value = reviewId;
+            form.appendChild(reviewIdInput);
+            
+            const nextInput = document.createElement('input');
+            nextInput.type = 'hidden';
+            nextInput.name = 'next';
+            nextInput.value = window.location.href;
+            form.appendChild(nextInput);
+            
+            document.body.appendChild(form);
+            form.submit();
+        });
+    });
+    
+    // Report Abuse button - open modal
+    document.querySelectorAll('.report-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const reviewId = this.getAttribute('data-review-id');
+            const modal = document.getElementById('report-modal');
+            const reviewIdInput = document.getElementById('report-review-id');
+            
+            if (modal && reviewIdInput) {
+                reviewIdInput.value = reviewId;
+                modal.style.display = 'block';
+                
+                // Close dropdown
+                const dropdown = document.getElementById('dropdown-' + reviewId);
+                if (dropdown) {
+                    dropdown.style.display = 'none';
+                }
+            }
+        });
+    });
+    
+    // Close modal
+    const modal = document.getElementById('report-modal');
+    if (modal) {
+        const closeBtn = modal.querySelector('.modal-close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function() {
+                modal.style.display = 'none';
+                const form = document.getElementById('report-form');
+                if (form) {
+                    form.reset();
+                }
+            });
         }
         
-        // Update active thumbnail
-        document.querySelectorAll('.thumbnail').forEach(t => t.classList.remove('active'));
-        this.classList.add('active');
-    });
+        // Close modal when clicking outside
+        window.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+                const form = document.getElementById('report-form');
+                if (form) {
+                    form.reset();
+                }
+            }
+        });
+    }
+    
+    // Report form submission
+    const reportForm = document.getElementById('report-form');
+    if (reportForm) {
+        reportForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{% url "review_report" %}';
+            
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (csrfToken) {
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrfmiddlewaretoken';
+                csrfInput.value = csrfToken.value;
+                form.appendChild(csrfInput);
+            }
+            
+            const reviewId = document.getElementById('report-review-id').value;
+            const reason = reportForm.querySelector('input[name="reason"]:checked');
+            const additionalComments = document.getElementById('additional-comments').value;
+            
+            if (!reviewId || !reason) {
+                alert('Please select a reason for reporting this review.');
+                return;
+            }
+            
+            const reviewIdInput = document.createElement('input');
+            reviewIdInput.type = 'hidden';
+            reviewIdInput.name = 'review_id';
+            reviewIdInput.value = reviewId;
+            form.appendChild(reviewIdInput);
+            
+            const reasonInput = document.createElement('input');
+            reasonInput.type = 'hidden';
+            reasonInput.name = 'reason';
+            reasonInput.value = reason.value;
+            form.appendChild(reasonInput);
+            
+            if (additionalComments) {
+                const commentsInput = document.createElement('input');
+                commentsInput.type = 'hidden';
+                commentsInput.name = 'additional_comments';
+                commentsInput.value = additionalComments;
+                form.appendChild(commentsInput);
+            }
+            
+            const nextInput = document.createElement('input');
+            nextInput.type = 'hidden';
+            nextInput.name = 'next';
+            nextInput.value = window.location.href;
+            form.appendChild(nextInput);
+            
+            document.body.appendChild(form);
+            form.submit();
+        });
+    }
 });
 </script>
 {% endblock %}

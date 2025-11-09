@@ -1,0 +1,25 @@
+{% extends 'storefront/account_base.html' %}
+{% load static %}
+
+{% block title %}My Returns - AuroraMart{% endblock %}
+
+{% block account_content %}
+<div class="account-returns-page">
+    <h1 style="font-size: 1.75rem; font-weight: 600; margin-bottom: 2rem; color: #1d1d1f;">My Returns</h1>
+    
+    {% if returns %}
+        <div class="returns-list" style="display: grid; gap: 1.5rem;">
+            {% for return_item in returns %}
+            <!-- Return items will be displayed here -->
+            {% endfor %}
+        </div>
+    {% else %}
+        <div style="text-align: center; padding: 3rem; color: #6e6e73;">
+            <i class="fas fa-undo" style="font-size: 3rem; margin-bottom: 1rem; color: #d2d2d7;"></i>
+            <p style="font-size: 1.125rem; margin-bottom: 0.5rem;">No return requests yet</p>
+            <p style="font-size: 0.9375rem; color: #6e6e73;">When you request a return, it will appear here.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+

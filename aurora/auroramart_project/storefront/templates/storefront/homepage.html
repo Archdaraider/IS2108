@@ -68,6 +68,7 @@
         <div class="product-grid">
             {% for product in featured_products %}
             <div class="product-card">
+                <a href="{% url 'product_detail' product.id %}" class="product-card-link">
                 <div class="product-image">
                     {% if product.image %}
                         <img src="{{ product.image.url }}" alt="{{ product.name }}">
@@ -77,33 +78,86 @@
                         </div>
                     {% endif %}
                     <div class="product-actions">
-                        <button class="action-btn wishlist-btn" data-product-id="{{ product.id }}">
-                            <i class="fas fa-heart"></i>
-                        </button>
-                        <button class="action-btn quick-view-btn" data-product-id="{{ product.id }}">
-                            <i class="fas fa-eye"></i>
-                        </button>
+                        <form method="post" action="{% url 'add_to_wishlist' %}" style="display: inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="product_id" value="{{ product.id }}">
+                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                            <button type="submit" class="action-btn wishlist-btn">
+                                {% if product.id in wishlist_product_ids %}
+                                    <i class="fas fa-heart" style="color: #dc3545;"></i>
+                                {% else %}
+                                    <i class="far fa-heart"></i>
+                                {% endif %}
+                            </button>
+                        </form>
                     </div>
                 </div>
                 <div class="product-info">
                     <div class="product-price">${{ product.price|floatformat:2 }}</div>
                     <h3 class="product-name">{{ product.name }}</h3>
                     <div class="product-category">{{ product.category }}</div>
+                    <div class="product-stock" style="font-size: 0.875rem; color: {% if product.stock > 0 %}#28a745{% else %}#dc3545{% endif %}; margin: 0.25rem 0;">
+                        <i class="fas fa-box" style="margin-right: 0.25rem;"></i>
+                        {% if product.stock > 0 %}
+                            Stock: {{ product.stock }} item{{ product.stock|pluralize }}
+                        {% else %}
+                            Out of Stock
+                        {% endif %}
+                    </div>
                     <div class="product-rating">
                         <div class="stars">
                             {% for i in "12345" %}
-                                {% if forloop.counter <= product.rating %}
+                                {% if forloop.counter <= product.avg_rating %}
                                     <i class="fas fa-star"></i>
                                 {% else %}
                                     <i class="far fa-star"></i>
                                 {% endif %}
                             {% endfor %}
                         </div>
-                        <span class="rating-text">{{ product.rating }} (2.8k)</span>
+                        <span class="rating-text">{{ product.avg_rating|floatformat:1 }} ({{ product.reviews_count|default:0 }})</span>
                     </div>
-                    <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ product.id }}">
-                        Add to cart
-                    </button>
+                </a>
+                </div>
+                <div class="product-cart-actions">
+                    {% if product.stock > 0 %}
+                        {% if product.id in cart_product_ids %}
+                            {% for item in cart.items.all %}
+                                {% if item.product_id == product.id %}
+                                    <div class="quantity-picker">
+                                        <form method="post" action="{% url 'update_cart_item' %}" style="display: inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="item_id" value="{{ item.id }}">
+                                            <input type="hidden" name="action" value="decrease">
+                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                            <button type="submit" class="quantity-btn minus">-</button>
+                                        </form>
+                                        <span class="quantity-value">{{ item.quantity }}</span>
+                                        <form method="post" action="{% url 'update_cart_item' %}" style="display: inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="item_id" value="{{ item.id }}">
+                                            <input type="hidden" name="action" value="increase">
+                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                            <button type="submit" class="quantity-btn plus">+</button>
+                                        </form>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <form method="post" action="{% url 'add_to_cart' %}" style="display: inline;" class="add-to-cart-form">
+                                {% csrf_token %}
+                                <input type="hidden" name="product_id" value="{{ product.id }}">
+                                <input type="hidden" name="quantity" value="1">
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                <button type="submit" class="btn btn-primary add-to-cart-btn">
+                                    Add to cart
+                                </button>
+                            </form>
+                        {% endif %}
+                    {% else %}
+                        <button class="btn btn-secondary" disabled>
+                            Out of Stock
+                        </button>
+                    {% endif %}
                 </div>
             </div>
             {% empty %}
@@ -127,6 +181,7 @@
         <div class="product-grid">
             {% for product in best_sellers %}
             <div class="product-card">
+                <a href="{% url 'product_detail' product.id %}" class="product-card-link">
                 <div class="product-image">
                     {% if product.image %}
                         <img src="{{ product.image.url }}" alt="{{ product.name }}">
@@ -136,33 +191,86 @@
                         </div>
                     {% endif %}
                     <div class="product-actions">
-                        <button class="action-btn wishlist-btn" data-product-id="{{ product.id }}">
-                            <i class="fas fa-heart"></i>
-                        </button>
-                        <button class="action-btn quick-view-btn" data-product-id="{{ product.id }}">
-                            <i class="fas fa-eye"></i>
-                        </button>
+                        <form method="post" action="{% url 'add_to_wishlist' %}" style="display: inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="product_id" value="{{ product.id }}">
+                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                            <button type="submit" class="action-btn wishlist-btn">
+                                {% if product.id in wishlist_product_ids %}
+                                    <i class="fas fa-heart" style="color: #dc3545;"></i>
+                                {% else %}
+                                    <i class="far fa-heart"></i>
+                                {% endif %}
+                            </button>
+                        </form>
                     </div>
                 </div>
                 <div class="product-info">
                     <div class="product-price">${{ product.price|floatformat:2 }}</div>
                     <h3 class="product-name">{{ product.name }}</h3>
                     <div class="product-category">{{ product.category }}</div>
+                    <div class="product-stock" style="font-size: 0.875rem; color: {% if product.stock > 0 %}#28a745{% else %}#dc3545{% endif %}; margin: 0.25rem 0;">
+                        <i class="fas fa-box" style="margin-right: 0.25rem;"></i>
+                        {% if product.stock > 0 %}
+                            Stock: {{ product.stock }} item{{ product.stock|pluralize }}
+                        {% else %}
+                            Out of Stock
+                        {% endif %}
+                    </div>
                     <div class="product-rating">
                         <div class="stars">
                             {% for i in "12345" %}
-                                {% if forloop.counter <= product.rating %}
+                                {% if forloop.counter <= product.avg_rating %}
                                     <i class="fas fa-star"></i>
                                 {% else %}
                                     <i class="far fa-star"></i>
                                 {% endif %}
                             {% endfor %}
                         </div>
-                        <span class="rating-text">{{ product.rating }} (2.8k)</span>
+                        <span class="rating-text">{{ product.avg_rating|floatformat:1 }} ({{ product.reviews_count|default:0 }})</span>
                     </div>
-                    <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ product.id }}">
-                        Add to cart
-                    </button>
+                </a>
+                </div>
+                <div class="product-cart-actions">
+                    {% if product.stock > 0 %}
+                        {% if product.id in cart_product_ids %}
+                            {% for item in cart.items.all %}
+                                {% if item.product_id == product.id %}
+                                    <div class="quantity-picker">
+                                        <form method="post" action="{% url 'update_cart_item' %}" style="display: inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="item_id" value="{{ item.id }}">
+                                            <input type="hidden" name="action" value="decrease">
+                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                            <button type="submit" class="quantity-btn minus">-</button>
+                                        </form>
+                                        <span class="quantity-value">{{ item.quantity }}</span>
+                                        <form method="post" action="{% url 'update_cart_item' %}" style="display: inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="item_id" value="{{ item.id }}">
+                                            <input type="hidden" name="action" value="increase">
+                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                            <button type="submit" class="quantity-btn plus">+</button>
+                                        </form>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <form method="post" action="{% url 'add_to_cart' %}" style="display: inline;" class="add-to-cart-form">
+                                {% csrf_token %}
+                                <input type="hidden" name="product_id" value="{{ product.id }}">
+                                <input type="hidden" name="quantity" value="1">
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                <button type="submit" class="btn btn-primary add-to-cart-btn">
+                                    Add to cart
+                                </button>
+                            </form>
+                        {% endif %}
+                    {% else %}
+                        <button class="btn btn-secondary" disabled>
+                            Out of Stock
+                        </button>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}
@@ -187,8 +295,10 @@
         <div class="newsletter-content">
             <h2>Stay Updated</h2>
             <p>Subscribe to our newsletter for the latest deals and updates</p>
-            <form class="newsletter-form" id="newsletter-form">
-                <input type="email" placeholder="Enter your email" class="newsletter-input" required>
+            <form method="post" action="{% url 'subscribe_newsletter' %}" class="newsletter-form">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <input type="email" name="email" placeholder="Enter your email" class="newsletter-input" required>
                 <button type="submit" class="btn btn-primary">Subscribe</button>
             </form>
         </div>
@@ -197,69 +307,4 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-// Carousel functionality
-document.addEventListener('DOMContentLoaded', function() {
-    const carousel = document.querySelector('.hero-carousel');
-    const slides = document.querySelectorAll('.hero-slide');
-    const dots = document.querySelectorAll('.dot');
-    const prevBtn = document.querySelector('.carousel-prev');
-    const nextBtn = document.querySelector('.carousel-next');
-    
-    let currentSlide = 0;
-    
-    function showSlide(index) {
-        slides.forEach((slide, i) => {
-            slide.style.display = i === index ? 'block' : 'none';
-        });
-        dots.forEach((dot, i) => {
-            dot.classList.toggle('active', i === index);
-        });
-    }
-    
-    function nextSlide() {
-        currentSlide = (currentSlide + 1) % slides.length;
-        showSlide(currentSlide);
-    }
-    
-    function prevSlide() {
-        currentSlide = (currentSlide - 1 + slides.length) % slides.length;
-        showSlide(currentSlide);
-    }
-    
-    // Event listeners
-    nextBtn.addEventListener('click', nextSlide);
-    prevBtn.addEventListener('click', prevSlide);
-    
-    // Auto-advance carousel
-    setInterval(nextSlide, 5000);
-    
-    // Initialize
-    showSlide(0);
-});
-
-// Newsletter subscription
-document.getElementById('newsletter-form').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const email = this.querySelector('.newsletter-input').value;
-    
-    fetch('{% url "subscribe_newsletter" %}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-        },
-        body: JSON.stringify({email: email})
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert(data.message);
-            this.reset();
-        } else {
-            alert(data.message);
-        }
-    });
-});
-</script>
 {% endblock %}

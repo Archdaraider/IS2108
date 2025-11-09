@@ -173,6 +173,35 @@ class Product(models.Model):
 
     def __str__(self):
         return f"{self.sku}: {self.name}"
+    
+    @property
+    def total_sold(self):
+        """Calculate total quantity sold from order items."""
+        total = OrderItem.objects.filter(
+            product=self,
+            order__fulfillment_status__in=['PROCESSING', 'SHIPPED', 'DELIVERED']
+        ).aggregate(total=models.Sum('quantity'))['total']
+        return total or 0
+    
+    @property
+    def favorites_count(self):
+        """Get count of users who favorited this product."""
+        from storefront.models import WishlistItem
+        return WishlistItem.objects.filter(product=self).count()
+    
+    @property
+    def reviews_count(self):
+        """Get count of reviews for this product."""
+        from storefront.models import ProductReview
+        return ProductReview.objects.filter(product=self).count()
+    
+    @property
+    def avg_rating(self):
+        """Get average rating from reviews, or return default rating if no reviews."""
+        from storefront.models import ProductReview
+        from django.db.models import Avg
+        avg = ProductReview.objects.filter(product=self).aggregate(Avg('rating'))['rating__avg']
+        return float(avg) if avg else float(self.rating)
 
 class Order(models.Model):
     """

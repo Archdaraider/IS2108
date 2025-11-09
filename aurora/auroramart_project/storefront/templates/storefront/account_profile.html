@@ -1,0 +1,162 @@
+{% extends 'storefront/account_base.html' %}
+{% load static %}
+
+{% block title %}My Profile - AuroraMart{% endblock %}
+
+{% block account_content %}
+<div class="account-profile-page">
+    <h1 style="font-size: 1.75rem; font-weight: 600; margin-bottom: 2rem; color: #1d1d1f;">My Profile</h1>
+    
+    <!-- User Profile Section -->
+    <div class="profile-section" style="margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 1px solid #e8e8ea;">
+        <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1.5rem; color: #1d1d1f;">Personal Information</h2>
+        
+        <form method="post" style="max-width: 600px;">
+            {% csrf_token %}
+            <input type="hidden" name="update_user" value="1">
+            
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                {{ user_form.first_name.label_tag }}
+                {{ user_form.first_name }}
+                {% if user_form.first_name.errors %}
+                    <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                        {{ user_form.first_name.errors }}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                {{ user_form.last_name.label_tag }}
+                {{ user_form.last_name }}
+                {% if user_form.last_name.errors %}
+                    <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                        {{ user_form.last_name.errors }}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                {{ user_form.email.label_tag }}
+                {{ user_form.email }}
+                {% if user_form.email.errors %}
+                    <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                        {{ user_form.email.errors }}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                {{ user_form.username.label_tag }}
+                {{ user_form.username }}
+                {% if user_form.username.errors %}
+                    <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                        {{ user_form.username.errors }}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="background: #007bff; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; font-size: 0.9375rem; font-weight: 500; cursor: pointer;">
+                Update Personal Information
+            </button>
+        </form>
+    </div>
+    
+    <!-- Customer Profile Section -->
+    <div class="profile-section">
+        <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1.5rem; color: #1d1d1f;">Customer Profile</h2>
+        
+        <form method="post" style="max-width: 600px;">
+            {% csrf_token %}
+            <input type="hidden" name="update_customer" value="1">
+            
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                {{ customer_form.date_of_birth.label_tag }}
+                {{ customer_form.date_of_birth }}
+                {% if customer_form.date_of_birth.help_text %}
+                    <small style="color: #6e6e73; font-size: 0.75rem; display: block; margin-top: 0.25rem;">{{ customer_form.date_of_birth.help_text }}</small>
+                {% endif %}
+                {% if customer_form.date_of_birth.errors %}
+                    <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                        {{ customer_form.date_of_birth.errors }}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                {{ customer_form.gender.label_tag }}
+                {{ customer_form.gender }}
+                {% if customer_form.gender.errors %}
+                    <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                        {{ customer_form.gender.errors }}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                {{ customer_form.employment_status.label_tag }}
+                {{ customer_form.employment_status }}
+                {% if customer_form.employment_status.errors %}
+                    <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                        {{ customer_form.employment_status.errors }}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                {{ customer_form.occupation.label_tag }}
+                {{ customer_form.occupation }}
+                {% if customer_form.occupation.errors %}
+                    <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                        {{ customer_form.occupation.errors }}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                {{ customer_form.education.label_tag }}
+                {{ customer_form.education }}
+                {% if customer_form.education.errors %}
+                    <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                        {{ customer_form.education.errors }}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                {{ customer_form.household_size.label_tag }}
+                {{ customer_form.household_size }}
+                {% if customer_form.household_size.errors %}
+                    <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                        {{ customer_form.household_size.errors }}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                {{ customer_form.has_children.label_tag }}
+                {{ customer_form.has_children }}
+                {% if customer_form.has_children.errors %}
+                    <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                        {{ customer_form.has_children.errors }}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                {{ customer_form.monthly_income_sgd.label_tag }}
+                {{ customer_form.monthly_income_sgd }}
+                {% if customer_form.monthly_income_sgd.errors %}
+                    <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                        {{ customer_form.monthly_income_sgd.errors }}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="background: #007bff; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; font-size: 0.9375rem; font-weight: 500; cursor: pointer;">
+                Update Customer Profile
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+

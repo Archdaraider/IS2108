@@ -1,0 +1,157 @@
+{% extends 'storefront/base.html' %}
+{% load static %}
+
+{% block title %}My Account - AuroraMart{% endblock %}
+
+{% block content %}
+<div class="container" style="padding: 2rem 20px; max-width: 1400px;">
+    <!-- Breadcrumbs -->
+    <nav class="breadcrumbs" style="margin-bottom: 1.5rem;">
+        <a href="{% url 'homepage' %}">Home</a>
+        <span class="breadcrumb-separator">></span>
+        <span class="breadcrumb-current">My Account</span>
+    </nav>
+
+    <!-- Account Layout -->
+    <div class="account-layout-container" style="display: flex; gap: 2rem; align-items: flex-start;">
+        <!-- Sidebar Navigation -->
+        <aside class="account-sidebar" style="width: 280px; background: white; border: 1px solid #e8e8ea; border-radius: 8px; padding: 1.5rem; position: sticky; top: 2rem; align-self: flex-start;">
+            <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1.5rem; color: #1d1d1f;">My Account</h2>
+            
+            <!-- Manage My Account Section -->
+            <div class="sidebar-section" style="margin-bottom: 2rem;">
+                <h3 style="font-size: 0.875rem; font-weight: 600; color: #6e6e73; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">Manage My Account</h3>
+                <nav class="sidebar-nav">
+                    <a href="{% url 'account_profile' %}" class="sidebar-link {% if request.resolver_match.url_name == 'account_profile' %}active{% endif %}">
+                        <i class="fas fa-user" style="margin-right: 0.75rem; width: 20px;"></i>
+                        My Profile
+                    </a>
+                    <a href="{% url 'account_addresses' %}" class="sidebar-link {% if request.resolver_match.url_name == 'account_addresses' or request.resolver_match.url_name == 'account_address_add' or request.resolver_match.url_name == 'account_address_edit' or request.resolver_match.url_name == 'account_address_delete' %}active{% endif %}">
+                        <i class="fas fa-map-marker-alt" style="margin-right: 0.75rem; width: 20px;"></i>
+                        My Addresses
+                    </a>
+                    <a href="{% url 'account_payment_methods' %}" class="sidebar-link {% if request.resolver_match.url_name == 'account_payment_methods' or request.resolver_match.url_name == 'account_payment_add' or request.resolver_match.url_name == 'account_payment_edit' or request.resolver_match.url_name == 'account_payment_delete' %}active{% endif %}">
+                        <i class="fas fa-credit-card" style="margin-right: 0.75rem; width: 20px;"></i>
+                        My Payment Methods
+                    </a>
+                </nav>
+            </div>
+
+            <!-- My Orders Section -->
+            <div class="sidebar-section" style="margin-bottom: 2rem;">
+                <h3 style="font-size: 0.875rem; font-weight: 600; color: #6e6e73; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">My Orders</h3>
+                <nav class="sidebar-nav">
+                    <a href="{% url 'my_orders' %}" class="sidebar-link {% if request.resolver_match.url_name == 'my_orders' or request.resolver_match.url_name == 'order_detail' %}active{% endif %}">
+                        <i class="fas fa-shopping-bag" style="margin-right: 0.75rem; width: 20px;"></i>
+                        My Orders
+                    </a>
+                    <a href="{% url 'account_returns' %}" class="sidebar-link {% if request.resolver_match.url_name == 'account_returns' %}active{% endif %}">
+                        <i class="fas fa-undo" style="margin-right: 0.75rem; width: 20px;"></i>
+                        My Returns
+                    </a>
+                    <a href="{% url 'account_cancellations' %}" class="sidebar-link {% if request.resolver_match.url_name == 'account_cancellations' %}active{% endif %}">
+                        <i class="fas fa-times-circle" style="margin-right: 0.75rem; width: 20px;"></i>
+                        My Cancellations
+                    </a>
+                </nav>
+            </div>
+
+            <!-- My Reviews Section -->
+            <div class="sidebar-section" style="margin-bottom: 2rem;">
+                <h3 style="font-size: 0.875rem; font-weight: 600; color: #6e6e73; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">My Reviews</h3>
+                <nav class="sidebar-nav">
+                    <a href="{% url 'account_reviews' %}" class="sidebar-link {% if request.resolver_match.url_name == 'account_reviews' %}active{% endif %}">
+                        <i class="fas fa-star" style="margin-right: 0.75rem; width: 20px;"></i>
+                        My Reviews
+                    </a>
+                </nav>
+            </div>
+
+            <!-- My Wishlist Section -->
+            <div class="sidebar-section">
+                <h3 style="font-size: 0.875rem; font-weight: 600; color: #6e6e73; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">My Wishlist</h3>
+                <nav class="sidebar-nav">
+                    <a href="{% url 'wishlist' %}" class="sidebar-link {% if request.resolver_match.url_name == 'wishlist' %}active{% endif %}">
+                        <i class="fas fa-heart" style="margin-right: 0.75rem; width: 20px;"></i>
+                        My Wishlist & Followed Stores
+                    </a>
+                </nav>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="account-content" style="flex: 1; min-width: 0;">
+            {% block account_content %}{% endblock %}
+        </main>
+    </div>
+</div>
+
+<style>
+.account-sidebar {
+    flex-shrink: 0;
+}
+
+.sidebar-section {
+    border-bottom: 1px solid #e8e8ea;
+    padding-bottom: 1.5rem;
+}
+
+.sidebar-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    color: #1d1d1f;
+    text-decoration: none;
+    border-radius: 6px;
+    transition: all 0.2s;
+    font-size: 0.9375rem;
+}
+
+.sidebar-link:hover {
+    background-color: #f5f5f7;
+    color: #007bff;
+}
+
+.sidebar-link.active {
+    background-color: #007bff;
+    color: white;
+}
+
+.sidebar-link.active:hover {
+    background-color: #0056b3;
+    color: white;
+}
+
+.account-content {
+    background: white;
+    border: 1px solid #e8e8ea;
+    border-radius: 8px;
+    padding: 2rem;
+}
+
+@media (max-width: 768px) {
+    .account-sidebar {
+        width: 100% !important;
+        position: relative !important;
+        top: auto !important;
+        margin-bottom: 2rem;
+    }
+    
+    .account-layout-container {
+        flex-direction: column !important;
+    }
+}
+</style>
+{% endblock %}
+

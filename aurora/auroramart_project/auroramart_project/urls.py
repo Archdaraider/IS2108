@@ -24,10 +24,15 @@ urlpatterns = [
     path('django-admin/', admin.site.urls), 
     path('admin/', include('adminpanel.urls')), 
     path('', include('storefront.urls')),
-    
-    # Placeholder for the customer-facing front end (e.g., homepage)
-    # path('', include('core.urls')), 
 ]
+
+# Add Social Auth URLs (Google OAuth) - always include if social_django is installed
+# Must be added BEFORE the storefront URLs to avoid conflicts
+try:
+    import social_django
+    urlpatterns.insert(0, path('oauth/', include('social_django.urls', namespace='social')))
+except ImportError:
+    pass
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -1,0 +1,83 @@
+<!-- Profile Onboarding Modal -->
+<div id="profile-onboarding-modal" class="modal-overlay">
+    <div class="modal-content modal-large">
+        <div class="modal-header">
+            <h2>Complete Your Profile</h2>
+            <p style="color: #6e6e73; font-size: 0.875rem; margin-top: 0.5rem;">Please provide a few details to personalize your shopping experience.</p>
+            <a href="{% if request.GET.next %}{{ request.GET.next }}{% else %}{% url 'homepage' %}{% endif %}" class="modal-close" style="text-decoration: none;">&times;</a>
+        </div>
+        <div class="modal-body">
+            <form method="post" id="profile-onboarding-form" action="{% url 'profile_onboarding' %}">
+                {% csrf_token %}
+                {% if request.GET.next %}
+                    <input type="hidden" name="next" value="{{ request.GET.next }}">
+                {% endif %}
+                <input type="hidden" name="modal" value="true">
+                <div class="form-grid">
+                    {{ profile_form.non_field_errors }}
+                    <div class="form-row">
+                        {{ profile_form.date_of_birth.label_tag }}
+                        {{ profile_form.date_of_birth }}
+                        {% if profile_form.date_of_birth.errors %}
+                            <div class="form-error">{{ profile_form.date_of_birth.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-row">
+                        {{ profile_form.gender.label_tag }}
+                        {{ profile_form.gender }}
+                        {% if profile_form.gender.errors %}
+                            <div class="form-error">{{ profile_form.gender.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-row">
+                        {{ profile_form.employment_status.label_tag }}
+                        {{ profile_form.employment_status }}
+                        {% if profile_form.employment_status.errors %}
+                            <div class="form-error">{{ profile_form.employment_status.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-row">
+                        {{ profile_form.occupation.label_tag }}
+                        {{ profile_form.occupation }}
+                        {% if profile_form.occupation.errors %}
+                            <div class="form-error">{{ profile_form.occupation.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-row">
+                        {{ profile_form.education.label_tag }}
+                        {{ profile_form.education }}
+                        {% if profile_form.education.errors %}
+                            <div class="form-error">{{ profile_form.education.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-row">
+                        {{ profile_form.household_size.label_tag }}
+                        {{ profile_form.household_size }}
+                        {% if profile_form.household_size.errors %}
+                            <div class="form-error">{{ profile_form.household_size.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-row">
+                        {{ profile_form.has_children.label_tag }}
+                        {{ profile_form.has_children }}
+                        {% if profile_form.has_children.errors %}
+                            <div class="form-error">{{ profile_form.has_children.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-row">
+                        {{ profile_form.monthly_income_sgd.label_tag }}
+                        {{ profile_form.monthly_income_sgd }}
+                        {% if profile_form.monthly_income_sgd.errors %}
+                            <div class="form-error">{{ profile_form.monthly_income_sgd.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="modal-footer" style="margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 1rem;">
+                    <a href="{% if request.GET.next %}{{ request.GET.next }}{% else %}{% url 'homepage' %}{% endif %}" class="btn btn-outline" style="text-decoration: none;">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Save and Continue</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+

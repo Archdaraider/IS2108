@@ -1,91 +1,391 @@
-{% extends "adminpanel/base.html" %}
+{% extends 'adminpanel/base.html' %}
 {% load static %}
 
-{% block title %}{{ page_title|default:"Order List" }}{% endblock %}
+{% block header_actions %}
+<button class="btn btn-primary" onclick="openModal('createOrderModal')">
+    <i class="fas fa-plus"></i>
+    Create Order
+</button>
+{% endblock %}
 
 {% block content %}
-
-<div class="content-panel">
-    <div class="content-panel-header">
-        <h2>{{ page_title }}</h2>
-        <button id="toggle-form-btn" class="btn-primary" style="text-decoration: none;">
-            + New Order
-        </button>
-    </div>
-</div>
-
-<div id="create-form-container" class="create-form-panel" {% if not form.errors %}style="display: none;"{% endif %}>
-    <h3>Create New Order</h3>
-    <form method="post" action="{% url 'order_list' %}" novalidate>
-        {% csrf_token %}
-        <div class="form-container">
-            {{ form.as_p }}
+<!-- Filter Bar -->
+<div class="filter-bar">
+    <form method="get" class="filter-form">
+        <div class="filter-grid">
+            <div class="form-group">
+                <label class="form-label">Search</label>
+                <input type="text" name="search" class="form-control" 
+                       placeholder="Order ID, customer..." value="{{ search_query }}">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Customer</label>
+                <select name="customer" class="form-control">
+                    <option value="">All Customers</option>
+                    {% for customer in customers %}
+                    <option value="{{ customer.id }}" {% if customer.id|stringformat:"s" == customer_filter %}selected{% endif %}>
+                        {{ customer.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-control">
+                    <option value="">All Statuses</option>
+                    {% for status_value, status_label in statuses %}
+                    <option value="{{ status_value }}" {% if status_value == status_filter %}selected{% endif %}>
+                        {{ status_label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Date From</label>
+                <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Date To</label>
+                <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Amount Range</label>
+                <div class="d-flex gap-1">
+                    <input type="number" name="amount_min" class="form-control" 
+                           placeholder="Min" value="{{ amount_min }}" step="0.01" style="width: 50%;">
+                    <input type="number" name="amount_max" class="form-control" 
+                           placeholder="Max" value="{{ amount_max }}" step="0.01" style="width: 50%;">
+                </div>
+            </div>
         </div>
-        <div class="form-actions">
-            <button type="button" id="cancel-btn" class="btn-secondary">Cancel</button>
-            <button type="submit" class="btn-primary">Save Order</button>
+        
+        <div class="filter-actions">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-filter"></i> Apply Filters
+            </button>
+            <a href="{% url 'adminpanel:order_list' %}" class="btn btn-outline">
+                <i class="fas fa-times"></i> Clear
+            </a>
         </div>
     </form>
 </div>
-<div class="content-panel">
-    <div class="content-panel-body no-padding">
-        <table class="data-table">
+
+<!-- Orders Table -->
+<div class="table-container">
+    <div class="table-header">
+        <h3 class="table-title">Orders ({{ orders|length }})</h3>
+        <div class="table-actions">
+            <div class="form-group" style="margin: 0;">
+                <select class="form-control" onchange="window.location.href='?sort=' + this.value + '&search={{ search_query }}&customer={{ customer_filter }}&status={{ status_filter }}&date_from={{ date_from }}&date_to={{ date_to }}&amount_min={{ amount_min }}&amount_max={{ amount_max }}'">
+                    <option value="-placed_at" {% if sort_by == '-placed_at' %}selected{% endif %}>Newest First</option>
+                    <option value="placed_at" {% if sort_by == 'placed_at' %}selected{% endif %}>Oldest First</option>
+                    <option value="-total_amount" {% if sort_by == '-total_amount' %}selected{% endif %}>Amount (High-Low)</option>
+                    <option value="total_amount" {% if sort_by == 'total_amount' %}selected{% endif %}>Amount (Low-High)</option>
+                    <option value="fulfillment_status" {% if sort_by == 'fulfillment_status' %}selected{% endif %}>Status</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    
+    <div class="table-wrapper">
+        {% if orders %}
+        <table>
             <thead>
                 <tr>
-                    <th>oID</th>
+                    <th>Order ID</th>
                     <th>Customer</th>
-                    <th>Placed At</th>
+                    <th>Order Date</th>
+                    <th>Total Amount</th>
+                    <th>Payment</th>
+                    <th>Delivery</th>
                     <th>Status</th>
-                    <th>Total</th>
-                    <th>Tools</th>
+                    <th>Items</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for order in orders %}
                 <tr>
-                    <!-- === UPDATED: Make ID a link === -->
+                    <td><strong>{{ order.oID }}</strong></td>
                     <td>
-                        <a href="{% url 'order_detail' order.pk %}" class="table-link">
-                            {{ order.oID }}
-                        </a>
+                        {% if order.customer %}
+                            {{ order.customer.name }}<br>
+                            <small class="text-muted">{{ order.customer.email }}</small>
+                        {% else %}
+                            <span class="text-muted">Guest</span>
+                        {% endif %}
                     </td>
-                    <td>{{ order.customer.name|default:"N/A" }}</td>
-                    <td>{{ order.placed_at|date:"Y-m-d H:i" }}</td>
-                    <td>{{ order.get_fulfillment_status_display }}</td>
-                    <td>${{ order.total_amount|floatformat:2 }}</td>
-                    <!-- === UPDATED: Changed tools column === -->
-                    <td class="tools">
-                        <a href="{% url 'order_detail' order.pk %}">View / Update</a>
+                    <td>{{ order.placed_at|date:"M d, Y H:i" }}</td>
+                    <td><strong>${{ order.total_amount|floatformat:2 }}</strong></td>
+                    <td>
+                        <span class="badge badge-secondary" title="{{ order.get_payment_method_display }}">
+                            {% if order.payment_method == 'card' %}
+                                <i class="fas fa-credit-card"></i> Card
+                            {% elif order.payment_method == 'paynow' %}
+                                <i class="fas fa-mobile-alt"></i> PayNow
+                            {% else %}
+                                {{ order.get_payment_method_display }}
+                            {% endif %}
+                        </span>
                     </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="6" style="text-align: center; color: #777;">No orders found.</td>
+                    <td>
+                        <span class="badge badge-info" title="{{ order.get_delivery_time_display }}">
+                            {% if order.delivery_time == 'standard' %}
+                                <i class="fas fa-shipping-fast"></i> Standard
+                            {% elif order.delivery_time == 'express' %}
+                                <i class="fas fa-bolt"></i> Express
+                            {% elif order.delivery_time == 'overnight' %}
+                                <i class="fas fa-rocket"></i> Overnight
+                            {% else %}
+                                {{ order.get_delivery_time_display }}
+                            {% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        {% if order.fulfillment_status == 'PENDING' %}
+                            <span class="badge badge-warning">Pending</span>
+                        {% elif order.fulfillment_status == 'PROCESSING' %}
+                            <span class="badge badge-info">Processing</span>
+                        {% elif order.fulfillment_status == 'SHIPPED' %}
+                            <span class="badge badge-info">Shipped</span>
+                        {% elif order.fulfillment_status == 'DELIVERED' %}
+                            <span class="badge badge-success">Delivered</span>
+                        {% elif order.fulfillment_status == 'CANCELLED' %}
+                            <span class="badge badge-danger">Cancelled</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge badge-secondary">{{ order.items.count }} item{{ order.items.count|pluralize }}</span>
+                    </td>
+                    <td>
+                        <div class="d-flex gap-1">
+                            <a href="{% url 'adminpanel:order_detail' order.pk %}" class="btn btn-sm btn-secondary">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <form method="post" action="{% url 'adminpanel:order_delete' order.pk %}" 
+                                  style="display: inline;"
+                                  data-item-type="order"
+                                  data-item-name="{{ order.oID }}"
+                                  onsubmit="return confirmDelete('order', '{{ order.oID }}');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-danger">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon"><i class="fas fa-shopping-cart"></i></div>
+            <div class="empty-state-text">No orders found</div>
+            <button class="btn btn-primary mt-2" onclick="openModal('createOrderModal')">
+                <i class="fas fa-plus"></i> Create Your First Order
+            </button>
+        </div>
+        {% endif %}
     </div>
 </div>
 
+<!-- Create Order Modal -->
+<div class="modal-overlay" id="createOrderModal" style="display: none;">
+    <div class="modal" style="max-width: 900px;">
+        <div class="modal-header">
+            <h3 class="modal-title">Create New Order</h3>
+            <button class="modal-close" onclick="closeModal('createOrderModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form method="post" action="{% url 'adminpanel:order_list' %}">
+            {% csrf_token %}
+            <div class="modal-body">
+                <h4 style="margin-bottom: 1rem; color: var(--color-text-primary);">Order Details</h4>
+                <div class="form-grid">
+                    {{ form.as_p }}
+                </div>
+                
+                <hr style="margin: 2rem 0; border: none; border-top: 1px solid var(--color-border);">
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h4 style="color: var(--color-text-primary); margin: 0;">Order Items</h4>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="addOrderItem()">
+                        <i class="fas fa-plus"></i> Add Item
+                    </button>
+                </div>
+                
+                <div id="orderItemsContainer">
+                    {{ formset.management_form }}
+                    <div id="orderItemFormsWrapper">
+                        {% for item_form in formset %}
+                        <div class="order-item-form" style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 1rem; align-items: start; margin-bottom: 1rem; padding: 1rem; background-color: var(--color-background-alt); border-radius: var(--border-radius);">
+                            <div class="form-group" style="margin: 0;">
+                                <label class="form-label">Product</label>
+                                {{ item_form.product }}
+                            </div>
+                            <div class="form-group" style="margin: 0;">
+                                <label class="form-label">Quantity</label>
+                                {{ item_form.quantity }}
+                            </div>
+                            <div style="display: flex; align-items: flex-end; height: 100%; padding-top: 1.8rem;">
+                                <button type="button" class="btn btn-sm btn-danger" onclick="removeOrderItem(this)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                            {{ item_form.id }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                {% if form.non_field_errors %}
+                <div class="alert alert-error mt-2">
+                    {{ form.non_field_errors }}
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeModal('createOrderModal')">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Create Order
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
 <script>
+// Open modal if form has errors
+{% if form.errors or formset.errors %}
     document.addEventListener('DOMContentLoaded', function() {
-        var formContainer = document.getElementById('create-form-container');
-        
-        // Toggle button shows/hides the form
-        document.getElementById('toggle-form-btn').addEventListener('click', function() {
-            if (formContainer.style.display === 'none') {
-                formContainer.style.display = 'block';
-            } else {
-                formContainer.style.display = 'none';
+        openModal('createOrderModal');
+    });
+{% endif %}
+
+// Style form fields
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('#createOrderModal form');
+    if (form) {
+        // Add classes to all form inputs
+        form.querySelectorAll('input, select, textarea').forEach(field => {
+            if (field.type !== 'hidden' && field.type !== 'checkbox') {
+                field.classList.add('form-control');
             }
         });
+        
+        // Add required indicator to labels
+        form.querySelectorAll('label').forEach(label => {
+            label.classList.add('form-label');
+            const input = document.getElementById(label.getAttribute('for'));
+            if (input && input.hasAttribute('required')) {
+                label.classList.add('required');
+            }
+        });
+    }
+});
 
-        // Cancel button always hides the form
-        document.getElementById('cancel-btn').addEventListener('click', function() {
-            formContainer.style.display = 'none';
+// Add new order item form
+function addOrderItem() {
+    const wrapper = document.getElementById('orderItemFormsWrapper');
+    const totalForms = document.querySelector('input[name="items-TOTAL_FORMS"]');
+    const currentFormCount = parseInt(totalForms.value);
+    
+    // Get the last form to clone
+    const lastForm = wrapper.querySelector('.order-item-form:last-child');
+    if (!lastForm) return;
+    
+    // Clone the form
+    const newForm = lastForm.cloneNode(true);
+    
+    // Update form index in all fields
+    newForm.querySelectorAll('input, select, textarea').forEach(field => {
+        if (field.name) {
+            field.name = field.name.replace(/items-\d+-/, `items-${currentFormCount}-`);
+            field.id = field.id.replace(/id_items-\d+-/, `id_items-${currentFormCount}-`);
+            // Clear values for new form
+            if (field.type !== 'hidden') {
+                if (field.tagName === 'SELECT') {
+                    field.selectedIndex = 0;
+                } else if (field.name.includes('quantity')) {
+                    field.value = '1';
+                } else {
+                    field.value = '';
+                }
+            }
+        }
+    });
+    
+    // Update labels
+    newForm.querySelectorAll('label').forEach(label => {
+        if (label.getAttribute('for')) {
+            label.setAttribute('for', label.getAttribute('for').replace(/id_items-\d+-/, `id_items-${currentFormCount}-`));
+        }
+    });
+    
+    // Append new form
+    wrapper.appendChild(newForm);
+    
+    // Update total forms count
+    totalForms.value = currentFormCount + 1;
+    
+    showNotification('Order item added', 'success');
+}
+
+// Remove order item form
+function removeOrderItem(button) {
+    const wrapper = document.getElementById('orderItemFormsWrapper');
+    const form = button.closest('.order-item-form');
+    
+    // Count visible forms (not marked for deletion)
+    const visibleForms = Array.from(wrapper.querySelectorAll('.order-item-form')).filter(f => {
+        const deleteCheckbox = f.querySelector('input[name*="-DELETE"]');
+        const isHidden = f.style.display === 'none';
+        const isMarkedDeleted = deleteCheckbox && deleteCheckbox.checked;
+        return !isHidden && !isMarkedDeleted;
+    });
+    
+    // Keep at least one visible form
+    if (visibleForms.length <= 1) {
+        showNotification('At least one order item is required', 'warning');
+        return;
+    }
+    
+    // For new order creation, just remove the form
+    form.remove();
+    
+    // Update total forms count
+    const totalForms = document.querySelector('input[name="items-TOTAL_FORMS"]');
+    totalForms.value = parseInt(totalForms.value) - 1;
+    
+    // Re-index remaining visible forms
+    const remainingForms = wrapper.querySelectorAll('.order-item-form');
+    remainingForms.forEach((f, index) => {
+        f.querySelectorAll('input, select, textarea').forEach(field => {
+            if (field.name) {
+                field.name = field.name.replace(/items-\d+-/, `items-${index}-`);
+                field.id = field.id.replace(/id_items-\d+-/, `id_items-${index}-`);
+            }
+        });
+        f.querySelectorAll('label').forEach(label => {
+            if (label.getAttribute('for')) {
+                label.setAttribute('for', label.getAttribute('for').replace(/id_items-\d+-/, `id_items-${index}-`));
+            }
         });
     });
+    
+    showNotification('Order item removed', 'success');
+}
 </script>
+{% endblock %}
 
-{% endblock content %}

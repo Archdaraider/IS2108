@@ -28,7 +28,7 @@ class Command(BaseCommand):
 
         # Get all unique categories from products
         categories_data = Product.objects.filter(
-            stock__gt=0,
+            quantity_on_hand__gt=0,
             category__isnull=False
         ).exclude(
             category=''
@@ -66,7 +66,7 @@ class Command(BaseCommand):
             subcategories_data = Product.objects.filter(
                 category=category_name,
                 subcategory__isnull=False,
-                stock__gt=0
+                quantity_on_hand__gt=0
             ).exclude(
                 subcategory=''
             ).values('subcategory').annotate(

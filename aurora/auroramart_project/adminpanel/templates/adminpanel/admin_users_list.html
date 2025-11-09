@@ -1,0 +1,248 @@
+{% extends 'adminpanel/base.html' %}
+{% load static %}
+
+{% block header_actions %}
+<button class="btn btn-primary" onclick="openModal('createAdminModal')">
+    <i class="fas fa-plus"></i>
+    Add Admin User
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="alert alert-info mb-3">
+    <i class="fas fa-shield-alt"></i>
+    <span>This page is only accessible to superusers. You can create and manage admin users who will have access to this admin panel.</span>
+</div>
+
+<!-- Superusers Section -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i class="fas fa-crown" style="color: #ffc107;"></i>
+            Superusers
+        </h3>
+        <span class="badge badge-warning">{{ superusers.count }} superuser{{ superusers.count|pluralize }}</span>
+    </div>
+    <div class="card-body">
+        {% if superusers %}
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Name</th>
+                        <th>Date Joined</th>
+                        <th>Last Login</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in superusers %}
+                    <tr>
+                        <td>
+                            <strong>{{ user.username }}</strong>
+                            {% if user == request.user %}
+                                <span class="badge badge-info" style="margin-left: 0.5rem;">You</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ user.email|default:"-" }}</td>
+                        <td>{{ user.get_full_name|default:"-" }}</td>
+                        <td>{{ user.date_joined|date:"M d, Y" }}</td>
+                        <td>
+                            {% if user.last_login %}
+                                {{ user.last_login|date:"M d, Y H:i" }}
+                            {% else %}
+                                <span class="text-muted">Never</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if user.is_active %}
+                                <span class="badge badge-success">Active</span>
+                            {% else %}
+                                <span class="badge badge-danger">Inactive</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon"><i class="fas fa-user-shield"></i></div>
+            <div class="empty-state-text">No superusers found</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Regular Admin Users Section -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i class="fas fa-user-tie"></i>
+            Admin Users
+        </h3>
+        <span class="badge badge-info">{{ regular_admins.count }} admin{{ regular_admins.count|pluralize }}</span>
+    </div>
+    <div class="card-body">
+        {% if regular_admins %}
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Name</th>
+                        <th>Date Joined</th>
+                        <th>Last Login</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in regular_admins %}
+                    <tr>
+                        <td><strong>{{ user.username }}</strong></td>
+                        <td>{{ user.email|default:"-" }}</td>
+                        <td>{{ user.get_full_name|default:"-" }}</td>
+                        <td>{{ user.date_joined|date:"M d, Y" }}</td>
+                        <td>
+                            {% if user.last_login %}
+                                {{ user.last_login|date:"M d, Y H:i" }}
+                            {% else %}
+                                <span class="text-muted">Never</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if user.is_active %}
+                                <span class="badge badge-success">Active</span>
+                            {% else %}
+                                <span class="badge badge-danger">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button onclick="deleteAdminUser({{ user.pk }}, '{{ user.username }}')" 
+                                    class="btn btn-sm btn-danger">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon"><i class="fas fa-users"></i></div>
+            <div class="empty-state-text">No admin users yet</div>
+            <button class="btn btn-primary mt-2" onclick="openModal('createAdminModal')">
+                <i class="fas fa-plus"></i> Create Your First Admin User
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Create Admin User Modal -->
+<div class="modal-overlay" id="createAdminModal" style="display: none;">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title">Add New Admin User</h3>
+            <button class="modal-close" onclick="closeModal('createAdminModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form method="post" action="{% url 'adminpanel:admin_users_list' %}">
+            {% csrf_token %}
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Admin users will have access to this panel but won't be able to manage other admin users.</span>
+                </div>
+                
+                <div class="form-grid">
+                    {{ form.as_p }}
+                </div>
+                
+                {% if form.non_field_errors %}
+                <div class="alert alert-error mt-2">
+                    {{ form.non_field_errors }}
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeModal('createAdminModal')">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Create Admin User
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Open modal if form has errors
+{% if form.errors %}
+    document.addEventListener('DOMContentLoaded', function() {
+        openModal('createAdminModal');
+    });
+{% endif %}
+
+// Style form fields
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('#createAdminModal form');
+    if (form) {
+        // Add classes to all form inputs
+        form.querySelectorAll('input, select, textarea').forEach(field => {
+            if (field.type !== 'hidden') {
+                field.classList.add('form-control');
+            }
+        });
+        
+        // Add required indicator to labels
+        form.querySelectorAll('label').forEach(label => {
+            label.classList.add('form-label');
+            const input = document.getElementById(label.getAttribute('for'));
+            if (input && input.hasAttribute('required')) {
+                label.classList.add('required');
+            }
+        });
+    }
+});
+
+// Delete admin user
+function deleteAdminUser(userId, username) {
+    if (!confirm(`Are you sure you want to delete admin user "${username}"?`)) {
+        return;
+    }
+    
+    fetch(`/admin/admin-users/${userId}/delete/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showNotification(data.error || 'Delete failed', 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('An error occurred', 'error');
+        console.error('Error:', error);
+    });
+}
+</script>
+{% endblock %}
+

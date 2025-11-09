@@ -13,7 +13,8 @@
         </div>
 
         <div class="auth-content">
-            <!-- Social Login -->
+            <!-- Social Login (only if social_django is installed) -->
+            {% if SOCIAL_AUTH_ENABLED %}
             <a href="{% url 'social:begin' 'google-oauth2' %}" class="btn btn-social google-btn">
                 <i class="fab fa-google"></i>
                 Continue with Google
@@ -22,6 +23,7 @@
             <div class="auth-divider">
                 <span>OR</span>
             </div>
+            {% endif %}
 
             <!-- Login Form -->
             <form method="post" class="auth-form">

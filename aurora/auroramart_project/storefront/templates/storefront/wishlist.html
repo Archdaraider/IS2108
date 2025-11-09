@@ -44,10 +44,10 @@
                 </h3>
                 <div class="product-category">{{ item.product.category }} - {{ item.product.subcategory }}</div>
                 
-                <div class="product-stock" style="font-size: 0.875rem; color: {% if item.product.stock > 0 %}#28a745{% else %}#dc3545{% endif %}; margin: 0.25rem 0;">
+                <div class="product-stock" style="font-size: 0.875rem; color: {% if item.product.quantity_on_hand > 0 %}#28a745{% else %}#dc3545{% endif %}; margin: 0.25rem 0;">
                     <i class="fas fa-box" style="margin-right: 0.25rem;"></i>
-                    {% if item.product.stock > 0 %}
-                        Stock: {{ item.product.stock }} item{{ item.product.stock|pluralize }}
+                    {% if item.product.quantity_on_hand > 0 %}
+                        Stock: {{ item.product.quantity_on_hand }} item{{ item.product.quantity_on_hand|pluralize }}
                     {% else %}
                         Out of Stock
                     {% endif %}
@@ -68,7 +68,7 @@
                 
                 <div class="product-price">${{ item.product.price|floatformat:2 }}</div>
                 
-                {% if item.product.stock > 0 %}
+                {% if item.product.quantity_on_hand > 0 %}
                     {% if item.product.id in cart_product_ids %}
                         {% for cart_item in cart.items.all %}
                             {% if cart_item.product_id == item.product.id %}

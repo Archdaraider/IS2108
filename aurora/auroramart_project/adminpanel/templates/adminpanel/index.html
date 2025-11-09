@@ -1,143 +1,490 @@
-{% extends "adminpanel/base.html" %}
+{% extends 'adminpanel/base.html' %}
 {% load static %}
 
-{% block title %}{{ page_title|default:"Dashboard" }}{% endblock %}
+{% block extra_css %}
+<style>
+    .inventory-alert-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--color-border);
+    }
+    
+    .inventory-alert-item:last-child {
+        border-bottom: none;
+    }
+    
+    .alert-product-info {
+        flex: 1;
+    }
+    
+    .alert-product-name {
+        font-weight: 600;
+        color: var(--color-text-primary);
+        margin-bottom: 0.25rem;
+    }
+    
+    .alert-product-sku {
+        font-size: 0.85rem;
+        color: var(--color-text-muted);
+    }
+    
+    .alert-stock-info {
+        text-align: right;
+    }
+    
+    .stock-value {
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+    
+    .stock-value.critical {
+        color: var(--color-danger);
+    }
+    
+    .stock-value.low {
+        color: var(--color-warning);
+    }
+    
+    .stock-label {
+        font-size: 0.8rem;
+        color: var(--color-text-muted);
+    }
+    
+    .product-rating-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        border-bottom: 1px solid var(--color-border);
+    }
+    
+    .product-rating-item:last-child {
+        border-bottom: none;
+    }
+    
+    .product-rank {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--color-text-muted);
+        min-width: 40px;
+    }
+    
+    .product-details {
+        flex: 1;
+    }
+    
+    .product-name {
+        font-weight: 600;
+        color: var(--color-text-primary);
+        margin-bottom: 0.25rem;
+    }
+    
+    .product-category {
+        font-size: 0.85rem;
+        color: var(--color-text-muted);
+    }
+    
+    .product-rating {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 700;
+        font-size: 1.25rem;
+    }
+    
+    .rating-stars {
+        color: #ffc107;
+    }
+    
+    .top-rated .product-rating {
+        color: var(--color-success);
+    }
+    
+    .worst-rated .product-rating {
+        color: var(--color-danger);
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<main class="dashboard-main-content">
-    
-    <div class="kpi-grid">
-        
-        <div class="kpi-card customers">
-            <p class="kpi-title">Total Customers</p>
-            <p class="kpi-value">{{ kpis.total_customers }}</p>
-            <p class="kpi-context">Current B2C customer base</p>
-        </div>
-        
-        <div class="kpi-card transactions">
-            <p class="kpi-title">Transactions Logged</p>
-            <p class="kpi-value">{{ kpis.total_transactions }}</p>
-            <p class="kpi-context">All transactions on file</p>
-        </div>
-        
-        <div class="kpi-card products">
-            <p class="kpi-title">Products in Catalog</p>
-            <p class="kpi-value">{{ kpis.total_products }}</p>
-            <p class="kpi-context">SKUs available for sale</p>
-        </div>
-        
-        <div class="kpi-card models">
-            <p class="kpi-title">Active AI Models</p>
-            <p class="kpi-value">{{ kpis.active_models }}</p>
-            <p class="kpi-context">Models currently serving predictions</p>
+<!-- KPI Cards -->
+<div class="kpi-grid">
+    <div class="stat-card">
+        <div class="stat-header">
+            <div>
+                <div class="stat-value">{{ kpis.total_customers|default:0 }}</div>
+                <div class="stat-label">Total Customers</div>
+            </div>
+            <div class="stat-icon">
+                <i class="fas fa-users"></i>
+            </div>
         </div>
     </div>
-
-    <div class="dashboard-layout">
-        
-        <div class="content-panel">
-            <div class="content-panel-header">
-                <h2>Customer Segment Summary (AI Driven)</h2>
+    
+    <div class="stat-card green">
+        <div class="stat-header">
+            <div>
+                <div class="stat-value">{{ kpis.total_products|default:0 }}</div>
+                <div class="stat-label">Total Products</div>
             </div>
-            <div class="content-panel-body">
-                <p style="font-size: 0.9rem; color: #555; margin-top: 0; margin-bottom: 1rem;">
-                    Top 5 Preferred Categories by Customer Count (Decision Tree Insights)
-                </p>
-                <ul class="summary-list">
-                {% for segment in segment_summary %}
-                    <li>
-                        <span class="item-name">{{ segment.preferred_category }}</span>
-                        <span class="item-value">{{ segment.count }} Customers</span>
-                    </li>
-                {% empty %}
-                    <li style="justify-content: center; background: #fff; color: #777; font-style: italic;">
-                        No customer segment data available.
-                    </li>
-                {% endfor %}
-                </ul>
-                <div style="border-top: 1px solid #eee; margin-top: 1.5rem; padding-top: 1rem;">
-                    <p style="font-size: 0.8rem; color: #888; text-align: center; font-style: italic; margin-bottom: 0;">
-                        Integration Point: Use JavaScript to render a Pie Chart/Bar Chart here.
-                    </p>
+            <div class="stat-icon">
+                <i class="fas fa-box"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="stat-card blue">
+        <div class="stat-header">
+            <div>
+                <div class="stat-value">{{ kpis.total_transactions|default:0 }}</div>
+                <div class="stat-label">Total Orders</div>
+            </div>
+            <div class="stat-icon">
+                <i class="fas fa-shopping-cart"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="stat-card orange">
+        <div class="stat-header">
+            <div>
+                <div class="stat-value">${{ overall_stats.total_revenue|default:0|floatformat:2 }}</div>
+                <div class="stat-label">Total Revenue</div>
+            </div>
+            <div class="stat-icon">
+                <i class="fas fa-dollar-sign"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="chart-row">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Customer Preferred Categories</h3>
+        </div>
+        <div class="card-body">
+            <div class="chart-container">
+                <canvas id="categoryPieChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Sales Overview</h3>
+        </div>
+        <div class="card-body">
+            <div class="chart-container">
+                <canvas id="salesBarChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top & Worst Rated Products -->
+<div class="chart-row">
+    <div class="card top-rated">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-trophy" style="color: var(--color-success);"></i>
+                Top 3 Rated Products
+            </h3>
+        </div>
+        <div class="card-body">
+            {% if top_rated_products %}
+                {% for product in top_rated_products %}
+                <div class="product-rating-item">
+                    <div class="product-rank">{{ forloop.counter }}</div>
+                    <div class="product-details">
+                        <div class="product-name">{{ product.name }}</div>
+                        <div class="product-category">{{ product.category }}</div>
+                    </div>
+                    <div class="product-rating">
+                        <span class="star-rating rating-stars" data-rating="{{ product.rating }}">
+                            <i class="far fa-star"></i>
+                            <i class="far fa-star"></i>
+                            <i class="far fa-star"></i>
+                            <i class="far fa-star"></i>
+                            <i class="far fa-star"></i>
+                        </span>
+                        <span>{{ product.rating }}</span>
+                    </div>
                 </div>
-            </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <div class="empty-state-icon"><i class="fas fa-box-open"></i></div>
+                    <div class="empty-state-text">No products yet</div>
+                </div>
+            {% endif %}
         </div>
-
-        <div class="content-panel">
-            <div class="content-panel-header">
-                <h2>⚠️ Inventory Alert: Reorder Required</h2>
-            </div>
-            <div class="content-panel-body no-padding" style="max-height: 300px; overflow-y: auto;">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Product Name</th>
-                            <th>SKU</th>
-                            <th>On Hand</th>
-                            <th>Reorder Lvl</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for product in inventory_alerts %}
-                        <tr>
-                            <td>{{ product.name }}</td>
-                            <td>{{ product.sku_code }}</td>
-                            <td class="text-danger">{{ product.quantity_on_hand }}</td>
-                            <td>{{ product.reorder_quantity }}</td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="4" style="text-align: center; color: #777; font-style: italic;">
-                                No inventory alerts.
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+        <div class="card-footer">
+            <a href="{% url 'adminpanel:product_list' %}?sort=-rating" class="btn btn-outline btn-sm">View All Products</a>
         </div>
     </div>
     
-    <div class="content-panel">
-        <div class="content-panel-header">
-            <h2>Deployed AI Model Status</h2>
+    <div class="card worst-rated">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-exclamation-triangle" style="color: var(--color-danger);"></i>
+                Worst 3 Rated Products
+            </h3>
         </div>
-        <div class="content-panel-body no-padding">
-            <table class="data-table">
+        <div class="card-body">
+            {% if worst_rated_products %}
+                {% for product in worst_rated_products %}
+                <div class="product-rating-item">
+                    <div class="product-rank">{{ forloop.counter }}</div>
+                    <div class="product-details">
+                        <div class="product-name">{{ product.name }}</div>
+                        <div class="product-category">{{ product.category }}</div>
+                    </div>
+                    <div class="product-rating">
+                        <span class="star-rating rating-stars" data-rating="{{ product.rating }}">
+                            <i class="far fa-star"></i>
+                            <i class="far fa-star"></i>
+                            <i class="far fa-star"></i>
+                            <i class="far fa-star"></i>
+                            <i class="far fa-star"></i>
+                        </span>
+                        <span>{{ product.rating }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <div class="empty-state-icon"><i class="fas fa-box-open"></i></div>
+                    <div class="empty-state-text">No products yet</div>
+                </div>
+            {% endif %}
+        </div>
+        <div class="card-footer">
+            <a href="{% url 'adminpanel:product_list' %}?sort=rating" class="btn btn-outline btn-sm">View All Products</a>
+        </div>
+    </div>
+</div>
+
+<!-- Inventory Alerts -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i class="fas fa-exclamation-circle" style="color: var(--color-warning);"></i>
+            Products Needing Restock
+        </h3>
+        <span class="badge badge-warning">{{ inventory_alerts|length }} alert{{ inventory_alerts|length|pluralize }}</span>
+    </div>
+    <div class="card-body">
+        {% if inventory_alerts %}
+            {% for product in inventory_alerts %}
+            <a href="{% url 'adminpanel:product_detail' product.pk %}" class="inventory-alert-item" style="text-decoration: none; color: inherit; display: flex;">
+                <div class="alert-product-info">
+                    <div class="alert-product-name">{{ product.name }}</div>
+                    <div class="alert-product-sku">SKU: {{ product.sku }}</div>
+                </div>
+                <div class="alert-stock-info">
+                    <div class="stock-value {% if product.quantity_on_hand == 0 %}critical{% else %}low{% endif %}">
+                        {{ product.quantity_on_hand }}
+                    </div>
+                    <div class="stock-label">Reorder at: {{ product.reorder_quantity }}</div>
+                </div>
+            </a>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon"><i class="fas fa-check-circle"></i></div>
+                <div class="empty-state-text">All products are well stocked!</div>
+            </div>
+        {% endif %}
+    </div>
+    {% if inventory_alerts %}
+    <div class="card-footer">
+        <a href="{% url 'adminpanel:product_list' %}?stock=low" class="btn btn-outline btn-sm">View All Low Stock Products</a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Top Customers Summary -->
+<div class="card mt-3">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i class="fas fa-user-friends"></i>
+            Top Customers by Order Count
+        </h3>
+    </div>
+    <div class="card-body">
+        {% if customer_summary %}
+        <div class="table-wrapper">
+            <table>
                 <thead>
                     <tr>
-                        <th>Model Name</th>
-                        <th>Version</th>
-                        <th>Accuracy</th>
-                        <th>Status</th>
-                        <th>Trained On</th>
+                        <th>Customer</th>
+                        <th>Email</th>
+                        <th>Total Orders</th>
+                        <th>Avg Order Value</th>
+                        <th>Last Order</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for model in model_status %}
+                    {% for customer in customer_summary %}
                     <tr>
-                        <td>{{ model.model_name }}</td>
-                        <td>v{{ model.version }}</td>
-                        <td>{{ model.accuracy|default:"N/A" }}</td>
                         <td>
-                            {% if model.is_active %}
-                                <span class="status-pill active">Active</span>
-                            {% else %}
-                                <span class="status-pill inactive">Inactive</span>
-                            {% endif %}
+                            <a href="{% url 'adminpanel:customer_detail' customer.pk %}" style="text-decoration: none; color: var(--color-primary); font-weight: 600;">
+                                {{ customer.name }}
+                            </a>
                         </td>
-                        <td>{{ model.training_date|date:"Y-m-d H:i" }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="5" style="text-align: center; color: #777; font-style: italic;">
-                            No AI models found.
+                        <td>{{ customer.email }}</td>
+                        <td><span class="badge badge-info">{{ customer.total_orders }}</span></td>
+                        <td>${{ customer.avg_order_value|default:0|floatformat:2 }}</td>
+                        <td>
+                            {% if customer.last_order_date %}
+                                {{ customer.last_order_date|date:"M d, Y" }}
+                            {% else %}
+                                <span class="text-muted">No orders</span>
+                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon"><i class="fas fa-users"></i></div>
+                <div class="empty-state-text">No customer data available</div>
+            </div>
+        {% endif %}
     </div>
-</main>
-{% endblock content %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Pie Chart for Customer Categories - MUTED PASTEL COLORS
+const pieCtx = document.getElementById('categoryPieChart');
+if (pieCtx) {
+    const pieLabels = {{ pie_chart_data.labels|safe }};
+    const pieCounts = {{ pie_chart_data.counts|safe }};
+
+    new Chart(pieCtx.getContext('2d'), {
+        type: 'pie',
+        data: {
+            labels: pieLabels,
+            datasets: [{
+                data: pieCounts,
+                backgroundColor: [
+                    'rgba(167, 139, 250, 0.8)',  // Muted purple
+                    'rgba(253, 164, 175, 0.8)',  // Muted pink
+                    'rgba(134, 239, 172, 0.8)',  // Muted green
+                    'rgba(147, 197, 253, 0.8)',  // Muted blue
+                    'rgba(252, 211, 77, 0.8)',   // Muted yellow
+                    'rgba(251, 146, 60, 0.8)',   // Muted orange
+                    'rgba(196, 181, 253, 0.8)',  // Light purple
+                    'rgba(165, 243, 252, 0.8)'   // Muted cyan
+                ],
+                borderWidth: 3,
+                borderColor: '#ffffff',
+                hoverOffset: 10
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        padding: 15,
+                        font: {
+                            size: 12,
+                            family: "'Segoe UI', sans-serif"
+                        },
+                        usePointStyle: true,
+                        pointStyle: 'circle'
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    cornerRadius: 8,
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Bar Chart for Sales Overview (REAL DATA)
+const barCtx = document.getElementById('salesBarChart');
+if (barCtx) {
+    const salesLabels = {{ sales_chart_data.labels|safe }};
+    const salesValues = {{ sales_chart_data.values|safe }};
+
+    new Chart(barCtx.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: salesLabels,
+            datasets: [{
+                label: 'Revenue',
+                data: salesValues,
+                backgroundColor: 'rgba(139, 92, 246, 0.8)',  // Muted purple
+                borderColor: 'rgba(139, 92, 246, 1)',
+                borderWidth: 2,
+                borderRadius: 8,
+                hoverBackgroundColor: 'rgba(139, 92, 246, 0.95)'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)',
+                        drawBorder: false
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    cornerRadius: 8,
+                    callbacks: {
+                        label: function(context) {
+                            return 'Revenue: $' + context.parsed.y.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+</script>
+{% endblock %}
+

@@ -151,6 +151,7 @@ class CustomerProfileForm(forms.ModelForm):
             'household_size',
             'has_children',
             'monthly_income_sgd',
+            # NOTE: preferred_category is auto-predicted by ML model in admin panel, not user-provided
         ]
         widgets = {
             'gender': forms.Select(attrs={

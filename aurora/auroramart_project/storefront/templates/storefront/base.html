@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="{% static 'css/storefront.css' %}">
+    <link rel="stylesheet" href="{% static 'css/storefront.css' %}?v=1.3">
     
     <!-- Meta tags for SEO -->
     <meta name="description" content="{% block description %}AuroraMart - Your one-stop online shopping destination for electronics, fashion, home & kitchen, and more.{% endblock %}">
@@ -184,8 +184,11 @@
         {% include 'storefront/profile_onboarding_modal.html' %}
     {% endif %}
 
+    <!-- Customer Chat Widget -->
+    {% include 'storefront/chat_widget.html' %}
+
     <!-- JavaScript -->
-    <script src="{% static 'js/storefront.js' %}"></script>
+    <script src="{% static 'js/storefront.js' %}?v=1.4"></script>
     
     {% block extra_js %}{% endblock %}
 </body>

@@ -1,0 +1,280 @@
+{% extends 'adminpanel/base.html' %}
+{% load static %}
+
+{% block title %}Customer Chats - Admin Panel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <i class="fas fa-comments"></i> Customer Chats
+            {% if total_unread > 0 %}
+            <span class="badge badge-danger">{{ total_unread }} unread</span>
+            {% endif %}
+        </h1>
+        <p class="text-muted">Manage customer support conversations</p>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="filter-bar">
+    <form method="GET" action="{% url 'adminpanel:chat_list' %}" class="filter-grid">
+        <div class="form-group">
+            <label for="status">Status</label>
+            <select name="status" id="status" class="form-control">
+                <option value="">All Statuses</option>
+                <option value="OPEN" {% if status_filter == 'OPEN' %}selected{% endif %}>Open</option>
+                <option value="IN_PROGRESS" {% if status_filter == 'IN_PROGRESS' %}selected{% endif %}>In Progress</option>
+                <option value="CLOSED" {% if status_filter == 'CLOSED' %}selected{% endif %}>Closed</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="search">Search</label>
+            <input type="text" name="search" id="search" class="form-control" placeholder="Customer name, email..." value="{{ search }}">
+        </div>
+        
+        <div class="form-group" style="align-self: flex-end;">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-filter"></i> Filter
+            </button>
+            <a href="{% url 'adminpanel:chat_list' %}" class="btn btn-outline">
+                <i class="fas fa-times"></i> Clear
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Bulk Actions -->
+{% if chats %}
+<div class="bulk-actions-bar" style="margin-bottom: 1rem;">
+    <button type="button" class="btn btn-danger" onclick="bulkDeleteChats()" id="bulkDeleteBtn" disabled>
+        <i class="fas fa-trash"></i> Delete Selected
+    </button>
+    <span id="selectedCount" style="margin-left: 1rem; color: #6b7280;">0 selected</span>
+</div>
+{% endif %}
+
+<!-- Chat List -->
+<div class="table-container">
+    <div class="table-wrapper">
+        {% if chats %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">
+                        <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)">
+                    </th>
+                    <th>Chat ID</th>
+                    <th>Customer</th>
+                    <th>Subject</th>
+                    <th>Status</th>
+                    <th>Last Message</th>
+                    <th>Unread</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for chat in chats %}
+                <tr class="{% if chat.unread_count_admin > 0 %}chat-unread{% endif %}">
+                    <td>
+                        <input type="checkbox" class="chat-checkbox" value="{{ chat.id }}" onchange="updateBulkActions()">
+                    </td>
+                    <td>#{{ chat.id }}</td>
+                    <td>
+                        <strong>{{ chat.customer.name }}</strong><br>
+                        <small class="text-muted">{{ chat.customer.email }}</small>
+                    </td>
+                    <td>{{ chat.subject }}</td>
+                    <td>
+                        <span class="badge badge-{% if chat.status == 'OPEN' %}warning{% elif chat.status == 'IN_PROGRESS' %}info{% else %}secondary{% endif %}">
+                            {{ chat.get_status_display }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if chat.last_message %}
+                        <small>{{ chat.last_message.message|truncatewords:10 }}</small>
+                        {% else %}
+                        <small class="text-muted">No messages yet</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if chat.unread_count_admin > 0 %}
+                        <span class="badge badge-danger">{{ chat.unread_count_admin }}</span>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ chat.created_at|date:"M d, Y H:i" }}</td>
+                    <td class="actions">
+                        <a href="{% url 'adminpanel:chat_detail' chat.id %}" class="btn btn-sm btn-primary" title="View Chat">
+                            <i class="fas fa-eye"></i> View
+                        </a>
+                        <button onclick="deleteChat({{ chat.id }}, '{{ chat.customer.name }}')" class="btn btn-sm btn-danger" title="Delete Chat">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-comments fa-3x text-muted mb-3"></i>
+            <p>No customer chats found</p>
+            <small class="text-muted">Customers can start chats from the storefront</small>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.badge-danger {
+    background: #ef4444;
+    color: white;
+}
+
+.badge-warning {
+    background: #f59e0b;
+    color: white;
+}
+
+.badge-info {
+    background: #3b82f6;
+    color: white;
+}
+
+.badge-secondary {
+    background: #6b7280;
+    color: white;
+}
+
+.chat-unread {
+    background: #fef3c7;
+}
+
+.chat-unread:hover {
+    background: #fde68a;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: #6b7280;
+}
+
+.bulk-actions-bar {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    background: #f9fafb;
+    border-radius: 8px;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleSelectAll(checkbox) {
+    const checkboxes = document.querySelectorAll('.chat-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+    updateBulkActions();
+}
+
+function updateBulkActions() {
+    const checkboxes = document.querySelectorAll('.chat-checkbox:checked');
+    const count = checkboxes.length;
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+    const selectedCount = document.getElementById('selectedCount');
+    
+    selectedCount.textContent = `${count} selected`;
+    bulkDeleteBtn.disabled = count === 0;
+}
+
+function deleteChat(chatId, customerName) {
+    if (!confirm(`Are you sure you want to delete the chat with ${customerName}? This action cannot be undone.`)) {
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+    
+    fetch(`/admin/chats/${chatId}/delete/`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            // Reload page after short delay
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to delete chat');
+    });
+}
+
+function bulkDeleteChats() {
+    const checkboxes = document.querySelectorAll('.chat-checkbox:checked');
+    const chatIds = Array.from(checkboxes).map(cb => cb.value);
+    
+    if (chatIds.length === 0) {
+        return;
+    }
+    
+    if (!confirm(`Are you sure you want to delete ${chatIds.length} chat(s)? This action cannot be undone.`)) {
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+    chatIds.forEach(id => {
+        formData.append('chat_ids[]', id);
+    });
+    
+    fetch('/admin/chats/bulk-delete/', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            // Reload page after short delay
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to delete chats');
+    });
+}
+</script>
+{% endblock %}
+

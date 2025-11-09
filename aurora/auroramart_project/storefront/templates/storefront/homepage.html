@@ -84,6 +84,7 @@
         {% endfor %}
     </div>
     
+    {% if banners|length > 1 %}
     <!-- Carousel Controls -->
     <button class="carousel-btn carousel-prev">
         <i class="fas fa-chevron-left"></i>
@@ -98,6 +99,7 @@
         <span class="dot"></span>
         {% endfor %}
     </div>
+    {% endif %}
 </section>
 
 <!-- Recommended For You Section -->
@@ -139,10 +141,10 @@
                     <div class="product-price">${{ product.price|floatformat:2 }}</div>
                     <h3 class="product-name">{{ product.name }}</h3>
                     <div class="product-category">{{ product.category }}</div>
-                    <div class="product-stock" style="font-size: 0.875rem; color: {% if product.stock > 0 %}#28a745{% else %}#dc3545{% endif %}; margin: 0.25rem 0;">
+                    <div class="product-stock" style="font-size: 0.875rem; color: {% if product.quantity_on_hand > 0 %}#28a745{% else %}#dc3545{% endif %}; margin: 0.25rem 0;">
                         <i class="fas fa-box" style="margin-right: 0.25rem;"></i>
-                        {% if product.stock > 0 %}
-                            Stock: {{ product.stock }} item{{ product.stock|pluralize }}
+                        {% if product.quantity_on_hand > 0 %}
+                            Stock: {{ product.quantity_on_hand }} item{{ product.quantity_on_hand|pluralize }}
                         {% else %}
                             Out of Stock
                         {% endif %}
@@ -162,7 +164,7 @@
                 </a>
                 </div>
                 <div class="product-cart-actions">
-                    {% if product.stock > 0 %}
+                    {% if product.quantity_on_hand > 0 %}
                         {% if product.id in cart_product_ids %}
                             {% for item in cart.items.all %}
                                 {% if item.product_id == product.id %}
@@ -252,10 +254,10 @@
                     <div class="product-price">${{ product.price|floatformat:2 }}</div>
                     <h3 class="product-name">{{ product.name }}</h3>
                     <div class="product-category">{{ product.category }}</div>
-                    <div class="product-stock" style="font-size: 0.875rem; color: {% if product.stock > 0 %}#28a745{% else %}#dc3545{% endif %}; margin: 0.25rem 0;">
+                    <div class="product-stock" style="font-size: 0.875rem; color: {% if product.quantity_on_hand > 0 %}#28a745{% else %}#dc3545{% endif %}; margin: 0.25rem 0;">
                         <i class="fas fa-box" style="margin-right: 0.25rem;"></i>
-                        {% if product.stock > 0 %}
-                            Stock: {{ product.stock }} item{{ product.stock|pluralize }}
+                        {% if product.quantity_on_hand > 0 %}
+                            Stock: {{ product.quantity_on_hand }} item{{ product.quantity_on_hand|pluralize }}
                         {% else %}
                             Out of Stock
                         {% endif %}
@@ -275,7 +277,7 @@
                 </a>
                 </div>
                 <div class="product-cart-actions">
-                    {% if product.stock > 0 %}
+                    {% if product.quantity_on_hand > 0 %}
                         {% if product.id in cart_product_ids %}
                             {% for item in cart.items.all %}
                                 {% if item.product_id == product.id %}

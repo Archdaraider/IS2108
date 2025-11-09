@@ -66,25 +66,40 @@ def get_or_create_wishlist(request):
 def homepage(request):
     """Homepage with featured products and banners."""
     # Get featured products (you can customize this logic)
-    featured_products = Product.objects.filter(stock__gt=0).order_by('-rating')[:8]
-    best_sellers = Product.objects.filter(stock__gt=0).order_by('-rating')[:8]
+    featured_products = Product.objects.filter(quantity_on_hand__gt=0, is_active=True).order_by('-rating')[:8]
+    best_sellers = Product.objects.filter(quantity_on_hand__gt=0, is_active=True).order_by('-rating')[:8]
     
-    # Get banners
+    # Get banners from database
     banners = Banner.objects.filter(is_active=True).order_by('display_order')
     
-    # Add static banner image (AuroraMart Banner 1.png) as first banner
+    # Load all banner images from static/images/Banner folder
+    import os
+    from django.conf import settings
+    
     class StaticBanner:
-        def __init__(self):
-            self.title = "Welcome to AuroraMart"
+        def __init__(self, image_path, title=None):
+            self.title = title or "Welcome to AuroraMart"
             self.subtitle = "Discover amazing products at great prices"
             self.link_url = reverse('product_list')
             self.image = None
-            self.image_url = 'images/AuroraMart Banner 1.png'  # Set as attribute, not property
+            self.image_url = image_path
     
-    # Add static banner to the beginning of the list
-    banners_list = list(banners)
-    static_banner = StaticBanner()
-    banners_list.insert(0, static_banner)
+    # Get all banner images from the Banner folder
+    banner_folder = os.path.join(settings.BASE_DIR, 'storefront', 'static', 'images', 'Banner')
+    static_banners = []
+    
+    if os.path.exists(banner_folder):
+        banner_files = sorted([f for f in os.listdir(banner_folder) 
+                              if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp'))])
+        
+        for banner_file in banner_files:
+            # Create a static banner object for each image
+            banner_path = f'images/Banner/{banner_file}'
+            static_banner = StaticBanner(banner_path, f"Welcome to AuroraMart")
+            static_banners.append(static_banner)
+    
+    # Combine static banners with database banners
+    banners_list = static_banners + list(banners)
     banners = banners_list
     
     # Get categories for navigation
@@ -102,6 +117,13 @@ def homepage(request):
         if wishlist:
             wishlist_product_ids = set(wishlist.items.values_list('product_id', flat=True))
     
+    # Check if profile onboarding modal should be shown
+    show_profile_modal = False
+    profile_form = None
+    if request.user.is_authenticated and request.GET.get('show_onboarding') == 'true':
+        show_profile_modal = True
+        profile_form = CustomerProfileForm()
+    
     context = {
         'featured_products': featured_products,
         'best_sellers': best_sellers,
@@ -110,13 +132,15 @@ def homepage(request):
         'cart_product_ids': cart_product_ids,
         'wishlist_product_ids': wishlist_product_ids,
         'cart': cart,
+        'show_profile_modal': show_profile_modal,  # For modal display
+        'profile_form': profile_form,  # For modal form
         **cart_context,  # Add cart info to context
     }
     return render(request, 'storefront/homepage.html', context)
 
 def product_list(request, category_slug=None, subcategory_slug=None):
     """Product listing page with filtering and search."""
-    products = Product.objects.filter(stock__gt=0)
+    products = Product.objects.filter(quantity_on_hand__gt=0)
     
     category = None
     subcategory = None
@@ -220,7 +244,7 @@ def product_list(request, category_slug=None, subcategory_slug=None):
             product_count = Product.objects.filter(
                 category=category.name,
                 subcategory=db_subcat.name,
-                stock__gt=0
+                quantity_on_hand__gt=0
             ).count()
             subcategories.append({
                 'name': db_subcat.name,
@@ -273,7 +297,7 @@ def product_list(request, category_slug=None, subcategory_slug=None):
                     if len(recommendations) < 4:
                         additional = Product.objects.filter(
                             category=category.name,
-                            stock__gt=0
+                            quantity_on_hand__gt=0
                         ).exclude(id__in=seen_product_ids).exclude(
                             id__in=[p.id for p in recommendations]
                         ).order_by('-rating')[:4 - len(recommendations)]
@@ -292,7 +316,7 @@ def product_list(request, category_slug=None, subcategory_slug=None):
                     # Fallback: use popular products in category
                     fallback_recs = Product.objects.filter(
                         category=category.name,
-                        stock__gt=0
+                        quantity_on_hand__gt=0
                     ).exclude(id__in=seen_product_ids).order_by('-rating')[:4]
                     
                     if fallback_recs.exists():
@@ -423,18 +447,18 @@ def product_detail(request, product_id):
         if not frequently_bought:
             frequently_bought = Product.objects.filter(
                 category=product.category,
-                stock__gt=0
+                quantity_on_hand__gt=0
             ).exclude(id=product.id)[:5]
     except:
         frequently_bought = Product.objects.filter(
             category=product.category,
-            stock__gt=0
+            quantity_on_hand__gt=0
         ).exclude(id=product.id)[:5]
     
     # Get related products
     related_products = Product.objects.filter(
         category=product.category,
-        stock__gt=0
+        quantity_on_hand__gt=0
     ).exclude(id=product.id)[:4]
     
     # Get wishlist product IDs for all products (main product + related products + frequently bought)
@@ -516,7 +540,7 @@ def shopping_cart(request):
             if categories:
                 additional = Product.objects.filter(
                     category__in=categories,
-                    stock__gt=0
+                    quantity_on_hand__gt=0
                 ).exclude(id__in=cart_product_ids).exclude(
                     id__in=[p.id for p in recommended_products]
                 ).order_by('-rating')[:4 - len(recommended_products)]
@@ -526,7 +550,7 @@ def shopping_cart(request):
         if len(recommended_products) < 4:
             from adminpanel.models import Product
             additional = Product.objects.filter(
-                stock__gt=0
+                quantity_on_hand__gt=0
             ).exclude(id__in=cart_product_ids).exclude(
                 id__in=[p.id for p in recommended_products]
             ).order_by('-rating')[:4 - len(recommended_products)]
@@ -534,7 +558,7 @@ def shopping_cart(request):
     else:
         # If cart is empty, show popular products
         from adminpanel.models import Product
-        recommended_products = Product.objects.filter(stock__gt=0).order_by('-rating')[:4]
+        recommended_products = Product.objects.filter(quantity_on_hand__gt=0).order_by('-rating')[:4]
     
     # Limit to 4 products for the cart page
     recommended_products = recommended_products[:4]
@@ -720,7 +744,7 @@ def checkout(request):
             # Validate stock availability before creating order
             out_of_stock_items = []
             for cart_item in cart_items:
-                if cart_item.product.stock < cart_item.quantity:
+                if cart_item.product.quantity_on_hand < cart_item.quantity:
                     out_of_stock_items.append(cart_item.product.name)
             
             if out_of_stock_items:
@@ -733,7 +757,9 @@ def checkout(request):
                     customer=customer,
                     total_amount=total,
                     shipping_address=shipping_address,
-                    fulfillment_status='PENDING'
+                    fulfillment_status='PENDING',
+                    payment_method=payment_method,  # Save payment method
+                    delivery_time=delivery_time      # Save delivery time
                 )
                 
                 # Create order items and update product stock
@@ -745,8 +771,8 @@ def checkout(request):
                         unit_price=cart_item.product.price
                     )
                     
-                    # Update product stock
-                    cart_item.product.stock -= cart_item.quantity
+                    # Update product stock (quantity_on_hand)
+                    cart_item.product.quantity_on_hand -= cart_item.quantity
                     cart_item.product.save()
                 
                 # Clear the cart
@@ -849,7 +875,7 @@ def complete_the_set(request):
             if categories:
                 additional = Product.objects.filter(
                     category__in=categories,
-                    stock__gt=0
+                    quantity_on_hand__gt=0
                 ).exclude(id__in=cart_product_ids).exclude(
                     id__in=[p.id for p in recommended_products]
                 ).order_by('-rating')[:20 - len(recommended_products)]
@@ -859,7 +885,7 @@ def complete_the_set(request):
         if len(recommended_products) < 20:
             from adminpanel.models import Product
             additional = Product.objects.filter(
-                stock__gt=0
+                quantity_on_hand__gt=0
             ).exclude(id__in=cart_product_ids).exclude(
                 id__in=[p.id for p in recommended_products]
             ).order_by('-rating')[:20 - len(recommended_products)]
@@ -867,7 +893,7 @@ def complete_the_set(request):
     else:
         # If cart is empty, show popular products
         from adminpanel.models import Product
-        recommended_products = Product.objects.filter(stock__gt=0).order_by('-rating')[:20]
+        recommended_products = Product.objects.filter(quantity_on_hand__gt=0).order_by('-rating')[:20]
     
     # Get cart context
     cart_context = get_cart_context(request)
@@ -1412,8 +1438,8 @@ def login_view(request):
                         if not item_created:
                             # Item already exists in user cart, merge quantities
                             user_item.quantity += session_item.quantity
-                            if user_item.quantity > user_item.product.stock:
-                                user_item.quantity = user_item.product.stock
+                            if user_item.quantity > user_item.product.quantity_on_hand:
+                                user_item.quantity = user_item.product.quantity_on_hand
                             user_item.save()
                     
                     # Delete session cart after merging
@@ -1575,6 +1601,7 @@ def profile_onboarding(request):
                 # Update existing customer
                 customer.user = request.user  # Ensure user is linked
                 customer.email = request.user.email  # Ensure email matches
+                customer.name = (f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username)
                 customer.age = age
                 customer.gender = data['gender']
                 customer.employment_status = data['employment_status']
@@ -1583,6 +1610,7 @@ def profile_onboarding(request):
                 customer.household_size = data['household_size']
                 customer.has_children = data['has_children']
                 customer.monthly_income_sgd = data['monthly_income_sgd']
+                # NOTE: preferred_category is auto-predicted by ML model in admin panel
                 customer.save()
             else:
                 # Create new customer record using get_or_create to avoid duplicate email errors
@@ -1599,6 +1627,7 @@ def profile_onboarding(request):
                         'household_size': data['household_size'],
                         'has_children': data['has_children'],
                         'monthly_income_sgd': data['monthly_income_sgd'],
+                        'preferred_category': 'Electronics',  # Default placeholder, will be ML-predicted by admin
                     }
                 )
                 # If customer already existed, update it
@@ -1613,6 +1642,7 @@ def profile_onboarding(request):
                     customer.household_size = data['household_size']
                     customer.has_children = data['has_children']
                     customer.monthly_income_sgd = data['monthly_income_sgd']
+                    # NOTE: preferred_category is NOT updated here - it's ML-predicted in admin panel
                     customer.save()
             
             messages.success(request, 'Profile completed successfully!')
@@ -2302,13 +2332,13 @@ def buy_again(request, order_id):
         product = order_item.product
         
         # Check if product is still available
-        if product.stock <= 0:
+        if product.quantity_on_hand <= 0:
             skipped_count += 1
             skipped_items.append(product.name)
             continue
         
         # Add to cart (use original quantity, but cap at current stock)
-        quantity_to_add = min(order_item.quantity, product.stock)
+        quantity_to_add = min(order_item.quantity, product.quantity_on_hand)
         success, message, cart_item, cart_total = add_product_to_cart(cart, product.id, quantity_to_add)
         
         if success:
@@ -2350,13 +2380,13 @@ def buy_again_item(request, order_id, item_id):
     product = order_item.product
     
     # Check if product is still available
-    if product.stock <= 0:
+    if product.quantity_on_hand <= 0:
         messages.error(request, f'{product.name} is currently out of stock.')
         return redirect('order_detail', order_id=order_id)
     
     # Add to cart (use original quantity, but cap at current stock)
     cart = get_or_create_cart(request)
-    quantity_to_add = min(order_item.quantity, product.stock)
+    quantity_to_add = min(order_item.quantity, product.quantity_on_hand)
     success, message, cart_item, cart_total = add_product_to_cart(cart, product.id, quantity_to_add)
     
     if success:

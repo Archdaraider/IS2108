@@ -1,146 +1,276 @@
-# auroramart_project/adminpanel/views.py
-
-from django.db.models import Count, Sum, F, DecimalField
-from django.shortcuts import render, redirect, get_object_or_404 # <-- Import get_object_or_404
+import joblib
+import os
+import json
+import pandas as pd
+from decimal import Decimal
+from django.db.models import Count, Sum, F, DecimalField, Avg, Max
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.views import LoginView, LogoutView
+from django.contrib.auth.views import LoginView
 from .models import Customer, Product, Order, OrderItem, DecisionTreeModel
 from django.db import models
-# Import all forms
-from .forms import CustomerForm, ProductForm, OrderForm
-from django.http import HttpResponseNotAllowed # <-- Import this
+from .forms import CustomerForm, ProductForm, OrderForm, OrderItemForm, OrderItemFormSet # Ensure OrderItemFormSet is imported
+from django.http import HttpResponseNotAllowed
+from django.apps import apps
+from django.db import transaction # Keep transaction import
+from django.forms import inlineformset_factory
+from django.http import HttpResponse, JsonResponse
+from django.contrib.auth import logout
+from django.views.decorators.http import require_POST, require_http_methods
+from django.contrib.auth.models import User
+from django.contrib.auth.decorators import user_passes_test
+from django.utils import timezone
+from .forms import AdminUserForm
+
+# --- Load Models Once ---
+app_path = apps.get_app_config('adminpanel').path
+
+# Load the CUSTOMER classification model
+model_path = os.path.join(app_path, 'mlmodels', 'b2c_customers_100.joblib')
+try:
+    customer_model = joblib.load(model_path)
+except FileNotFoundError:
+    customer_model = None
+    print("WARNING: Customer model file not found.")
+
+# Load the PRODUCT association rules (optional ML feature)
+rules_path = os.path.join(app_path, 'mlmodels', 'b2c_products_500_transactions_50k.joblib')
+try:
+    product_rules = joblib.load(rules_path)
+except FileNotFoundError:
+    product_rules = None
+    # Silently use fallback recommendations - this is expected if ML model not trained
 
 # --- Authentication Views ---
-# (Your Login and Logout views remain unchanged)
+
 class AdminLoginView(LoginView):
     """Custom login view for the admin panel."""
     template_name = 'adminpanel/login.html'
-    next_page = 'admin_dashboard_home'
+    next_page = 'adminpanel:admin_dashboard_home'
 
-class AdminLogoutView(LogoutView):
-    """Logs out the user and redirects to the login page."""
-    next_page = 'admin_login'
+def admin_logout_view(request):
+    """
+    Custom logout view that logs out the user and renders a template.
+    Does not redirect, unlike Django's default LogoutView.
+    """
+    logout(request)
+    return render(request, 'adminpanel/logout.html')
+    
+def customer_landing_page(request):
+    """
+    Redirects to the customer-facing storefront homepage.
+    """
+    from django.shortcuts import redirect
+    return redirect('homepage')  # Redirect to storefront homepage
+# --- Core Dashboard View ---
 
-# --- Core Dashboard Views ---
-# (Your admin_dashboard_home view remains unchanged)
-@login_required(login_url='admin_login')
+@login_required(login_url='adminpanel:admin_login')
 def admin_dashboard_home(request):
     """
     Main Dashboard View - Gathers KPIs and initial data for index.html.
     """
+    # Filter to exclude admin/staff users from customer counts
+    real_customers = Customer.objects.filter(
+        models.Q(user__isnull=True) | models.Q(user__is_staff=False)
+    )
+    
     kpis = {
-        'total_customers': Customer.objects.count(),
+        'total_customers': real_customers.count(),
         'total_products': Product.objects.count(),
         'active_models': DecisionTreeModel.objects.filter(is_active=True).count(),
-        'total_orders': Order.objects.count(),
+        'total_transactions': Order.objects.count(),
+    }
+
+    inventory_alerts = Product.objects.filter(
+        quantity_on_hand__lte=models.F('reorder_quantity')
+    ).order_by('quantity_on_hand')[:10]
+
+    # Get all preferred categories for pie chart (not just top 5) - exclude admin users
+    category_data = real_customers.values('preferred_category') \
+        .annotate(count=Count('id')) \
+        .order_by('-count')
+    
+    # Prepare data for Chart.js pie chart (convert to JSON strings for template)
+    pie_chart_labels = [item['preferred_category'] for item in category_data]
+    pie_chart_counts = [item['count'] for item in category_data]
+    
+    pie_chart_data = {
+        'labels': json.dumps(pie_chart_labels),
+        'counts': json.dumps(pie_chart_counts),
     }
     
-    inventory_alerts = Product.objects.filter(
-        stock__lte=models.F('reorder_threshold')
-    ).order_by('stock')[:10]
+    # Keep the list version for backwards compatibility if needed
+    segment_summary = list(category_data[:5])
 
-    segment_summary = Customer.objects.values('preferred_category') \
-        .annotate(count=Count('id')) \
-        .order_by('-count')[:5]
+    # Customer Summary Statistics (exclude admin users)
+    # Get aggregate statistics: total orders, average order value, last order date
+    customer_summary = real_customers.annotate(
+        total_orders=Count('order', distinct=True),
+        avg_order_value=Avg('order__total_amount'),
+        last_order_date=Max('order__placed_at')
+    ).order_by('-total_orders')[:10]  # Top 10 customers by order count
+    
+    # Calculate overall statistics (exclude admin users)
+    overall_stats = {
+        'total_customers_with_orders': real_customers.filter(order__isnull=False).distinct().count(),
+        'avg_order_value_all': Order.objects.aggregate(avg=Avg('total_amount'))['avg'] or Decimal('0.00'),
+        'total_revenue': Order.objects.aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00'),
+    }
+
+    # Top 3 and Worst 3 Rated Products
+    top_rated_products = Product.objects.order_by('-rating', 'name')[:3]
+    worst_rated_products = Product.objects.order_by('rating', 'name')[:3]
 
     model_status = DecisionTreeModel.objects.order_by('-training_date')
+    
+    # Get sales data for the last 6 months (real data)
+    from django.db.models.functions import TruncMonth
+    from datetime import datetime, timedelta
+    from django.utils import timezone
+    
+    six_months_ago = timezone.now() - timedelta(days=180)
+    
+    monthly_sales = Order.objects.filter(
+        placed_at__gte=six_months_ago
+    ).annotate(
+        month=TruncMonth('placed_at')
+    ).values('month').annotate(
+        total=Sum('total_amount')
+    ).order_by('month')
+    
+    # Prepare sales chart data
+    sales_labels = []
+    sales_values = []
+    
+    if monthly_sales.exists():
+        for item in monthly_sales:
+            month_name = item['month'].strftime('%b')
+            sales_labels.append(month_name)
+            sales_values.append(float(item['total'] or 0))
+    else:
+        # If no orders, show empty chart
+        sales_labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
+        sales_values = [0, 0, 0, 0, 0, 0]
+    
+    sales_chart_data = {
+        'labels': json.dumps(sales_labels),
+        'values': json.dumps(sales_values),
+    }
 
     context = {
         'page_title': 'Dashboard',
         'kpis': kpis,
         'inventory_alerts': inventory_alerts,
         'segment_summary': segment_summary,
+        'pie_chart_data': pie_chart_data,
+        'sales_chart_data': sales_chart_data,
+        'customer_summary': customer_summary,
+        'overall_stats': overall_stats,
+        'top_rated_products': top_rated_products,
+        'worst_rated_products': worst_rated_products,
         'model_status': model_status,
     }
 
     return render(request, 'adminpanel/index.html', context)
 
 
-# --- Combined List & Create Views ---
+# --- Product List/Create/Detail/Delete Views ---
 
-@login_required(login_url='admin_login')
-def customer_list(request):
-    """View to LIST and CREATE Customers on one page."""
-    # (This view remains unchanged)
-    if request.method == 'POST':
-        form = CustomerForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect('customer_list')
-    else:
-        form = CustomerForm()
-
-    customers = Customer.objects.all().order_by('-id')
-    context = {
-        'page_title': 'Customer List',
-        'customers': customers,
-        'form': form
-    }
-    return render(request, 'adminpanel/customer_list.html', context)
-
-
-@login_required(login_url='admin_login')
+@login_required(login_url='adminpanel:admin_login')
 def product_list(request):
-    """View to LIST and CREATE Products on one page."""
-    # (This view remains unchanged)
+    """View to LIST and CREATE Products on one page with sorting and filtering."""
+    # Get all products for filtering/sorting
+    products = Product.objects.all()
+    
+    # Handle filtering
+    search_query = request.GET.get('search', '')
+    category_filter = request.GET.get('category', '')
+    subcategory_filter = request.GET.get('subcategory', '')
+    price_min = request.GET.get('price_min', '')
+    price_max = request.GET.get('price_max', '')
+    rating_min = request.GET.get('rating_min', '')
+    stock_filter = request.GET.get('stock', '')
+    
+    if search_query:
+        products = products.filter(
+            models.Q(name__icontains=search_query) | 
+            models.Q(sku__icontains=search_query) |
+            models.Q(description__icontains=search_query)
+        )
+    
+    if category_filter:
+        products = products.filter(category=category_filter)
+    
+    if subcategory_filter:
+        products = products.filter(subcategory=subcategory_filter)
+    
+    if price_min:
+        products = products.filter(price__gte=price_min)
+    if price_max:
+        products = products.filter(price__lte=price_max)
+    
+    if rating_min:
+        products = products.filter(rating__gte=rating_min)
+    
+    if stock_filter == 'low':
+        products = products.filter(quantity_on_hand__lte=models.F('reorder_quantity'))
+    elif stock_filter == 'out':
+        products = products.filter(quantity_on_hand=0)
+    elif stock_filter == 'in_stock':
+        products = products.filter(quantity_on_hand__gt=0)
+    
+    # Handle sorting
+    sort_by = request.GET.get('sort', '-id')  # Default sort by newest first
+    valid_sort_fields = ['id', '-id', 'name', '-name', 'sku', '-sku', 'price', '-price', 
+                        'rating', '-rating', 'quantity_on_hand', '-quantity_on_hand', 
+                        'category', '-category', 'subcategory', '-subcategory']
+    
+    if sort_by in valid_sort_fields:
+        products = products.order_by(sort_by)
+    else:
+        products = products.order_by('-id')
+    
+    # Handle form submission for creating new products
     if request.method == 'POST':
         form = ProductForm(request.POST, request.FILES)
         if form.is_valid():
             form.save()
-            return redirect('product_list')
+            return redirect('adminpanel:product_list')
     else:
         form = ProductForm()
 
-    products = Product.objects.all().order_by('name')
+    # Get unique categories and subcategories for filter dropdowns
+    categories = Product.objects.values_list('category', flat=True).distinct().order_by('category')
+    subcategories = Product.objects.values_list('subcategory', flat=True).distinct().order_by('subcategory')
+
     context = {
         'page_title': 'Product List',
         'products': products,
-        'form': form
+        'form': form,
+        'search_query': search_query,
+        'category_filter': category_filter,
+        'subcategory_filter': subcategory_filter,
+        'price_min': price_min,
+        'price_max': price_max,
+        'rating_min': rating_min,
+        'stock_filter': stock_filter,
+        'sort_by': sort_by,
+        'categories': categories,
+        'subcategories': subcategories,
     }
     return render(request, 'adminpanel/product_list.html', context)
 
-
-@login_required(login_url='admin_login')
-def order_list(request):
-    """View to LIST and CREATE Orders on one page."""
-    # (This view remains unchanged)
-    if request.method == 'POST':
-        form = OrderForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect('order_list')
-    else:
-        form = OrderForm()
-
-    orders = Order.objects.all().order_by('-placed_at')[:100]
-    context = {
-        'page_title': 'Order List',
-        'orders': orders,
-        'form': form
-    }
-    return render(request, 'adminpanel/order_list.html', context)
-
-# --- NEW: PRODUCT DETAIL / UPDATE VIEW ---
-
-@login_required(login_url='admin_login')
+@login_required(login_url='adminpanel:admin_login')
 def product_detail(request, pk):
-    """
-    View to display and update a single product.
-    'pk' is the product's ID (Primary Key) passed from the URL.
-    """
-    # Get the specific product object, or return a 404 error if not found
+    """View to display and update a single product."""
     product = get_object_or_404(Product, pk=pk)
 
     if request.method == 'POST':
-        # If the form is submitted, bind the POST data and FILES to the form
-        # instance=product tells the form to update this specific product
         form = ProductForm(request.POST, request.FILES, instance=product)
         if form.is_valid():
             form.save()
-            # Redirect back to the same detail page to see the changes
-            return redirect('product_detail', pk=product.pk)
+            return redirect('adminpanel:product_detail', pk=product.pk)
     else:
-        # If it's a GET request, create the form pre-filled with the product's data
         form = ProductForm(instance=product)
 
     context = {
@@ -150,38 +280,529 @@ def product_detail(request, pk):
     }
     return render(request, 'adminpanel/product_detail.html', context)
 
-# --- NEW: PRODUCT DELETE VIEW ---
-
-@login_required(login_url='admin_login')
+@login_required(login_url='adminpanel:admin_login')
 def product_delete(request, pk):
-    """
-    View to delete a single product.
-    Only allows POST requests to prevent accidental deletion.
-    """
-    # Only allow this view to be accessed via a POST request
+    """View to delete a single product."""
     if request.method != 'POST':
         return HttpResponseNotAllowed(['POST'])
 
     product = get_object_or_404(Product, pk=pk)
     product.delete()
-    
-    # After deleting, send the user back to the main product list
-    return redirect('product_list')
+    return redirect('adminpanel:product_list')
 
-# --- CUSTOMER DETAIL / UPDATE VIEW ---
-@login_required(login_url='admin_login')
+
+# --- Order List/Create/Detail/Delete Views ---
+
+@login_required(login_url='adminpanel:admin_login')
+def order_list(request):
+    """View to LIST and CREATE Orders, now with OrderItems, sorting and filtering."""
+    # Get all orders for filtering/sorting
+    orders = Order.objects.all()
+    
+    # Handle filtering
+    search_query = request.GET.get('search', '')
+    status_filter = request.GET.get('status', '')
+    customer_filter = request.GET.get('customer', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    amount_min = request.GET.get('amount_min', '')
+    amount_max = request.GET.get('amount_max', '')
+    
+    if search_query:
+        orders = orders.filter(
+            models.Q(oID__icontains=search_query) |
+            models.Q(customer__name__icontains=search_query) |
+            models.Q(customer__email__icontains=search_query) |
+            models.Q(shipping_address__icontains=search_query)
+        )
+    
+    if status_filter:
+        orders = orders.filter(fulfillment_status=status_filter)
+    
+    if customer_filter:
+        orders = orders.filter(customer__id=customer_filter)
+    
+    if date_from:
+        orders = orders.filter(placed_at__date__gte=date_from)
+    if date_to:
+        orders = orders.filter(placed_at__date__lte=date_to)
+    
+    if amount_min:
+        orders = orders.filter(total_amount__gte=amount_min)
+    if amount_max:
+        orders = orders.filter(total_amount__lte=amount_max)
+    
+    # Handle sorting
+    sort_by = request.GET.get('sort', '-placed_at')  # Default sort by newest first
+    valid_sort_fields = ['id', '-id', 'placed_at', '-placed_at', 'total_amount', '-total_amount', 
+                        'fulfillment_status', '-fulfillment_status', 'customer__name', '-customer__name']
+    
+    if sort_by in valid_sort_fields:
+        orders = orders.order_by(sort_by)
+    else:
+        orders = orders.order_by('-placed_at')
+    
+    # Limit to 100 orders for performance
+    orders = orders[:100]
+
+    if request.method == 'POST':
+        form = OrderForm(request.POST)
+        formset = OrderItemFormSet(request.POST) # Use the imported formset
+
+        if form.is_valid() and formset.is_valid():
+             # Use a transaction to ensure atomicity
+            with transaction.atomic():
+                # 1. Save the parent Order first to get an ID
+                order = form.save()
+
+                # 2. Iterate and save items, setting unit_price manually
+                items_to_save = formset.save(commit=False)
+                total_amount = Decimal('0.00')
+
+                for item in items_to_save:
+                    # Only save if a product was selected (and it's not a deletion of an existing item)
+                    # NOTE: item.product is guaranteed to be non-None if formset.is_valid() passed and the row was filled
+                    if item.product and item.quantity:
+                        item.order = order
+                        # 🔑 CRITICAL FIX: Ensure unit_price is explicitly set from the Product before saving
+                        item.unit_price = item.product.price
+                        
+                        # Add to the total (ensure Decimal calculation)
+                        total_amount += (item.unit_price * Decimal(item.quantity))
+                        item.save() # Save each item individually
+                
+                # Save m2m data (usually not needed for inline formsets but good practice)
+                formset.save_m2m()
+
+                # 3. Now update the order's total and save again
+                order.total_amount = total_amount
+                order.save(update_fields=['total_amount'])
+
+                return redirect('adminpanel:order_list')
+        # If form or formset is invalid, it will fall through to render the context below
+
+    else: # GET request
+        form = OrderForm()
+        # Create an empty formset for a new order with 1 empty form
+        formset = OrderItemFormSet(queryset=OrderItem.objects.none(), initial=[{'quantity': 1}])
+
+    # Get unique customers and statuses for filter dropdowns
+    customers = Customer.objects.all().order_by('name')
+    statuses = Order.STATUS_CHOICES
+
+    context = {
+        'page_title': 'Order List',
+        'orders': orders,
+        'form': form,
+        'formset': formset, # Pass the formset to the template
+        'search_query': search_query,
+        'status_filter': status_filter,
+        'customer_filter': customer_filter,
+        'date_from': date_from,
+        'date_to': date_to,
+        'amount_min': amount_min,
+        'amount_max': amount_max,
+        'sort_by': sort_by,
+        'customers': customers,
+        'statuses': statuses,
+    }
+    return render(request, 'adminpanel/order_list.html', context)
+
+# ---
+# FIXED `order_detail` VIEW
+# ---
+@login_required(login_url='adminpanel:admin_login')
+def order_detail(request, pk):
+    """
+    View to display and update a single order and its items.
+    Completely rewritten with manual DELETE handling.
+    """
+    order = get_object_or_404(Order, pk=pk)
+
+    if request.method == 'POST':
+        form = OrderForm(request.POST, instance=order)
+        formset = OrderItemFormSet(request.POST, instance=order)
+        
+        if form.is_valid() and formset.is_valid():
+            try:
+                with transaction.atomic():
+                    # Save the order form
+                    order = form.save()
+                    
+                    # Get the total number of forms
+                    total_forms = int(request.POST.get('items-TOTAL_FORMS', 0))
+                    
+                    # Track items to delete and items to keep
+                    items_to_delete = []
+                    items_to_save = []
+                    
+                    # Process each form manually
+                    for i in range(total_forms):
+                        # Check if this form has DELETE checked
+                        delete_key = f'items-{i}-DELETE'
+                        is_marked_for_deletion = delete_key in request.POST
+                        
+                        # Get the item ID (if it exists)
+                        item_id = request.POST.get(f'items-{i}-id', '')
+                        
+                        # Get product and quantity
+                        product_id = request.POST.get(f'items-{i}-product', '')
+                        quantity = request.POST.get(f'items-{i}-quantity', '')
+                        
+                        if is_marked_for_deletion and item_id:
+                            # Mark existing item for deletion
+                            items_to_delete.append(item_id)
+                        elif product_id and quantity:
+                            # This item should be saved
+                            items_to_save.append({
+                                'id': item_id if item_id else None,
+                                'product_id': product_id,
+                                'quantity': quantity
+                            })
+                    
+                    # Delete marked items
+                    for item_id in items_to_delete:
+                        try:
+                            item = OrderItem.objects.get(pk=item_id, order=order)
+                            item.delete()
+                        except OrderItem.DoesNotExist:
+                            pass
+                    
+                    # Save/update remaining items
+                    for item_data in items_to_save:
+                        try:
+                            product = Product.objects.get(pk=item_data['product_id'])
+                            quantity = int(item_data['quantity'])
+                            
+                            if item_data['id']:
+                                # Update existing item
+                                item = OrderItem.objects.get(pk=item_data['id'], order=order)
+                                item.product = product
+                                item.quantity = quantity
+                                item.unit_price = product.price
+                                item.save()
+                            else:
+                                # Create new item
+                                OrderItem.objects.create(
+                                    order=order,
+                                    product=product,
+                                    quantity=quantity,
+                                    unit_price=product.price
+                                )
+                        except (Product.DoesNotExist, OrderItem.DoesNotExist):
+                            pass
+                    
+                    # Recalculate order total
+                    total_result = order.items.aggregate(
+                        total=Sum(F('unit_price') * F('quantity'), output_field=DecimalField())
+                    )
+                    order.total_amount = total_result['total'] or Decimal('0.00')
+                    order.save(update_fields=['total_amount'])
+
+                    return redirect('adminpanel:order_detail', pk=order.pk)
+
+            except Exception as e:
+                form.add_error(None, f"An error occurred while saving: {str(e)}")
+            
+    else:
+        # GET request - display the form
+        form = OrderForm(instance=order)
+        formset = OrderItemFormSet(instance=order)
+
+    context = {
+        'page_title': f'Edit Order {order.oID}',
+        'form': form,
+        'formset': formset,
+        'order': order
+    }
+    return render(request, 'adminpanel/order_detail.html', context)
+# ---
+# END OF FIXED VIEW
+# ---
+
+@login_required(login_url='adminpanel:admin_login')
+def order_delete(request, pk):
+    """View to delete a single order (the entire order)."""
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+
+    order = get_object_or_404(Order, pk=pk)
+    order.delete()
+    return redirect('adminpanel:order_list')
+
+
+# --- Catalogue Management Views ---
+
+@login_required(login_url='adminpanel:admin_login')
+def catalogue_view(request):
+    """
+    Catalogue page for managing product visibility on the storefront.
+    Displays all products in a grid layout with toggle switches.
+    """
+    # Get all products
+    products = Product.objects.all().order_by('-id')
+    
+    # Handle filtering
+    category_filter = request.GET.get('category', '')
+    status_filter = request.GET.get('status', '')  # 'active', 'inactive', or ''
+    search_query = request.GET.get('search', '')
+    
+    if search_query:
+        products = products.filter(
+            models.Q(name__icontains=search_query) |
+            models.Q(sku__icontains=search_query) |
+            models.Q(description__icontains=search_query)
+        )
+    
+    if category_filter:
+        products = products.filter(category=category_filter)
+    
+    if status_filter == 'active':
+        products = products.filter(is_active=True)
+    elif status_filter == 'inactive':
+        products = products.filter(is_active=False)
+    
+    # Get unique categories for filter dropdown
+    categories = Product.objects.values_list('category', flat=True).distinct().order_by('category')
+    
+    # Statistics
+    total_products = Product.objects.count()
+    active_products = Product.objects.filter(is_active=True).count()
+    inactive_products = Product.objects.filter(is_active=False).count()
+    
+    context = {
+        'page_title': 'Catalogue',
+        'products': products,
+        'categories': categories,
+        'category_filter': category_filter,
+        'status_filter': status_filter,
+        'search_query': search_query,
+        'total_products': total_products,
+        'active_products': active_products,
+        'inactive_products': inactive_products,
+    }
+    
+    return render(request, 'adminpanel/catalogue.html', context)
+
+
+@login_required(login_url='adminpanel:admin_login')
+@require_POST
+def catalogue_toggle_active(request, pk):
+    """
+    AJAX endpoint to toggle product visibility.
+    Returns JSON response.
+    """
+    try:
+        product = get_object_or_404(Product, pk=pk)
+        product.is_active = not product.is_active
+        product.save(update_fields=['is_active'])
+        
+        return JsonResponse({
+            'success': True,
+            'is_active': product.is_active,
+            'message': f'Product {"activated" if product.is_active else "deactivated"} successfully.'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=400)
+
+
+@login_required(login_url='adminpanel:admin_login')
+@require_POST
+def catalogue_bulk_update(request):
+    """
+    Handle bulk show/hide actions for multiple products.
+    Expects POST data: {'action': 'activate'|'deactivate', 'product_ids': [1, 2, 3]}
+    """
+    try:
+        action = request.POST.get('action')
+        product_ids = request.POST.getlist('product_ids')
+        
+        if action not in ['activate', 'deactivate']:
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid action. Must be "activate" or "deactivate".'
+            }, status=400)
+        
+        if not product_ids:
+            return JsonResponse({
+                'success': False,
+                'error': 'No products selected.'
+            }, status=400)
+        
+        # Convert to integers and filter products
+        product_ids = [int(pid) for pid in product_ids]
+        products = Product.objects.filter(pk__in=product_ids)
+        
+        # Update products
+        new_status = (action == 'activate')
+        updated_count = products.update(is_active=new_status)
+        
+        return JsonResponse({
+            'success': True,
+            'updated_count': updated_count,
+            'message': f'Successfully {action}d {updated_count} product(s).'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=400)
+
+
+# --- Customer Views (Unchanged) ---
+@login_required(login_url='adminpanel:admin_login')
+def customer_list(request):
+    """
+    Handles LISTING customers and CREATING new ones with AI prediction.
+    Now includes sorting and filtering functionality.
+    """
+    # Get all customers for filtering/sorting (exclude admin/staff users)
+    customers = Customer.objects.filter(
+        models.Q(user__isnull=True) | models.Q(user__is_staff=False)
+    )
+    
+    # Handle filtering
+    search_query = request.GET.get('search', '')
+    category_filter = request.GET.get('category', '')
+    age_min = request.GET.get('age_min', '')
+    age_max = request.GET.get('age_max', '')
+    income_min = request.GET.get('income_min', '')
+    income_max = request.GET.get('income_max', '')
+    
+    if search_query:
+        customers = customers.filter(
+            models.Q(name__icontains=search_query) | 
+            models.Q(email__icontains=search_query)
+        )
+    
+    if category_filter:
+        customers = customers.filter(preferred_category=category_filter)
+    
+    if age_min:
+        customers = customers.filter(age__gte=age_min)
+    if age_max:
+        customers = customers.filter(age__lte=age_max)
+    
+    if income_min:
+        customers = customers.filter(monthly_income_sgd__gte=income_min)
+    if income_max:
+        customers = customers.filter(monthly_income_sgd__lte=income_max)
+    
+    # Handle sorting
+    sort_by = request.GET.get('sort', '-id')  # Default sort by newest first
+    valid_sort_fields = ['id', '-id', 'name', '-name', 'email', '-email', 'age', '-age', 
+                        'monthly_income_sgd', '-monthly_income_sgd', 'preferred_category', '-preferred_category']
+    
+    if sort_by in valid_sort_fields:
+        customers = customers.order_by(sort_by)
+    else:
+        customers = customers.order_by('-id')
+    
+    # Handle form submission for creating new customers
+    if request.method == 'POST':
+        form = CustomerForm(request.POST)
+        if form.is_valid():
+
+            # --- AI MODEL LOGIC (matching your notebook) ---
+            if customer_model: # Only check for the model
+                try:
+                    customer = form.save(commit=False)
+
+                    # 1. Define the full list of 22 features your model was trained on
+                    TRAINING_COLUMNS = [
+                        'age', 'household_size', 'has_children', 'monthly_income_sgd',
+                        'gender_Female', 'gender_Male', 'employment_status_Full-time',
+                        'employment_status_Part-time', 'employment_status_Retired',
+                        'employment_status_Self-employed', 'employment_status_Student',
+                        'occupation_Admin', 'occupation_Education', 'occupation_Sales',
+                        'occupation_Service', 'occupation_Skilled Trades', 'occupation_Tech',
+                        'education_Bachelor', 'education_Diploma', 'education_Doctorate',
+                        'education_Master', 'education_Secondary'
+                    ]
+
+                    # 2. Create a dictionary of the *raw* features from the form
+                    raw_data = {
+                        'age': form.cleaned_data.get('age'),
+                        'household_size': form.cleaned_data.get('household_size'),
+                        'has_children': form.cleaned_data.get('has_children'),
+                        'monthly_income_sgd': form.cleaned_data.get('monthly_income_sgd'),
+                        'gender': form.cleaned_data.get('gender'),
+                        'employment_status': form.cleaned_data.get('employment_status'),
+                        'occupation': form.cleaned_data.get('occupation'),
+                        'education': form.cleaned_data.get('education')
+                    }
+
+                    # 3. Convert dictionary to a single-row pandas DataFrame
+                    features_df = pd.DataFrame([raw_data])
+
+                    # 4. One-hot encode the categorical variables (just like Cell 11 in your notebook)
+                    features_encoded = pd.get_dummies(features_df, columns=['gender', 'employment_status', 'occupation', 'education'])
+
+                    # 5. Add any missing columns that weren't in this input
+                    for col in TRAINING_COLUMNS:
+                        if col not in features_encoded.columns:
+                            features_encoded[col] = 0 # 0 works for False/int
+
+                    # 6. Reorder columns to *exactly* match the training data
+                    features_processed = features_encoded[TRAINING_COLUMNS]
+
+                    # 7. Make prediction
+                    predicted_category = customer_model.predict(features_processed)[0]
+
+                    # 8. Assign prediction and save
+                    customer.preferred_category = predicted_category
+                    customer.save()
+                    return redirect('adminpanel:customer_list') # Success!
+
+                except Exception as e:
+                    # This will show the error on the form
+                    form.add_error(None, f"Could not predict category: {e}")
+
+            else:
+                # Fallback if model isn't loaded
+                print("WARNING: Customer model not loaded. Saving customer without prediction.")
+                form.save()
+                return redirect('adminpanel:customer_list')
+            # --- End of AI Logic ---
+        # If form is invalid, fall through to render context below
+
+    else: # GET request
+        form = CustomerForm() # An empty form
+
+    # Get unique categories for filter dropdown
+    categories = Customer.objects.values_list('preferred_category', flat=True).distinct().order_by('preferred_category')
+
+    context = {
+        'page_title': 'Customers',
+        'customers': customers,
+        'form': form,
+        'search_query': search_query,
+        'category_filter': category_filter,
+        'age_min': age_min,
+        'age_max': age_max,
+        'income_min': income_min,
+        'income_max': income_max,
+        'sort_by': sort_by,
+        'categories': categories,
+    }
+    return render(request, 'adminpanel/customer_list.html', context)
+
+@login_required(login_url='adminpanel:admin_login')
 def customer_detail(request, pk):
     """
-    View to display and update a single customer.
+    Handles UPDATING an existing customer.
     """
     customer = get_object_or_404(Customer, pk=pk)
 
     if request.method == 'POST':
-        form = CustomerForm(request.POST, instance=customer)
+        form = CustomerForm(request.POST, request.FILES, instance=customer)
         if form.is_valid():
             form.save()
-            return redirect('customer_detail', pk=customer.pk)
-    else:
+            return redirect('adminpanel:customer_list') # Redirect to list after update
+    else: # GET request
         form = CustomerForm(instance=customer)
 
     context = {
@@ -191,62 +812,100 @@ def customer_detail(request, pk):
     }
     return render(request, 'adminpanel/customer_detail.html', context)
 
-# --- CUSTOMER DELETE VIEW ---
-@login_required(login_url='admin_login')
+
+@login_required(login_url='adminpanel:admin_login')
 def customer_delete(request, pk):
     """
-    View to delete a single customer.
-    Only allows POST requests.
+    Handles the POST request to delete a customer.
     """
     if request.method != 'POST':
         return HttpResponseNotAllowed(['POST'])
 
     customer = get_object_or_404(Customer, pk=pk)
     customer.delete()
-    return redirect('customer_list')
+    return redirect('adminpanel:customer_list')
 
-# --- ORDER DETAIL / UPDATE VIEW ---
-@login_required(login_url='admin_login')
-def order_detail(request, pk):
-    """
-    View to display and update a single order.
-    """
-    order = get_object_or_404(Order, pk=pk)
 
+# --- Admin User Management Views ---
+
+def superuser_required(user):
+    """Check if user is a superuser."""
+    return user.is_authenticated and user.is_superuser
+
+@login_required(login_url='adminpanel:admin_login')
+@user_passes_test(superuser_required, login_url='adminpanel:admin_login')
+def admin_users_list(request):
+    """
+    List all admin users (staff users).
+    Only accessible by superuser.
+    """
+    # Get all staff users (including superuser)
+    admin_users = User.objects.filter(is_staff=True).order_by('-date_joined')
+    
+    # Separate superuser from regular staff
+    superusers = admin_users.filter(is_superuser=True)
+    regular_admins = admin_users.filter(is_superuser=False)
+    
+    # Handle form submission for creating new admin
     if request.method == 'POST':
-        form = OrderForm(request.POST, instance=order)
+        form = AdminUserForm(request.POST)
         if form.is_valid():
             form.save()
-            return redirect('order_detail', pk=order.pk)
+            return redirect('adminpanel:admin_users_list')
     else:
-        form = OrderForm(instance=order)
-
+        form = AdminUserForm()
+    
     context = {
-        'page_title': f'Edit Order {order.oID}',
+        'page_title': 'Admin Users',
+        'superusers': superusers,
+        'regular_admins': regular_admins,
         'form': form,
-        'order': order
     }
-    return render(request, 'adminpanel/order_detail.html', context)
+    
+    return render(request, 'adminpanel/admin_users_list.html', context)
 
-# --- ORDER DELETE VIEW ---
-@login_required(login_url='admin_login')
-def order_delete(request, pk):
+
+@login_required(login_url='adminpanel:admin_login')
+@user_passes_test(superuser_required, login_url='adminpanel:admin_login')
+@require_POST
+def admin_user_delete(request, pk):
     """
-    View to delete a single order.
-    Only allows POST requests.
+    Delete an admin user.
+    Only superuser can delete admin users.
+    Prevents deleting the superuser itself.
     """
-    if request.method != 'POST':
-        return HttpResponseNotAllowed(['POST'])
+    user_to_delete = get_object_or_404(User, pk=pk)
+    
+    # Prevent deleting yourself
+    if user_to_delete == request.user:
+        return JsonResponse({
+            'success': False,
+            'error': 'You cannot delete your own account.'
+        }, status=400)
+    
+    # Prevent deleting the main admin superuser
+    if user_to_delete.username == 'admin' and user_to_delete.is_superuser:
+        return JsonResponse({
+            'success': False,
+            'error': 'Cannot delete the main admin account.'
+        }, status=400)
+    
+    try:
+        username = user_to_delete.username
+        user_to_delete.delete()
+        return JsonResponse({
+            'success': True,
+            'message': f'Admin user "{username}" deleted successfully.'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=400)
 
-    order = get_object_or_404(Order, pk=pk)
-    order.delete()
-    return redirect('order_list')
+# --- AI/ML Studio View ---
 
-
-# --- AI/ML and Reports Skeletons (No Change) ---
-# (These views remain unchanged)
-
-@login_required(login_url='admin_login')
+@login_required(login_url='adminpanel:admin_login')
 def ai_studio_home(request):
     """Dedicated page for deploying and monitoring AI/ML models."""
     models = DecisionTreeModel.objects.all()
@@ -254,9 +913,321 @@ def ai_studio_home(request):
     return render(request, 'adminpanel/ai_studio_home.html', context)
 
 
-@login_required(login_url='admin_login')
-def custom_reports(request):
-    """Page for viewing custom reports and analytics."""
-    report_.data = {'sales_by_month': [15000, 18000, 16500]}
-    context = {'page_title': 'Custom Reports', 'reports': report_data}
-    return render(request, 'adminpanel/reports.html', context)
+# --- Chat Support Views ---
+
+@login_required(login_url='adminpanel:admin_login')
+def chat_list(request):
+    """Display all customer chats for admin."""
+    from .models import Chat
+    
+    # Filter by status if provided
+    status_filter = request.GET.get('status', '')
+    search = request.GET.get('search', '')
+    
+    chats = Chat.objects.select_related('customer').prefetch_related('messages')
+    
+    if status_filter:
+        chats = chats.filter(status=status_filter)
+    
+    if search:
+        chats = chats.filter(
+            models.Q(customer__name__icontains=search) |
+            models.Q(customer__email__icontains=search) |
+            models.Q(subject__icontains=search)
+        )
+    
+    # Calculate total unread messages
+    total_unread = sum(chat.unread_count_admin for chat in chats)
+    
+    context = {
+        'page_title': 'Customer Chats',
+        'chats': chats,
+        'total_unread': total_unread,
+        'status_filter': status_filter,
+        'search': search,
+    }
+    return render(request, 'adminpanel/chat_list.html', context)
+
+
+@login_required(login_url='adminpanel:admin_login')
+def chat_detail(request, chat_id):
+    """View and respond to a specific chat."""
+    from .models import Chat, Message
+    
+    chat = get_object_or_404(Chat, id=chat_id)
+    
+    # Mark all customer messages as read when admin views chat
+    chat.messages.filter(is_from_customer=True, is_read=False).update(is_read=True)
+    
+    context = {
+        'page_title': f'Chat #{chat.id} - {chat.customer.name}',
+        'chat': chat,
+        'messages': chat.messages.all(),
+    }
+    return render(request, 'adminpanel/chat_detail.html', context)
+
+
+@login_required(login_url='adminpanel:admin_login')
+@require_http_methods(["POST"])
+def admin_send_message(request, chat_id):
+    """Admin sends a message in a chat."""
+    from .models import Chat, Message
+    
+    try:
+        chat = get_object_or_404(Chat, id=chat_id)
+        message_text = request.POST.get('message', '').strip()
+        
+        if not message_text:
+            return JsonResponse({'success': False, 'error': 'Message cannot be empty'}, status=400)
+        
+        # Create message
+        message = Message.objects.create(
+            chat=chat,
+            message=message_text,
+            is_from_customer=False,
+            sender_name=f"Admin ({request.user.username})",
+            is_read=False
+        )
+        
+        # Update chat status and timestamp
+        chat.status = 'IN_PROGRESS'
+        chat.last_admin_reply = timezone.now()
+        chat.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': {
+                'id': message.id,
+                'text': message.message,
+                'sender': message.sender_name,
+                'timestamp': message.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'is_from_customer': message.is_from_customer
+            }
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+
+@login_required(login_url='adminpanel:admin_login')
+@require_http_methods(["POST"])
+def admin_update_chat_status(request, chat_id):
+    """Update chat status (open/in_progress/closed)."""
+    from .models import Chat
+    
+    try:
+        chat = get_object_or_404(Chat, id=chat_id)
+        new_status = request.POST.get('status')
+        
+        if new_status not in ['OPEN', 'IN_PROGRESS', 'CLOSED']:
+            return JsonResponse({'success': False, 'error': 'Invalid status'}, status=400)
+        
+        chat.status = new_status
+        chat.save()
+        
+        return JsonResponse({'success': True, 'status': new_status})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+
+@login_required(login_url='adminpanel:admin_login')
+@require_http_methods(["POST"])
+def chat_delete(request, chat_id):
+    """Delete a single chat conversation."""
+    from .models import Chat
+    
+    try:
+        chat = get_object_or_404(Chat, id=chat_id)
+        customer_name = chat.customer.name
+        chat.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Chat with {customer_name} has been deleted'
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+
+@login_required(login_url='adminpanel:admin_login')
+@require_http_methods(["POST"])
+def chat_bulk_delete(request):
+    """Bulk delete multiple chats."""
+    from .models import Chat
+    
+    try:
+        chat_ids = request.POST.getlist('chat_ids[]')
+        
+        if not chat_ids:
+            return JsonResponse({'success': False, 'error': 'No chats selected'}, status=400)
+        
+        # Delete selected chats
+        deleted_count = Chat.objects.filter(id__in=chat_ids).delete()[0]
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Successfully deleted {deleted_count} chat(s)',
+            'deleted_count': deleted_count
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+
+@require_http_methods(["GET"])
+def customer_get_messages(request, chat_id):
+    """Get messages for a chat (used by customer for polling)."""
+    from .models import Chat
+    
+    try:
+        # Get chat (customer must own it if logged in, or match by session)
+        chat = get_object_or_404(Chat, id=chat_id)
+        
+        # Security: check if customer owns this chat
+        if request.user.is_authenticated:
+            try:
+                from .models import Customer
+                customer = Customer.objects.get(user=request.user)
+                if chat.customer.id != customer.id:
+                    return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
+            except Customer.DoesNotExist:
+                return JsonResponse({'success': False, 'error': 'Customer not found'}, status=403)
+        
+        # Mark admin messages as read
+        chat.messages.filter(is_from_customer=False, is_read=False).update(is_read=True)
+        
+        # Get all messages
+        messages = []
+        for msg in chat.messages.all():
+            messages.append({
+                'id': msg.id,
+                'text': msg.message,
+                'sender': msg.sender_name,
+                'timestamp': msg.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'is_from_customer': msg.is_from_customer
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'messages': messages,
+            'unread_count': chat.unread_count_customer
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+
+@require_http_methods(["GET"])
+def customer_check_chat(request):
+    """Check if customer has an existing active chat."""
+    from .models import Chat, Customer
+    
+    try:
+        chat_id = None
+        
+        if request.user.is_authenticated:
+            try:
+                customer = Customer.objects.get(user=request.user)
+                existing_chat = Chat.objects.filter(
+                    customer=customer,
+                    status__in=['OPEN', 'IN_PROGRESS']
+                ).first()
+                
+                if existing_chat:
+                    chat_id = existing_chat.id
+            except Customer.DoesNotExist:
+                pass
+        
+        return JsonResponse({
+            'success': True,
+            'has_chat': chat_id is not None,
+            'chat_id': chat_id
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+
+@require_http_methods(["POST"])
+def customer_send_message(request):
+    """Customer sends a message (creates chat if doesn't exist)."""
+    from .models import Chat, Message, Customer
+    
+    try:
+        message_text = request.POST.get('message', '').strip()
+        chat_id = request.POST.get('chat_id')
+        
+        if not message_text:
+            return JsonResponse({'success': False, 'error': 'Message cannot be empty'}, status=400)
+        
+        # Get or create customer
+        customer = None
+        customer_name = "Guest"
+        
+        if request.user.is_authenticated:
+            try:
+                customer = Customer.objects.get(user=request.user)
+                customer_name = customer.name or request.user.username
+            except Customer.DoesNotExist:
+                # Create customer if logged in but no customer record
+                customer = Customer.objects.create(
+                    user=request.user,
+                    name=request.user.username,
+                    email=request.user.email
+                )
+                customer_name = customer.name
+        else:
+            # For guest users, try to find by email or create anonymous
+            email = request.POST.get('email', '').strip()
+            if email:
+                customer, created = Customer.objects.get_or_create(
+                    email=email,
+                    defaults={'name': request.POST.get('name', 'Guest')}
+                )
+                customer_name = customer.name
+            else:
+                # Create anonymous customer
+                customer = Customer.objects.create(
+                    name="Anonymous Customer",
+                    email=f"guest_{timezone.now().timestamp()}@temp.com"
+                )
+                customer_name = "Guest"
+        
+        # Get or create chat - ensure one chat per customer
+        if chat_id:
+            chat = get_object_or_404(Chat, id=chat_id, customer=customer)
+        else:
+            # Check if customer already has an open or in-progress chat
+            existing_chat = Chat.objects.filter(
+                customer=customer,
+                status__in=['OPEN', 'IN_PROGRESS']
+            ).first()
+            
+            if existing_chat:
+                chat = existing_chat
+            else:
+                # Create new chat only if no active chat exists
+                chat = Chat.objects.create(
+                    customer=customer,
+                    subject="Customer Support",
+                    status='OPEN'
+                )
+        
+        # Create message
+        message = Message.objects.create(
+            chat=chat,
+            message=message_text,
+            is_from_customer=True,
+            sender_name=customer_name,
+            is_read=False
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'chat_id': chat.id,
+            'message': {
+                'id': message.id,
+                'text': message.message,
+                'sender': message.sender_name,
+                'timestamp': message.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'is_from_customer': message.is_from_customer
+            }
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)

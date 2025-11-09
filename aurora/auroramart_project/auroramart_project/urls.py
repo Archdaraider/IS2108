@@ -36,3 +36,4 @@ except ImportError:
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    # Note: STATIC files are automatically served by Django's runserver in DEBUG mode

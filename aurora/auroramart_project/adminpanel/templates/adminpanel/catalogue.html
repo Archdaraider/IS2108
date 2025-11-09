@@ -1,0 +1,257 @@
+{% extends 'adminpanel/base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<style>
+    .catalogue-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .stat-box {
+        background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: var(--border-radius);
+        text-align: center;
+    }
+    
+    .stat-box.active {
+        background: linear-gradient(135deg, var(--color-success) 0%, #1e7e34 100%);
+    }
+    
+    .stat-box.inactive {
+        background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+    }
+    
+    .stat-box-value {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-box-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Statistics -->
+<div class="catalogue-stats">
+    <div class="stat-box">
+        <div class="stat-box-value">{{ total_products }}</div>
+        <div class="stat-box-label">Total Products</div>
+    </div>
+    <div class="stat-box active">
+        <div class="stat-box-value">{{ active_products }}</div>
+        <div class="stat-box-label">Active Products</div>
+    </div>
+    <div class="stat-box inactive">
+        <div class="stat-box-value">{{ inactive_products }}</div>
+        <div class="stat-box-label">Inactive Products</div>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar">
+    <form method="get" class="filter-form">
+        <div class="filter-grid">
+            <div class="form-group">
+                <label class="form-label">Search</label>
+                <input type="text" name="search" class="form-control" 
+                       placeholder="Search products..." value="{{ search_query }}">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Category</label>
+                <select name="category" class="form-control">
+                    <option value="">All Categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat }}" {% if cat == category_filter %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-control">
+                    <option value="">All</option>
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="filter-actions">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-filter"></i> Apply Filters
+            </button>
+            <a href="{% url 'adminpanel:catalogue_view' %}" class="btn btn-outline">
+                <i class="fas fa-times"></i> Clear
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Bulk Actions -->
+<div class="card mb-3">
+    <div class="card-body">
+        <form id="bulkActionForm" method="post" action="{% url 'adminpanel:catalogue_bulk_update' %}">
+            {% csrf_token %}
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <div class="checkbox-wrapper">
+                    <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this, 'productsTable')">
+                    <label for="selectAll">Select All</label>
+                </div>
+                <button type="button" class="btn btn-success btn-sm" onclick="bulkAction('activate')">
+                    <i class="fas fa-eye"></i> Activate Selected
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="bulkAction('deactivate')">
+                    <i class="fas fa-eye-slash"></i> Deactivate Selected
+                </button>
+                <span id="selectedCount" class="text-muted" style="margin-left: auto;">0 selected</span>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Products Grid -->
+<div class="product-grid">
+    {% for product in products %}
+    <div class="product-card" data-product-id="{{ product.pk }}">
+        {% if product.image %}
+        <img src="{{ product.image.url }}" alt="{{ product.name }}" class="product-image">
+        {% else %}
+        <div class="product-image" style="display: flex; align-items: center; justify-content: center; background-color: var(--color-background-alt);">
+            <i class="fas fa-image" style="font-size: 3rem; color: var(--color-text-muted);"></i>
+        </div>
+        {% endif %}
+        
+        <div class="product-info">
+            <div class="product-name" title="{{ product.name }}">{{ product.name }}</div>
+            <div class="product-category">{{ product.category }}</div>
+            <div style="margin-bottom: 0.5rem;">
+                <span class="badge {% if product.is_active %}badge-success{% else %}badge-secondary{% endif %}">
+                    {% if product.is_active %}Active{% else %}Inactive{% endif %}
+                </span>
+            </div>
+            <div class="product-footer">
+                <div>
+                    <strong>${{ product.price }}</strong>
+                </div>
+                <div class="d-flex gap-1 align-items-center">
+                    <input type="checkbox" class="product-checkbox" value="{{ product.pk }}" 
+                           onchange="updateSelectedCount()" style="margin-right: 0.5rem;">
+                    <label class="toggle-switch" style="margin: 0;">
+                        <input type="checkbox" {% if product.is_active %}checked{% endif %}
+                               onchange="toggleProductStatus(this, {{ product.pk }})">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="empty-state" style="grid-column: 1 / -1;">
+        <div class="empty-state-icon"><i class="fas fa-box-open"></i></div>
+        <div class="empty-state-text">No products found</div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Toggle product status
+function toggleProductStatus(checkbox, productId) {
+    const url = `{% url 'adminpanel:catalogue_toggle_active' 0 %}`.replace('0', productId);
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            // Update badge
+            const card = checkbox.closest('.product-card');
+            const badge = card.querySelector('.badge');
+            if (data.is_active) {
+                badge.classList.remove('badge-secondary');
+                badge.classList.add('badge-success');
+                badge.textContent = 'Active';
+            } else {
+                badge.classList.remove('badge-success');
+                badge.classList.add('badge-secondary');
+                badge.textContent = 'Inactive';
+            }
+        } else {
+            checkbox.checked = !checkbox.checked;
+            showNotification(data.error || 'Update failed', 'error');
+        }
+    })
+    .catch(error => {
+        checkbox.checked = !checkbox.checked;
+        showNotification('An error occurred', 'error');
+        console.error('Error:', error);
+    });
+}
+
+// Bulk action
+function bulkAction(action) {
+    const checkboxes = document.querySelectorAll('.product-checkbox:checked');
+    const productIds = Array.from(checkboxes).map(cb => cb.value);
+    
+    if (productIds.length === 0) {
+        showNotification('Please select at least one product', 'warning');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('action', action);
+    productIds.forEach(id => formData.append('product_ids', id));
+    formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+    
+    fetch('{% url "adminpanel:catalogue_bulk_update" %}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            // Reload page to reflect changes
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showNotification(data.error || 'Bulk update failed', 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('An error occurred', 'error');
+        console.error('Error:', error);
+    });
+}
+
+// Update selected count
+function updateSelectedCount() {
+    const count = document.querySelectorAll('.product-checkbox:checked').length;
+    document.getElementById('selectedCount').textContent = `${count} selected`;
+}
+
+// Toggle select all
+function toggleSelectAll(checkbox, tableId) {
+    const checkboxes = document.querySelectorAll('.product-checkbox');
+    checkboxes.forEach(cb => cb.checked = checkbox.checked);
+    updateSelectedCount();
+}
+</script>
+{% endblock %}
+

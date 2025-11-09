@@ -271,7 +271,7 @@
                                                 {% endif %}
                                                 
                                                 <!-- Product Badges -->
-                                                {% if rec_product.stock <= 0 %}
+                                                {% if rec_product.quantity_on_hand <= 0 %}
                                                 <div class="product-badge sold-out">SOLD OUT</div>
                                                 {% endif %}
                                             </div>
@@ -280,10 +280,10 @@
                                                 <div class="product-price">${{ rec_product.price|floatformat:2 }}</div>
                                                 <h3 class="product-name">{{ rec_product.name }}</h3>
                                                 <div class="product-category">{{ rec_product.category }}</div>
-                                                <div class="product-stock" style="font-size: 0.875rem; color: {% if rec_product.stock > 0 %}#28a745{% else %}#dc3545{% endif %}; margin: 0.25rem 0;">
+                                                <div class="product-stock" style="font-size: 0.875rem; color: {% if rec_product.quantity_on_hand > 0 %}#28a745{% else %}#dc3545{% endif %}; margin: 0.25rem 0;">
                                                     <i class="fas fa-box" style="margin-right: 0.25rem;"></i>
-                                                    {% if rec_product.stock > 0 %}
-                                                        Stock: {{ rec_product.stock }} item{{ rec_product.stock|pluralize }}
+                                                    {% if rec_product.quantity_on_hand > 0 %}
+                                                        Stock: {{ rec_product.quantity_on_hand }} item{{ rec_product.quantity_on_hand|pluralize }}
                                                     {% else %}
                                                         Out of Stock
                                                     {% endif %}
@@ -323,7 +323,7 @@
                                         
                                         <!-- Add to cart -->
                                         <div class="product-cart-actions">
-                                            {% if rec_product.stock > 0 %}
+                                            {% if rec_product.quantity_on_hand > 0 %}
                                                 {% if rec_product.id in cart_product_ids %}
                                                     {% for item in cart.items.all %}
                                                         {% if item.product_id == rec_product.id %}
@@ -383,7 +383,7 @@
                             {% endif %}
                             
                             <!-- Product Badges -->
-                            {% if product.stock <= 0 %}
+                            {% if product.quantity_on_hand <= 0 %}
                             <div class="product-badge sold-out">SOLD OUT</div>
                             {% endif %}
                         </div>
@@ -392,10 +392,10 @@
                             <div class="product-price">${{ product.price|floatformat:2 }}</div>
                             <h3 class="product-name">{{ product.name }}</h3>
                             <div class="product-category">{{ product.category }}</div>
-                            <div class="product-stock" style="font-size: 0.875rem; color: {% if product.stock > 0 %}#28a745{% else %}#dc3545{% endif %}; margin: 0.25rem 0;">
+                            <div class="product-stock" style="font-size: 0.875rem; color: {% if product.quantity_on_hand > 0 %}#28a745{% else %}#dc3545{% endif %}; margin: 0.25rem 0;">
                                 <i class="fas fa-box" style="margin-right: 0.25rem;"></i>
-                                {% if product.stock > 0 %}
-                                    Stock: {{ product.stock }} item{{ product.stock|pluralize }}
+                                {% if product.quantity_on_hand > 0 %}
+                                    Stock: {{ product.quantity_on_hand }} item{{ product.quantity_on_hand|pluralize }}
                                 {% else %}
                                     Out of Stock
                                 {% endif %}
@@ -436,7 +436,7 @@
                     
                     <!-- Add to cart / Quantity picker - not part of clickable link -->
                     <div class="product-cart-actions">
-                        {% if product.stock > 0 %}
+                        {% if product.quantity_on_hand > 0 %}
                             {% if product.id in cart_product_ids %}
                                 {% for item in cart.items.all %}
                                     {% if item.product_id == product.id %}
@@ -540,10 +540,10 @@
                             <div class="product-price">${{ product.price|floatformat:2 }}</div>
                             <h3 class="product-name">{{ product.name }}</h3>
                             <div class="product-category">{{ product.category }}</div>
-                            <div class="product-stock" style="font-size: 0.875rem; color: {% if product.stock > 0 %}#28a745{% else %}#dc3545{% endif %}; margin: 0.25rem 0;">
+                            <div class="product-stock" style="font-size: 0.875rem; color: {% if product.quantity_on_hand > 0 %}#28a745{% else %}#dc3545{% endif %}; margin: 0.25rem 0;">
                                 <i class="fas fa-box" style="margin-right: 0.25rem;"></i>
-                                {% if product.stock > 0 %}
-                                    Stock: {{ product.stock }} item{{ product.stock|pluralize }}
+                                {% if product.quantity_on_hand > 0 %}
+                                    Stock: {{ product.quantity_on_hand }} item{{ product.quantity_on_hand|pluralize }}
                                 {% else %}
                                     Out of Stock
                                 {% endif %}

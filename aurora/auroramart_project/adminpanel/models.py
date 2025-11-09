@@ -1,10 +1,10 @@
-# auroramart_project/adminpanel/models.py
 
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator, MaxValueValidator 
 
-# --- Choices for Customer Model ---
+
 
 GENDER_CHOICES = [
     ('Female', 'Female'),
@@ -159,49 +159,28 @@ class Product(models.Model):
     sku = models.CharField(max_length=50, unique=True, verbose_name="SKU")
     name = models.CharField(max_length=255)
     description = models.TextField()
-    
-    # === UPDATED: Added 'choices' attribute ===
     category = models.CharField(max_length=100, choices=PRODUCT_CATEGORY_CHOICES)
     subcategory = models.CharField(max_length=100, choices=PRODUCT_SUBCATEGORY_CHOICES)
     
-    price = models.DecimalField(max_digits=10, decimal_places=2) # Renamed from unit_price
-    rating = models.DecimalField(max_digits=3, decimal_places=1)
-    stock = models.IntegerField(verbose_name="Stock") # Renamed from quantity_on_hand
-    reorder_threshold = models.IntegerField() # Renamed from reorder_quantity
-    
+    price = models.DecimalField(max_digits=10, decimal_places=2) 
+    rating = models.DecimalField(
+        max_digits=3, 
+        decimal_places=1,
+        validators=[
+            MinValueValidator(0.0),
+            MaxValueValidator(5.0)
+        ]
+    )
+    quantity_on_hand = models.IntegerField() # Renamed from stock
+    reorder_quantity = models.IntegerField() # Renamed from reorder_threshold
     image = models.ImageField(upload_to='products/', null=True, blank=True)
+    is_active = models.BooleanField(
+        default=True,
+        help_text="When unchecked, this product will be hidden from the customer storefront."
+    )
 
     def __str__(self):
         return f"{self.sku}: {self.name}"
-    
-    @property
-    def total_sold(self):
-        """Calculate total quantity sold from order items."""
-        total = OrderItem.objects.filter(
-            product=self,
-            order__fulfillment_status__in=['PROCESSING', 'SHIPPED', 'DELIVERED']
-        ).aggregate(total=models.Sum('quantity'))['total']
-        return total or 0
-    
-    @property
-    def favorites_count(self):
-        """Get count of users who favorited this product."""
-        from storefront.models import WishlistItem
-        return WishlistItem.objects.filter(product=self).count()
-    
-    @property
-    def reviews_count(self):
-        """Get count of reviews for this product."""
-        from storefront.models import ProductReview
-        return ProductReview.objects.filter(product=self).count()
-    
-    @property
-    def avg_rating(self):
-        """Get average rating from reviews, or return default rating if no reviews."""
-        from storefront.models import ProductReview
-        from django.db.models import Avg
-        avg = ProductReview.objects.filter(product=self).aggregate(Avg('rating'))['rating__avg']
-        return float(avg) if avg else float(self.rating)
 
 class Order(models.Model):
     """
@@ -221,6 +200,31 @@ class Order(models.Model):
     ]
     fulfillment_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     shipping_address = models.TextField()
+
+    # Payment Method
+    PAYMENT_METHOD_CHOICES = [
+        ('card', 'Credit/Debit Card'),
+        ('paynow', 'PayNow'),
+    ]
+    payment_method = models.CharField(
+        max_length=20, 
+        choices=PAYMENT_METHOD_CHOICES, 
+        default='card',
+        help_text="Payment method used for this order"
+    )
+    
+    # Delivery Time/Shipping Speed
+    DELIVERY_TIME_CHOICES = [
+        ('standard', 'Standard Shipping (Free)'),
+        ('express', 'Express Shipping (+$4.99)'),
+        ('overnight', 'Overnight Shipping (+$12.99)'),
+    ]
+    delivery_time = models.CharField(
+        max_length=20, 
+        choices=DELIVERY_TIME_CHOICES, 
+        default='standard',
+        help_text="Shipping speed selected by customer"
+    )
 
     def __str__(self):
         return f"Order {self.id} by {self.customer.email if self.customer else 'Guest'}"
@@ -257,3 +261,63 @@ class DecisionTreeModel(models.Model):
 
     def __str__(self):
         return f"{self.model_name} v{self.version} ({'Active' if self.is_active else 'Inactive'})"
+
+
+class Chat(models.Model):
+    """
+    Represents a chat conversation between a customer and admin.
+    """
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='chats')
+    subject = models.CharField(max_length=255, default="Customer Support")
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('OPEN', 'Open'),
+            ('IN_PROGRESS', 'In Progress'),
+            ('CLOSED', 'Closed'),
+        ],
+        default='OPEN'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_admin_reply = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-updated_at']
+    
+    def __str__(self):
+        return f"Chat #{self.id} - {self.customer.name} ({self.status})"
+    
+    @property
+    def unread_count_admin(self):
+        """Count unread messages for admin"""
+        return self.messages.filter(is_from_customer=True, is_read=False).count()
+    
+    @property
+    def unread_count_customer(self):
+        """Count unread messages for customer"""
+        return self.messages.filter(is_from_customer=False, is_read=False).count()
+    
+    @property
+    def last_message(self):
+        """Get the last message in this chat"""
+        return self.messages.order_by('-created_at').first()
+
+
+class Message(models.Model):
+    """
+    Represents a single message in a chat conversation.
+    """
+    chat = models.ForeignKey(Chat, on_delete=models.CASCADE, related_name='messages')
+    message = models.TextField()
+    is_from_customer = models.BooleanField(default=True)
+    sender_name = models.CharField(max_length=255)  # Display name
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['created_at']
+    
+    def __str__(self):
+        sender = "Customer" if self.is_from_customer else "Admin"
+        return f"{sender}: {self.message[:50]}..."

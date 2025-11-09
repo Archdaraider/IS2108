@@ -34,7 +34,7 @@ def add_product_to_cart(cart, product_id, quantity=1):
     try:
         product = get_object_or_404(Product, id=product_id)
         
-        if product.stock <= 0:
+        if product.quantity_on_hand <= 0:
             return False, 'Product is out of stock', None, cart.total_items
         
         # Check if item already exists in cart
@@ -46,8 +46,8 @@ def add_product_to_cart(cart, product_id, quantity=1):
         
         if not created:
             new_quantity = cart_item.quantity + quantity
-            if new_quantity > product.stock:
-                return False, f'Only {product.stock} items available in stock', cart_item, cart.total_items
+            if new_quantity > product.quantity_on_hand:
+                return False, f'Only {product.quantity_on_hand} items available in stock', cart_item, cart.total_items
             cart_item.quantity = new_quantity
             cart_item.save()
         
@@ -68,7 +68,7 @@ def update_cart_item_quantity(cart_item, new_quantity):
             cart_item.delete()
             return True, True, None, cart.total_items
         
-        if new_quantity > cart_item.product.stock:
+        if new_quantity > cart_item.product.quantity_on_hand:
             return False, False, cart_item, cart_item.cart.total_items
         
         cart_item.quantity = new_quantity

@@ -4,61 +4,183 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}AuroraMart Admin{% endblock %}</title>
-    
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'css/admin_styles.css' %}"> 
+    <title>{% block title %}{{ page_title }} - AuroraMart Admin{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/admin_styles.css' %}?v=4.3">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {% block extra_css %}{% endblock %}
 </head>
 <body>
+    <div class="admin-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-container">
+                    <img src="{% static 'images/AuroraMart Logo.png' %}" alt="AuroraMart" class="logo">
+                    <h1 class="brand-name">AuroraMart</h1>
+                </div>
+                <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <ul class="nav-menu">
+                    <li class="nav-item {% if request.resolver_match.url_name == 'admin_dashboard_home' %}active{% endif %}">
+                        <a href="{% url 'adminpanel:admin_dashboard_home' %}" class="nav-link">
+                            <i class="fas fa-dashboard"></i>
+                            <span class="nav-text">Dashboard</span>
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item {% if request.resolver_match.url_name == 'customer_list' or request.resolver_match.url_name == 'customer_detail' %}active{% endif %}">
+                        <a href="{% url 'adminpanel:customer_list' %}" class="nav-link">
+                            <i class="fas fa-users"></i>
+                            <span class="nav-text">Customers</span>
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item {% if request.resolver_match.url_name == 'product_list' or request.resolver_match.url_name == 'product_detail' %}active{% endif %}">
+                        <a href="{% url 'adminpanel:product_list' %}" class="nav-link">
+                            <i class="fas fa-box"></i>
+                            <span class="nav-text">Products</span>
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item {% if request.resolver_match.url_name == 'catalogue_view' %}active{% endif %}">
+                        <a href="{% url 'adminpanel:catalogue_view' %}" class="nav-link">
+                            <i class="fas fa-list"></i>
+                            <span class="nav-text">Catalogue</span>
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item {% if request.resolver_match.url_name == 'order_list' or request.resolver_match.url_name == 'order_detail' %}active{% endif %}">
+                        <a href="{% url 'adminpanel:order_list' %}" class="nav-link">
+                            <i class="fas fa-shopping-cart"></i>
+                            <span class="nav-text">Orders</span>
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item {% if request.resolver_match.url_name == 'chat_list' or request.resolver_match.url_name == 'chat_detail' %}active{% endif %}">
+                        <a href="{% url 'adminpanel:chat_list' %}" class="nav-link">
+                            <i class="fas fa-comments"></i>
+                            <span class="nav-text">Customer Chats</span>
+                        </a>
+                    </li>
+                    
+                    {% if user.is_superuser %}
+                    <li class="nav-item {% if request.resolver_match.url_name == 'admin_users_list' %}active{% endif %}">
+                        <a href="{% url 'adminpanel:admin_users_list' %}" class="nav-link">
+                            <i class="fas fa-user-shield"></i>
+                            <span class="nav-text">Admin Users</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    <li class="nav-divider"></li>
+                    
+                    <li class="nav-item">
+                        <form method="post" action="{% url 'adminpanel:admin_logout' %}" class="logout-form">
+                            {% csrf_token %}
+                            <button type="submit" class="nav-link logout-btn">
+                                <i class="fas fa-sign-out-alt"></i>
+                                <span class="nav-text">Logout</span>
+                            </button>
+                        </form>
+                    </li>
+                </ul>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <i class="fas fa-user-circle"></i>
+                    </div>
+                    <div class="user-details">
+                        <p class="user-name">{{ user.username }}</p>
+                        <p class="user-role">{% if user.is_superuser %}Superuser{% else %}Admin{% endif %}</p>
+                    </div>
+                </div>
+            </div>
+        </aside>
 
-    <header class="top-navbar">
-        <div class="logo-container">
-            <div class="text-logo">A</div>
-        <img src="{% static 'images/AuroraMart Logo.png' %}" alt="AuroraMart Logo" class="logo-image">            <h1 class="panel-title">Admin Panel</h1>
-        </div>
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <div class="content-wrapper">
+                <header class="page-header">
+                    <h2 class="page-title">{{ page_title }}</h2>
+                    <div class="page-actions">
+                        {% block header_actions %}{% endblock %}
+                    </div>
+                </header>
 
-        <nav class="main-nav">
-            <a href="{% url 'admin_dashboard_home' %}" 
-               class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard_home' %}active{% endif %}">
-               Dashboard
-            </a>
-            
-            <a href="{% url 'customer_list' %}" 
-               class="nav-link {% if request.resolver_match.url_name == 'customer_list' %}active{% endif %}">
-               Customers
-            </a>
-            
-            <a href="{% url 'product_list' %}" 
-               class="nav-link {% if request.resolver_match.url_name == 'product_list' %}active{% endif %}">
-               Products
-            </a>
-            
-            <a href="{% url 'order_list' %}" 
-               class="nav-link {% if request.resolver_match.url_name == 'order_list' %}active{% endif %}">
-               Orders
-            </a>
-        </nav>
-        <div class="user-info">
-            <i class="fas fa-user-circle"></i>
-            <span>{{ request.user.username|default:"Admin1101" }}</span>
-        </div>
-    </header>
-    
-    <div class="main-content-wrapper">
-        {% block content %}{% endblock content %}
+                {% if messages %}
+                <div class="messages-container">
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">
+                        <i class="fas fa-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-circle{% elif message.tags == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %}"></i>
+                        <span>{{ message }}</span>
+                        <button class="alert-close" onclick="this.parentElement.remove()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <div class="page-content">
+                    {% block content %}{% endblock %}
+                </div>
+            </div>
+        </main>
     </div>
 
+    <script src="{% static 'scripts/admin.js' %}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Star Rating Script -->
     <script>
-        // This script adds the 'scrolled' class to the navbar
-        // when the user scrolls, creating the background effect.
-        document.addEventListener('scroll', function() {
-            var navbar = document.querySelector('.top-navbar');
-            if (window.scrollY > 10) {
-                navbar.classList.add('scrolled');
-            } else {
-                navbar.classList.remove('scrolled');
-            }
-        });
+    document.addEventListener('DOMContentLoaded', function() {
+        function renderStarRatings() {
+            const starContainers = document.querySelectorAll('.star-rating');
+            
+            starContainers.forEach(container => {
+                const rating = parseFloat(container.getAttribute('data-rating'));
+                if (isNaN(rating)) return;
+                
+                const stars = container.querySelectorAll('i');
+                const fullStars = Math.floor(rating);
+                const hasHalfStar = (rating % 1) >= 0.25 && (rating % 1) < 0.75;
+                
+                stars.forEach((star, index) => {
+                    const position = index + 1;
+                    
+                    // Remove all classes first
+                    star.className = '';
+                    
+                    if (position <= fullStars) {
+                        // Full star
+                        star.className = 'fas fa-star';
+                    } else if (position === fullStars + 1 && hasHalfStar) {
+                        // Half star
+                        star.className = 'fas fa-star-half-alt';
+                    } else {
+                        // Empty star
+                        star.className = 'far fa-star';
+                    }
+                });
+            });
+        }
+        
+        // Initial render
+        renderStarRatings();
+        
+        // Re-render if content is dynamically loaded
+        const observer = new MutationObserver(renderStarRatings);
+        observer.observe(document.body, { childList: true, subtree: true });
+    });
     </script>
-    </body>
+    
+    {% block extra_js %}{% endblock %}
+</body>
 </html>
+

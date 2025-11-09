@@ -46,9 +46,18 @@ function initCarousel() {
     
     carousels.forEach(carousel => {
         const slides = carousel.querySelectorAll('.hero-slide, .product-grid');
-        const prevBtn = carousel.querySelector('.carousel-prev');
-        const nextBtn = carousel.querySelector('.carousel-next');
-        const dots = carousel.querySelectorAll('.dot');
+        // Look for buttons in parent container (hero-section) instead of inside carousel
+        const parentSection = carousel.parentElement;
+        const prevBtn = parentSection ? parentSection.querySelector('.carousel-prev') : null;
+        const nextBtn = parentSection ? parentSection.querySelector('.carousel-next') : null;
+        const dots = parentSection ? parentSection.querySelectorAll('.dot') : [];
+        
+        console.log('Carousel Debug:', {
+            slides: slides.length,
+            hasPrevBtn: !!prevBtn,
+            hasNextBtn: !!nextBtn,
+            dotsCount: dots.length
+        });
         
         if (slides.length > 1) {
             let currentSlide = 0;
@@ -107,16 +116,29 @@ function initCarousel() {
             
             // Button event listeners
             if (nextBtn) {
-                nextBtn.addEventListener('click', () => {
+                console.log('Next button found, adding event listener');
+                nextBtn.addEventListener('click', (e) => {
+                    console.log('Next button clicked!');
+                    e.preventDefault();
+                    e.stopPropagation();
                     nextSlide();
                     startAutoSlide(); // Restart auto-slide after manual navigation
                 });
+            } else {
+                console.log('Next button NOT found');
             }
+            
             if (prevBtn) {
-                prevBtn.addEventListener('click', () => {
+                console.log('Prev button found, adding event listener');
+                prevBtn.addEventListener('click', (e) => {
+                    console.log('Prev button clicked!');
+                    e.preventDefault();
+                    e.stopPropagation();
                     prevSlide();
                     startAutoSlide(); // Restart auto-slide after manual navigation
                 });
+            } else {
+                console.log('Prev button NOT found');
             }
             
             // Dot event listeners
@@ -185,8 +207,8 @@ function initAddToCart() {
         e.preventDefault();
         e.stopPropagation();
             
-            const formData = new FormData(this);
-            const submitButton = this.querySelector('.add-to-cart-btn');
+        const formData = new FormData(form);
+        const submitButton = form.querySelector('.add-to-cart-btn');
             const originalText = submitButton ? submitButton.innerHTML : '';
             
             // Disable button during request
@@ -197,7 +219,7 @@ function initAddToCart() {
             
             // Add AJAX header
             const xhr = new XMLHttpRequest();
-            xhr.open('POST', this.action, true);
+        xhr.open('POST', form.action, true);
             xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
             xhr.setRequestHeader('X-CSRFToken', window.csrfToken || document.querySelector('[name=csrfmiddlewaretoken]')?.value);
             
@@ -253,7 +275,6 @@ function initAddToCart() {
             };
             
             xhr.send(formData);
-        });
     });
     
     // Handle quantity update forms (for product detail page)

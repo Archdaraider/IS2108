@@ -40,7 +40,7 @@ def get_predicted_subcategories(request, limit=5):
             # If we don't have enough, fill with popular subcategories
             if len(predicted_subcategories) < limit:
                 popular_subcategories = Product.objects.filter(
-                    stock__gt=0,
+                    quantity_on_hand__gt=0,
                     subcategory__isnull=False
                 ).exclude(
                     subcategory__in=predicted_subcategories
@@ -57,7 +57,7 @@ def get_predicted_subcategories(request, limit=5):
     # If no user or not enough subcategories, use popular subcategories
     if len(predicted_subcategories) < limit:
         popular_subcategories = Product.objects.filter(
-            stock__gt=0,
+            quantity_on_hand__gt=0,
             subcategory__isnull=False
         ).exclude(
             subcategory__in=predicted_subcategories

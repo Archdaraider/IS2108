@@ -1,0 +1,48 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logged Out - AuroraMart</title>
+    <link rel="stylesheet" href="{% static 'css/admin_styles.css' %}?v=4.3">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <img src="{% static 'images/AuroraMart Logo.png' %}" alt="AuroraMart" class="auth-logo">
+                <h1 class="auth-title">Successfully Logged Out</h1>
+                <p class="auth-subtitle">You have been logged out of the admin panel</p>
+            </div>
+            
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i>
+                <span>Your session has been ended securely.</span>
+            </div>
+            
+            <div class="auth-actions">
+                <a href="{% url 'adminpanel:admin_login' %}" class="btn btn-primary" style="width: 100%; text-align: center; margin-bottom: 0.75rem;">
+                    <i class="fas fa-sign-in-alt"></i>
+                    Sign in as Admin
+                </a>
+                <a href="{% url 'adminpanel:customer_landing_page' %}" class="btn btn-outline" style="width: 100%; text-align: center;">
+                    <i class="fas fa-store"></i>
+                    Continue as Guest to Storefront
+                </a>
+            </div>
+            
+            <div class="auth-links">
+                <p style="color: var(--color-text-muted); font-size: 0.85rem; text-align: center;">
+                    <i class="fas fa-shield-alt"></i>
+                    Thank you for using AuroraMart Admin Panel
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <script src="{% static 'scripts/admin.js' %}"></script>
+</body>
+</html>
+

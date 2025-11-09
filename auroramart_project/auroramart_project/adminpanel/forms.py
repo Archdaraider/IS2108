@@ -55,10 +55,15 @@ class OrderItemForm(BaseForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # Ensure products are properly loaded and displayed
+        self.fields['product'].queryset = Product.objects.all().order_by('name')
         self.fields['product'].required = False
+        self.fields['product'].empty_label = "Select a product..."
+        
         self.fields['quantity'].required = False
+        self.fields['quantity'].initial = 1
         # Optional: set a default min_value for quantity
-        self.fields['quantity'].widget.attrs.update({'min': '1'})
+        self.fields['quantity'].widget.attrs.update({'min': '1', 'value': '1'})
         
     def clean(self):
         cleaned_data = super().clean()
@@ -76,15 +81,15 @@ class OrderItemForm(BaseForm):
             
         return cleaned_data
         
-# Create formset factory with 1 extra empty form for adding new items
+# Create formset factory with 0 extra empty forms (we'll add dynamically with JS)
 OrderItemFormSet = inlineformset_factory(
     Order,              # parent model
     OrderItem,          # child model
     form=OrderItemForm, # form to use for each child
     can_delete=True,   
-    min_num=0,   
-    extra=1,            # Show 1 empty form for adding new items
-    validate_min=False,  # Don't require minimum forms
+    min_num=1,          # Require at least 1 item
+    extra=0,            # No extra empty forms by default (add with button)
+    validate_min=True,  # Require minimum forms
 )
 
 # --- Admin User Management Forms ---

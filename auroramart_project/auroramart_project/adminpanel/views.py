@@ -114,6 +114,40 @@ def admin_dashboard_home(request):
     worst_rated_products = Product.objects.order_by('rating', 'name')[:3]
 
     model_status = DecisionTreeModel.objects.order_by('-training_date')
+    
+    # Get sales data for the last 6 months (real data)
+    from django.db.models.functions import TruncMonth
+    from datetime import datetime, timedelta
+    from django.utils import timezone
+    
+    six_months_ago = timezone.now() - timedelta(days=180)
+    
+    monthly_sales = Order.objects.filter(
+        placed_at__gte=six_months_ago
+    ).annotate(
+        month=TruncMonth('placed_at')
+    ).values('month').annotate(
+        total=Sum('total_amount')
+    ).order_by('month')
+    
+    # Prepare sales chart data
+    sales_labels = []
+    sales_values = []
+    
+    if monthly_sales.exists():
+        for item in monthly_sales:
+            month_name = item['month'].strftime('%b')
+            sales_labels.append(month_name)
+            sales_values.append(float(item['total'] or 0))
+    else:
+        # If no orders, show empty chart
+        sales_labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
+        sales_values = [0, 0, 0, 0, 0, 0]
+    
+    sales_chart_data = {
+        'labels': json.dumps(sales_labels),
+        'values': json.dumps(sales_values),
+    }
 
     context = {
         'page_title': 'Dashboard',
@@ -121,6 +155,7 @@ def admin_dashboard_home(request):
         'inventory_alerts': inventory_alerts,
         'segment_summary': segment_summary,
         'pie_chart_data': pie_chart_data,
+        'sales_chart_data': sales_chart_data,
         'customer_summary': customer_summary,
         'overall_stats': overall_stats,
         'top_rated_products': top_rated_products,
@@ -302,12 +337,9 @@ def order_list(request):
     # Limit to 100 orders for performance
     orders = orders[:100]
 
-    # Define the formset factory here (unbound to an instance)
-    OrderItemFormSetFactory = inlineformset_factory(Order, OrderItem, form=OrderItemFormSet.form, extra=1, can_delete=True)
-
     if request.method == 'POST':
         form = OrderForm(request.POST)
-        formset = OrderItemFormSetFactory(request.POST) # Use the factory
+        formset = OrderItemFormSet(request.POST) # Use the imported formset
 
         if form.is_valid() and formset.is_valid():
              # Use a transaction to ensure atomicity
@@ -322,7 +354,7 @@ def order_list(request):
                 for item in items_to_save:
                     # Only save if a product was selected (and it's not a deletion of an existing item)
                     # NOTE: item.product is guaranteed to be non-None if formset.is_valid() passed and the row was filled
-                    if item.product:
+                    if item.product and item.quantity:
                         item.order = order
                         # 🔑 CRITICAL FIX: Ensure unit_price is explicitly set from the Product before saving
                         item.unit_price = item.product.price
@@ -343,8 +375,8 @@ def order_list(request):
 
     else: # GET request
         form = OrderForm()
-        # Create an empty formset for a new, blank order
-        formset = OrderItemFormSetFactory(queryset=OrderItem.objects.none())
+        # Create an empty formset for a new order with 1 empty form
+        formset = OrderItemFormSet(queryset=OrderItem.objects.none(), initial=[{'quantity': 1}])
 
     # Get unique customers and statuses for filter dropdowns
     customers = Customer.objects.all().order_by('name')
@@ -375,37 +407,84 @@ def order_list(request):
 def order_detail(request, pk):
     """
     View to display and update a single order and its items.
-    Properly handles inline formset with deletions and updates.
+    Completely rewritten with manual DELETE handling.
     """
     order = get_object_or_404(Order, pk=pk)
 
     if request.method == 'POST':
         form = OrderForm(request.POST, instance=order)
         formset = OrderItemFormSet(request.POST, instance=order)
-
+        
         if form.is_valid() and formset.is_valid():
             try:
                 with transaction.atomic():
-                    # 1. Save the main order form first
+                    # Save the order form
                     order = form.save()
-
-                    # 2. Save formset with commit=False to get all objects
-                    # This automatically handles deletions - deleted items won't be in the returned queryset
-                    items_to_save = formset.save(commit=False)
-
-                    # 3. Process each item
-                    for item in items_to_save:
-                        # Set unit_price from the product's current price
-                        if item.product:
-                            item.unit_price = item.product.price
-                            item.save()
-
-                    # 4. Delete items marked for deletion
-                    # formset.deleted_objects contains items that were marked for deletion
-                    for item in formset.deleted_objects:
-                        item.delete()
-
-                    # 5. Recalculate the order total after all changes
+                    
+                    # Get the total number of forms
+                    total_forms = int(request.POST.get('items-TOTAL_FORMS', 0))
+                    
+                    # Track items to delete and items to keep
+                    items_to_delete = []
+                    items_to_save = []
+                    
+                    # Process each form manually
+                    for i in range(total_forms):
+                        # Check if this form has DELETE checked
+                        delete_key = f'items-{i}-DELETE'
+                        is_marked_for_deletion = delete_key in request.POST
+                        
+                        # Get the item ID (if it exists)
+                        item_id = request.POST.get(f'items-{i}-id', '')
+                        
+                        # Get product and quantity
+                        product_id = request.POST.get(f'items-{i}-product', '')
+                        quantity = request.POST.get(f'items-{i}-quantity', '')
+                        
+                        if is_marked_for_deletion and item_id:
+                            # Mark existing item for deletion
+                            items_to_delete.append(item_id)
+                        elif product_id and quantity:
+                            # This item should be saved
+                            items_to_save.append({
+                                'id': item_id if item_id else None,
+                                'product_id': product_id,
+                                'quantity': quantity
+                            })
+                    
+                    # Delete marked items
+                    for item_id in items_to_delete:
+                        try:
+                            item = OrderItem.objects.get(pk=item_id, order=order)
+                            item.delete()
+                        except OrderItem.DoesNotExist:
+                            pass
+                    
+                    # Save/update remaining items
+                    for item_data in items_to_save:
+                        try:
+                            product = Product.objects.get(pk=item_data['product_id'])
+                            quantity = int(item_data['quantity'])
+                            
+                            if item_data['id']:
+                                # Update existing item
+                                item = OrderItem.objects.get(pk=item_data['id'], order=order)
+                                item.product = product
+                                item.quantity = quantity
+                                item.unit_price = product.price
+                                item.save()
+                            else:
+                                # Create new item
+                                OrderItem.objects.create(
+                                    order=order,
+                                    product=product,
+                                    quantity=quantity,
+                                    unit_price=product.price
+                                )
+                        except (Product.DoesNotExist, OrderItem.DoesNotExist):
+                            pass
+                    
+                    # Recalculate order total
                     total_result = order.items.aggregate(
                         total=Sum(F('unit_price') * F('quantity'), output_field=DecimalField())
                     )
@@ -415,18 +494,7 @@ def order_detail(request, pk):
                     return redirect('order_detail', pk=order.pk)
 
             except Exception as e:
-                import traceback
                 form.add_error(None, f"An error occurred while saving: {str(e)}")
-                # Print to console for debugging
-                print(f"Error in order_detail: {e}")
-                print(traceback.format_exc())
-        else:
-            # Form or formset validation failed
-            if not formset.is_valid():
-                form.add_error(None, "There are errors in the product items. Please correct them.")
-                print(f"Formset errors: {formset.errors}")
-            if not form.is_valid():
-                form.add_error(None, "There are errors in the order details. Please correct them.")
             
     else:
         # GET request - display the form

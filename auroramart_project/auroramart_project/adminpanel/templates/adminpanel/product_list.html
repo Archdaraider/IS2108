@@ -1,241 +1,265 @@
-{% extends "adminpanel/base.html" %}
+{% extends 'adminpanel/base.html' %}
 {% load static %}
 
-{% block title %}{{ page_title|default:"Product List" }}{% endblock %}
+{% block header_actions %}
+<button class="btn btn-primary" onclick="openModal('createProductModal')">
+    <i class="fas fa-plus"></i>
+    Add Product
+</button>
+{% endblock %}
 
 {% block content %}
-
-<div class="content-panel">
-    <div class="content-panel-header">
-        <h2>{{ page_title }}</h2>
-        <button id="toggle-form-btn" class="btn-primary" style="text-decoration: none;">
-            + New Product
-        </button>
-    </div>
-</div>
-
-<!-- Filter and Sort Panel -->
-<div class="content-panel filter-panel" style="background-color: lightgray;" >
-    <div class="content-panel-header">
-        <h3><i class="fas fa-filter"></i> Filter & Sort Products</h3>
-        <button id="toggle-filters-btn" class="btn-secondary">
-            <i class="fas fa-chevron-down" id="filter-chevron"></i> Toggle Filters
-        </button>
-    </div>
-    
-    <div id="filters-container" class="content-panel-body" style="display: none;">
-        <form method="get" class="filter-form">
-            <div class="filter-grid">
-                <!-- Search -->
-                <div class="filter-group" style ="margin-bottom: 20px;">
-                    <label for="search"><i class="fas fa-search"></i> Search:</label>
-                    <input type="text" id="search" name="search" value="{{ search_query }}" 
-                           placeholder="Product name, SKU, or description..." class="form-control">
-                </div>
-                
-                <!-- Category Filter -->
-                <div class="filter-group" style ="margin-bottom: 20px;">
-                    <label for="category"><i class="fas fa-tags"></i> Category:</label>
-                    <select id="category" name="category" class="form-control">
-                        <option value="">All Categories</option>
-                        {% for cat in categories %}
-                            <option value="{{ cat }}" {% if category_filter == cat %}selected{% endif %}>{{ cat }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <!-- Subcategory Filter -->
-                <div class="filter-group" style ="margin-bottom: 20px;">
-                    <label for="subcategory"><i class="fas fa-tag"></i> Subcategory:</label>
-                    <select id="subcategory" name="subcategory" class="form-control">
-                        <option value="">All Subcategories</option>
-                        {% for subcat in subcategories %}
-                            <option value="{{ subcat }}" {% if subcategory_filter == subcat %}selected{% endif %}>{{ subcat }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <!-- Price Range -->
-                <div class="filter-group" style ="margin-bottom: 20px;">
-                    <label for="price_min"><i class="fas fa-dollar-sign"></i> Price Range:</label>
-                    <div class="range-inputs">
-                        <input type="number" id="price_min" name="price_min" value="{{ price_min }}" 
-                               placeholder="Min" class="form-control" min="0" step="0.01">
-                        <span>to</span>
-                        <input type="number" id="price_max" name="price_max" value="{{ price_max }}" 
-                               placeholder="Max" class="form-control" min="0" step="0.01">
-                    </div>
-                </div>
-                
-                <!-- Rating Filter -->
-                <div class="filter-group" style ="margin-bottom: 20px;">
-                    <label for="rating_min"><i class="fas fa-star"></i> Minimum Rating:</label>
-                    <select id="rating_min" name="rating_min" class="form-control">
-                        <option value="">Any Rating</option>
-                        <option value="1" {% if rating_min == '1' %}selected{% endif %}>1+ Stars</option>
-                        <option value="2" {% if rating_min == '2' %}selected{% endif %}>2+ Stars</option>
-                        <option value="3" {% if rating_min == '3' %}selected{% endif %}>3+ Stars</option>
-                        <option value="4" {% if rating_min == '4' %}selected{% endif %}>4+ Stars</option>
-                        <option value="5" {% if rating_min == '5' %}selected{% endif %}>5 Stars Only</option>
-                    </select>
-                </div>
-                
-                <!-- Stock Filter -->
-                <div class="filter-group" style ="margin-bottom: 20px;">
-                    <label for="stock"><i class="fas fa-boxes"></i> Stock Status:</label>
-                    <select id="stock" name="stock" class="form-control">
-                        <option value="">All Stock Levels</option>
-                        <option value="in_stock" {% if stock_filter == 'in_stock' %}selected{% endif %}>In Stock</option>
-                        <option value="low" {% if stock_filter == 'low' %}selected{% endif %}>Low Stock</option>
-                        <option value="out" {% if stock_filter == 'out' %}selected{% endif %}>Out of Stock</option>
-                    </select>
-                </div>
-                
-                <!-- Sort -->
-                <div class="filter-group" style ="margin-bottom: 20px;">
-                    <label for="sort"><i class="fas fa-sort"></i> Sort by:</label>
-                    <select id="sort" name="sort" class="form-control">
-                        <option value="-id" {% if sort_by == '-id' %}selected{% endif %}>Newest First</option>
-                        <option value="id" {% if sort_by == 'id' %}selected{% endif %}>Oldest First</option>
-                        <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Name A-Z</option>
-                        <option value="-name" {% if sort_by == '-name' %}selected{% endif %}>Name Z-A</option>
-                        <option value="sku" {% if sort_by == 'sku' %}selected{% endif %}>SKU A-Z</option>
-                        <option value="-sku" {% if sort_by == '-sku' %}selected{% endif %}>SKU Z-A</option>
-                        <option value="price" {% if sort_by == 'price' %}selected{% endif %}>Price Low-High</option>
-                        <option value="-price" {% if sort_by == '-price' %}selected{% endif %}>Price High-Low</option>
-                        <option value="rating" {% if sort_by == 'rating' %}selected{% endif %}>Rating Low-High</option>
-                        <option value="-rating" {% if sort_by == '-rating' %}selected{% endif %}>Rating High-Low</option>
-                        <option value="quantity_on_hand" {% if sort_by == 'quantity_on_hand' %}selected{% endif %}>Stock Low-High</option>
-                        <option value="-quantity_on_hand" {% if sort_by == '-quantity_on_hand' %}selected{% endif %}>Stock High-Low</option>
-                        <option value="category" {% if sort_by == 'category' %}selected{% endif %}>Category A-Z</option>
-                        <option value="-category" {% if sort_by == '-category' %}selected{% endif %}>Category Z-A</option>
-                    </select>
+<!-- Filter Bar -->
+<div class="filter-bar">
+    <form method="get" class="filter-form">
+        <div class="filter-grid">
+            <div class="form-group">
+                <label class="form-label">Search</label>
+                <input type="text" name="search" class="form-control" 
+                       placeholder="Name, SKU, or description..." value="{{ search_query }}">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Category</label>
+                <select name="category" class="form-control">
+                    <option value="">All Categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat }}" {% if cat == category_filter %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Subcategory</label>
+                <select name="subcategory" class="form-control">
+                    <option value="">All Subcategories</option>
+                    {% for subcat in subcategories %}
+                    <option value="{{ subcat }}" {% if subcat == subcategory_filter %}selected{% endif %}>{{ subcat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Price Range</label>
+                <div class="d-flex gap-1">
+                    <input type="number" name="price_min" class="form-control" 
+                           placeholder="Min" value="{{ price_min }}" step="0.01" style="width: 50%;">
+                    <input type="number" name="price_max" class="form-control" 
+                           placeholder="Max" value="{{ price_max }}" step="0.01" style="width: 50%;">
                 </div>
             </div>
             
-            <div class="filter-actions">
-                <button type="submit" class="btn-primary" >
-                    <i class="fas fa-search"></i> Apply Filters
-                </button><br><br>
-                <a href="{% url 'product_list' %}" class="btn-secondary">
-                    <i class="fas fa-times"></i> Clear All
-                </a>
+            <div class="form-group">
+                <label class="form-label">Min Rating</label>
+                <input type="number" name="rating_min" class="form-control" 
+                       placeholder="0-5" value="{{ rating_min }}" step="0.1" min="0" max="5">
             </div>
-        </form>
-    </div>
-</div>
-
-<div id="create-form-container" class="create-form-panel" {% if not form.errors %}style="display: none;"{% endif %}>
-    <h3>Create New Product</h3>
-    <form method="post" action="{% url 'product_list' %}" enctype="multipart/form-data" novalidate>
-        {% csrf_token %}
-        <!-- Updated to use new grid layout -->
-        <div class="form-container">
-            <div class="form-container">
-    
-    {% if form.non_field_errors %}
-        <div class="form-non-field-errors">
-            {{ form.non_field_errors }}
+            
+            <div class="form-group">
+                <label class="form-label">Stock Status</label>
+                <select name="stock" class="form-control">
+                    <option value="">All</option>
+                    <option value="low" {% if stock_filter == 'low' %}selected{% endif %}>Low Stock</option>
+                    <option value="out" {% if stock_filter == 'out' %}selected{% endif %}>Out of Stock</option>
+                    <option value="in_stock" {% if stock_filter == 'in_stock' %}selected{% endif %}>In Stock</option>
+                </select>
+            </div>
         </div>
-    {% endif %}
-
-    {% for field in form %}
-        <p>
-            {{ field.label_tag }}
-            {{ field }} {% if field.errors %}
-                <span class="field-error-message">{{ field.errors|striptags }}</span>
-            {% endif %}
-
-            {% if field.help_text %}
-                <small class="form-help-text">{{ field.help_text }}</small>
-            {% endif %}
-        </p>
-    {% endfor %}
-</div>
-        </div>
-        <div class="form-actions">
-            <button type="button" id="cancel-btn" class="btn-secondary">Cancel</button>
-            <button type="submit" class="btn-primary">Save Product</button>
+        
+        <div class="filter-actions">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-filter"></i> Apply Filters
+            </button>
+            <a href="{% url 'product_list' %}" class="btn btn-outline">
+                <i class="fas fa-times"></i> Clear
+            </a>
         </div>
     </form>
 </div>
-<div class="content-panel">
-    <div class="content-panel-body no-padding">
-        <table class="data-table">
+
+<!-- Products Table -->
+<div class="table-container">
+    <div class="table-header">
+        <h3 class="table-title">Products ({{ products.count }})</h3>
+        <div class="table-actions">
+            <div class="form-group" style="margin: 0;">
+                <select class="form-control" onchange="window.location.href='?sort=' + this.value + '&search={{ search_query }}&category={{ category_filter }}&subcategory={{ subcategory_filter }}&price_min={{ price_min }}&price_max={{ price_max }}&rating_min={{ rating_min }}&stock={{ stock_filter }}'">
+                    <option value="-id" {% if sort_by == '-id' %}selected{% endif %}>Newest First</option>
+                    <option value="id" {% if sort_by == 'id' %}selected{% endif %}>Oldest First</option>
+                    <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Name (A-Z)</option>
+                    <option value="-name" {% if sort_by == '-name' %}selected{% endif %}>Name (Z-A)</option>
+                    <option value="-price" {% if sort_by == '-price' %}selected{% endif %}>Price (High-Low)</option>
+                    <option value="price" {% if sort_by == 'price' %}selected{% endif %}>Price (Low-High)</option>
+                    <option value="-rating" {% if sort_by == '-rating' %}selected{% endif %}>Rating (High-Low)</option>
+                    <option value="rating" {% if sort_by == 'rating' %}selected{% endif %}>Rating (Low-High)</option>
+                    <option value="quantity_on_hand" {% if sort_by == 'quantity_on_hand' %}selected{% endif %}>Stock (Low-High)</option>
+                    <option value="-quantity_on_hand" {% if sort_by == '-quantity_on_hand' %}selected{% endif %}>Stock (High-Low)</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    
+    <div class="table-wrapper">
+        {% if products %}
+        <table>
             <thead>
                 <tr>
                     <th>SKU</th>
-                    <th>Product Name</th>
+                    <th>Name</th>
                     <th>Category</th>
+                    <th>Subcategory</th>
                     <th>Price</th>
+                    <th>Rating</th>
                     <th>Stock</th>
-                    <th>Tools</th>
+                    <th>Status</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for product in products %}
                 <tr>
-                    <td>{{ product.sku }}</td>
-                    
-                    <!-- === UPDATED: Make name a link === -->
-                    <td>
-                        <a href="{% url 'product_detail' product.pk %}" class="table-link">
-                            {{ product.name }}
-                        </a>
-                    </td>
-                    
+                    <td><strong>{{ product.sku }}</strong></td>
+                    <td>{{ product.name|truncatewords:5 }}</td>
                     <td>{{ product.category }}</td>
-                    <td>${{ product.price|floatformat:2 }}</td>
-                    <td {% if product.stock <= product.reorder_threshold %}class="text-danger"{% endif %}>
-                        {{ product.quantity_on_hand }}
+                    <td>{{ product.subcategory }}</td>
+                    <td>${{ product.price }}</td>
+                    <td>
+                        <span class="star-rating" data-rating="{{ product.rating }}">
+                            <i class="far fa-star"></i>
+                            <i class="far fa-star"></i>
+                            <i class="far fa-star"></i>
+                            <i class="far fa-star"></i>
+                            <i class="far fa-star"></i>
+                        </span>
+                        <span style="margin-left: 0.5rem;">{{ product.rating }}</span>
                     </td>
-                    
-                    <!-- === UPDATED: Changed tools column === -->
-                    <td class="tools">
-                        <a href="{% url 'product_detail' product.pk %}">View / Update</a>
+                    <td>
+                        {% if product.quantity_on_hand == 0 %}
+                            <span class="badge badge-danger">Out of Stock</span>
+                        {% elif product.quantity_on_hand <= product.reorder_quantity %}
+                            <span class="badge badge-warning">{{ product.quantity_on_hand }}</span>
+                        {% else %}
+                            <span class="badge badge-success">{{ product.quantity_on_hand }}</span>
+                        {% endif %}
                     </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="6" style="text-align: center; color: #777;">No products found.</td>
+                    <td>
+                        {% if product.is_active %}
+                            <span class="badge badge-success">Active</span>
+                        {% else %}
+                            <span class="badge badge-secondary">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="d-flex gap-1">
+                            <a href="{% url 'product_detail' product.pk %}" class="btn btn-sm btn-secondary">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <form method="post" action="{% url 'product_delete' product.pk %}" 
+                                  style="display: inline;"
+                                  data-item-type="product"
+                                  data-item-name="{{ product.name }}"
+                                  onsubmit="return confirmDelete('product', '{{ product.name }}');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-danger">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon"><i class="fas fa-box"></i></div>
+            <div class="empty-state-text">No products found</div>
+            <button class="btn btn-primary mt-2" onclick="openModal('createProductModal')">
+                <i class="fas fa-plus"></i> Add Your First Product
+            </button>
+        </div>
+        {% endif %}
     </div>
 </div>
 
+<!-- Create Product Modal -->
+<div class="modal-overlay" id="createProductModal" style="display: none;">
+    <div class="modal" style="max-width: 800px;">
+        <div class="modal-header">
+            <h3 class="modal-title">Add New Product</h3>
+            <button class="modal-close" onclick="closeModal('createProductModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form method="post" action="{% url 'product_list' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="modal-body">
+                <div class="form-grid">
+                    {{ form.as_p }}
+                </div>
+                
+                {% if form.non_field_errors %}
+                <div class="alert alert-error mt-2">
+                    {{ form.non_field_errors }}
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeModal('createProductModal')">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Create Product
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
 <script>
+// Open modal if form has errors
+{% if form.errors %}
     document.addEventListener('DOMContentLoaded', function() {
-        var formContainer = document.getElementById('create-form-container');
-        var filtersContainer = document.getElementById('filters-container');
-        var filterChevron = document.getElementById('filter-chevron');
-        
-        // Toggle button shows/hides the form
-        document.getElementById('toggle-form-btn').addEventListener('click', function() {
-            if (formContainer.style.display === 'none') {
-                formContainer.style.display = 'block';
-            } else {
-                formContainer.style.display = 'none';
-            }
-        });
-
-        // Cancel button always hides the form
-        document.getElementById('cancel-btn').addEventListener('click', function() {
-            formContainer.style.display = 'none';
-        });
-        
-        // Toggle filters panel with chevron rotation
-        document.getElementById('toggle-filters-btn').addEventListener('click', function() {
-            if (filtersContainer.style.display === 'none') {
-                filtersContainer.style.display = 'block';
-                filterChevron.style.transform = 'rotate(180deg)';
-            } else {
-                filtersContainer.style.display = 'none';
-                filterChevron.style.transform = 'rotate(0deg)';
-            }
-        });
+        openModal('createProductModal');
     });
-</script>
+{% endif %}
 
-{% endblock content %}
+// Style form fields
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('#createProductModal form');
+    if (form) {
+        // Add classes to all form inputs
+        form.querySelectorAll('input, select, textarea').forEach(field => {
+            if (field.type !== 'hidden') {
+                field.classList.add('form-control');
+            }
+        });
+        
+        // Add required indicator to labels
+        form.querySelectorAll('label').forEach(label => {
+            label.classList.add('form-label');
+            const input = document.getElementById(label.getAttribute('for'));
+            if (input && input.hasAttribute('required')) {
+                label.classList.add('required');
+            }
+        });
+        
+        // Style checkbox fields
+        form.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.classList.remove('form-control');
+            const wrapper = document.createElement('div');
+            wrapper.className = 'checkbox-wrapper';
+            checkbox.parentNode.insertBefore(wrapper, checkbox);
+            wrapper.appendChild(checkbox);
+            const label = document.querySelector(`label[for="${checkbox.id}"]`);
+            if (label) {
+                wrapper.appendChild(label);
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
+

@@ -1,315 +1,365 @@
-{% extends "adminpanel/base.html" %}
+{% extends 'adminpanel/base.html' %}
 {% load static %}
 
-{% block title %}{{ page_title|default:"Order List" }}{% endblock %}
+{% block header_actions %}
+<button class="btn btn-primary" onclick="openModal('createOrderModal')">
+    <i class="fas fa-plus"></i>
+    Create Order
+</button>
+{% endblock %}
 
 {% block content %}
-
-<div class="content-panel">
-    <div class="content-panel-header">
-        <h2>{{ page_title }}</h2>
-        <button id="toggle-form-btn" class="btn-primary" style="text-decoration: none;">
-            + New Order
-        </button>
-    </div>
-</div>
-
-<!-- Filter and Sort Panel -->
-<div class="content-panel filter-panel" style="background-color: lightgray;">
-    <div class="content-panel-header">
-        <h3><i class="fas fa-filter"></i> Filter & Sort Orders</h3>
-        <button id="toggle-filters-btn" class="btn-secondary">
-            <i class="fas fa-chevron-down" id="filter-chevron"></i> Toggle Filters
-        </button>
-    </div>
-    
-    <div id="filters-container" class="content-panel-body" style="display: none;">
-        <form method="get" class="filter-form">
-            <div class="filter-grid">
-                <!-- Search -->
-                <div class="filter-group" style ="margin-bottom: 20px;">
-                    <label for="search"><i class="fas fa-search"></i> Search:</label>
-                    <input type="text" id="search" name="search" value="{{ search_query }}" 
-                           placeholder="Order ID, customer name, email, or address..." class="form-control">
-                </div>
-                
-                <!-- Status Filter -->
-                <div class="filter-group" style ="margin-bottom: 20px;">
-                    <label for="status"><i class="fas fa-info-circle"></i> Status:</label>
-                    <select id="status" name="status" class="form-control">
-                        <option value="">All Statuses</option>
-                        {% for status_code, status_name in statuses %}
-                            <option value="{{ status_code }}" {% if status_filter == status_code %}selected{% endif %}>{{ status_name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <!-- Customer Filter -->
-                <div class="filter-group" style ="margin-bottom: 20px;">
-                    <label for="customer"><i class="fas fa-user"></i> Customer:</label>
-                    <select id="customer" name="customer" class="form-control">
-                        <option value="">All Customers</option>
-                        {% for customer in customers %}
-                            <option value="{{ customer.id }}" {% if customer_filter == customer.id|stringformat:"s" %}selected{% endif %}>{{ customer.name }} ({{ customer.email }})</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <!-- Date Range -->
-                <div class="filter-group" style ="grid-column: span 2;">
-                    <label for="date_from"><i class="fas fa-calendar"></i> Date Range:</label>
-                    <div class="range-inputs">
-                        <input type="date" id="date_from" name="date_from" value="{{ date_from }}" 
-                               class="form-control">
-                        <span>to</span>
-                        <input type="date" id="date_to" name="date_to" value="{{ date_to }}" 
-                               class="form-control">
-                    </div>
-                </div>
-                
-                <!-- Amount Range -->
-                <div class="filter-group" style ="margin-bottom: 20px;">
-                    <label for="amount_min"><i class="fas fa-dollar-sign"></i> Amount Range:</label>
-                    <div class="range-inputs">
-                        <input type="number" id="amount_min" name="amount_min" value="{{ amount_min }}" 
-                               placeholder="Min" class="form-control" min="0" step="0.01">
-                        <span>to</span>
-                        <input type="number" id="amount_max" name="amount_max" value="{{ amount_max }}" 
-                               placeholder="Max" class="form-control" min="0" step="0.01">
-                    </div>
-                </div>
-                
-                <!-- Sort -->
-                <div class="filter-group" style ="margin-bottom: 20px;">
-                    <label for="sort"><i class="fas fa-sort"></i> Sort by:</label>
-                    <select id="sort" name="sort" class="form-control">
-                        <option value="-placed_at" {% if sort_by == '-placed_at' %}selected{% endif %}>Newest Orders</option>
-                        <option value="placed_at" {% if sort_by == 'placed_at' %}selected{% endif %}>Oldest Orders</option>
-                        <option value="total_amount" {% if sort_by == 'total_amount' %}selected{% endif %}>Amount Low-High</option>
-                        <option value="-total_amount" {% if sort_by == '-total_amount' %}selected{% endif %}>Amount High-Low</option>
-                        <option value="fulfillment_status" {% if sort_by == 'fulfillment_status' %}selected{% endif %}>Status A-Z</option>
-                        <option value="-fulfillment_status" {% if sort_by == '-fulfillment_status' %}selected{% endif %}>Status Z-A</option>
-                        <option value="customer__name" {% if sort_by == 'customer__name' %}selected{% endif %}>Customer A-Z</option>
-                        <option value="-customer__name" {% if sort_by == '-customer__name' %}selected{% endif %}>Customer Z-A</option>
-                    </select>
-                </div>
+<!-- Filter Bar -->
+<div class="filter-bar">
+    <form method="get" class="filter-form">
+        <div class="filter-grid">
+            <div class="form-group">
+                <label class="form-label">Search</label>
+                <input type="text" name="search" class="form-control" 
+                       placeholder="Order ID, customer..." value="{{ search_query }}">
             </div>
             
-            <div class="filter-actions" style ="margin-bottom: 20px;"> 
-                <button type="submit" class="btn-primary">
-                    <i class="fas fa-search"></i> Apply Filters
-                </button> <br><br>
-                <a href="{% url 'order_list' %}" class="btn-secondary">
-                    <i class="fas fa-times"></i> Clear All
-                </a>
+            <div class="form-group">
+                <label class="form-label">Customer</label>
+                <select name="customer" class="form-control">
+                    <option value="">All Customers</option>
+                    {% for customer in customers %}
+                    <option value="{{ customer.id }}" {% if customer.id|stringformat:"s" == customer_filter %}selected{% endif %}>
+                        {{ customer.name }}
+                    </option>
+                    {% endfor %}
+                </select>
             </div>
-        </form>
-    </div>
-</div>
-
-<div id="create-form-container" class="create-form-panel {% if not form.errors and not formset.errors %}hidden{% endif %}">
-    <h3>Create New Order</h3>
-    <form method="post" action="{% url 'order_list' %}" enctype="multipart/form-data" novalidate>
-        {% csrf_token %}
-        
-        <!-- --- 1. RENDER THE MAIN ORDER FORM --- -->
-        <div class="form-container">
-            <!-- Render any main form errors -->
-            {% if form.non_field_errors %}
-                <div class="form-non-field-errors">{{ form.non_field_errors }}</div>
-            {% endif %}
-
-            <!-- Render main form fields (e.g., Customer, Shipping Address) -->
-            {% for field in form %}
-                <p>
-                    {{ field.label_tag }}
-                    {{ field }}
-                    {% if field.errors %}
-                        <span class="field-error-message">{{ field.errors|striptags }}</span>
-                    {% endif %}
-                </p>
-            {% endfor %}
-        </div>
-        
-        
-        
-        <div class="products-header">
-            <h3>Products</h3>
-            <button type="button" id="add-item-btn" class="btn-secondary">ADD PRODUCT</button>
-        </div>
-        
-        
-        <!-- This hidden form manages the collection of forms -->
-        {{ formset.management_form }}
-        
-        <!-- Render any formset-wide errors -->
-        {% if formset.non_field_errors %}
-            <div class="form-non-field-errors">{{ formset.non_field_errors }}</div>
-        {% endif %}
-
-        <!-- NEW: Container to hold all the rows -->
-        <div id="item-rows-container">
-            {% for item_form in formset %}
             
-                <!-- This is for the initial row(s) -->
-                <div class="item-form-row">
-                    <p>
-                        <!-- Only show label for the first row -->
-                        {% if forloop.first %}{{ item_form.product.label_tag }}{% endif %}
-                        <br> <br>
-                        {{ item_form.product }}
-                        {% if item_form.product.errors %}
-                            <span class="field-error-message">{{ item_form.product.errors|striptags }}</span>
-                        {% endif %}
-                    </p>
-                    <p>
-                        {% if forloop.first %}{{ item_form.quantity.label_tag }}{% endif %}
-                        <br> <br>
-                        {{ item_form.quantity }}
-                        {% if item_form.quantity.errors %}
-                            <span class="field-error-message">{{ item_form.quantity.errors|striptags }}</span>
-                        {% endif %}
-                    </p>
+            <div class="form-group">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-control">
+                    <option value="">All Statuses</option>
+                    {% for status_value, status_label in statuses %}
+                    <option value="{{ status_value }}" {% if status_value == status_filter %}selected{% endif %}>
+                        {{ status_label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Date From</label>
+                <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Date To</label>
+                <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Amount Range</label>
+                <div class="d-flex gap-1">
+                    <input type="number" name="amount_min" class="form-control" 
+                           placeholder="Min" value="{{ amount_min }}" step="0.01" style="width: 50%;">
+                    <input type="number" name="amount_max" class="form-control" 
+                           placeholder="Max" value="{{ amount_max }}" step="0.01" style="width: 50%;">
                 </div>
-            {% endfor %}
+            </div>
         </div>
         
-        <!-- 
-          NEW: This is the empty form template.
-          It's not visible, but JavaScript will clone it.
-        -->
-        <template id="item-form-template">
-            <div class="item-form-row">
-                <p>
-                    {{ formset.empty_form.product }}
-                </p>
-                <p>
-                    {{ formset.empty_form.quantity }}
-                </p>
-            </div>
-        </template>
-        
-        <!-- --- 3. THE ACTION BUTTONS --- -->
-        <div class="form-actions">
-            <button type="button" id="cancel-btn" class="btn-secondary">Cancel</button>
-            <button type="submit" class="btn-primary">Save Order</button>
+        <div class="filter-actions">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-filter"></i> Apply Filters
+            </button>
+            <a href="{% url 'order_list' %}" class="btn btn-outline">
+                <i class="fas fa-times"></i> Clear
+            </a>
         </div>
     </form>
 </div>
 
-<div class="content-panel">
-    <div class="content-panel-body no-padding">
-        <table class="data-table">
+<!-- Orders Table -->
+<div class="table-container">
+    <div class="table-header">
+        <h3 class="table-title">Orders ({{ orders|length }})</h3>
+        <div class="table-actions">
+            <div class="form-group" style="margin: 0;">
+                <select class="form-control" onchange="window.location.href='?sort=' + this.value + '&search={{ search_query }}&customer={{ customer_filter }}&status={{ status_filter }}&date_from={{ date_from }}&date_to={{ date_to }}&amount_min={{ amount_min }}&amount_max={{ amount_max }}'">
+                    <option value="-placed_at" {% if sort_by == '-placed_at' %}selected{% endif %}>Newest First</option>
+                    <option value="placed_at" {% if sort_by == 'placed_at' %}selected{% endif %}>Oldest First</option>
+                    <option value="-total_amount" {% if sort_by == '-total_amount' %}selected{% endif %}>Amount (High-Low)</option>
+                    <option value="total_amount" {% if sort_by == 'total_amount' %}selected{% endif %}>Amount (Low-High)</option>
+                    <option value="fulfillment_status" {% if sort_by == 'fulfillment_status' %}selected{% endif %}>Status</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    
+    <div class="table-wrapper">
+        {% if orders %}
+        <table>
             <thead>
                 <tr>
-                    <th>oID</th>
+                    <th>Order ID</th>
                     <th>Customer</th>
-                    <th>Placed At</th>
+                    <th>Order Date</th>
+                    <th>Total Amount</th>
                     <th>Status</th>
-                    <th>Total</th>
-                    <th>Tools</th>
+                    <th>Items</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for order in orders %}
                 <tr>
-                    <!-- === UPDATED: Make ID a link === -->
+                    <td><strong>{{ order.oID }}</strong></td>
                     <td>
-                        <a href="{% url 'order_detail' order.pk %}" class="table-link">
-                            {{ order.oID }}
-                        </a>
+                        {% if order.customer %}
+                            {{ order.customer.name }}<br>
+                            <small class="text-muted">{{ order.customer.email }}</small>
+                        {% else %}
+                            <span class="text-muted">Guest</span>
+                        {% endif %}
                     </td>
-                    <td>{{ order.customer.name|default:"N/A" }}</td>
-                    <td>{{ order.placed_at|date:"Y-m-d H:i" }}</td>
-                    <td>{{ order.get_fulfillment_status_display }}</td>
-                    <td>${{ order.total_amount|floatformat:2 }}</td>
-                    <!-- === UPDATED: Changed tools column === -->
-                    <td class="tools">
-                        <a href="{% url 'order_detail' order.pk %}">View / Update</a>
+                    <td>{{ order.placed_at|date:"M d, Y H:i" }}</td>
+                    <td><strong>${{ order.total_amount|floatformat:2 }}</strong></td>
+                    <td>
+                        {% if order.fulfillment_status == 'PENDING' %}
+                            <span class="badge badge-warning">Pending</span>
+                        {% elif order.fulfillment_status == 'PROCESSING' %}
+                            <span class="badge badge-info">Processing</span>
+                        {% elif order.fulfillment_status == 'SHIPPED' %}
+                            <span class="badge badge-info">Shipped</span>
+                        {% elif order.fulfillment_status == 'DELIVERED' %}
+                            <span class="badge badge-success">Delivered</span>
+                        {% elif order.fulfillment_status == 'CANCELLED' %}
+                            <span class="badge badge-danger">Cancelled</span>
+                        {% endif %}
                     </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="6" style="text-align: center; color: #777;">No orders found.</td>
+                    <td>
+                        <span class="badge badge-secondary">{{ order.items.count }} item{{ order.items.count|pluralize }}</span>
+                    </td>
+                    <td>
+                        <div class="d-flex gap-1">
+                            <a href="{% url 'order_detail' order.pk %}" class="btn btn-sm btn-secondary">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <form method="post" action="{% url 'order_delete' order.pk %}" 
+                                  style="display: inline;"
+                                  data-item-type="order"
+                                  data-item-name="{{ order.oID }}"
+                                  onsubmit="return confirmDelete('order', '{{ order.oID }}');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-danger">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon"><i class="fas fa-shopping-cart"></i></div>
+            <div class="empty-state-text">No orders found</div>
+            <button class="btn btn-primary mt-2" onclick="openModal('createOrderModal')">
+                <i class="fas fa-plus"></i> Create Your First Order
+            </button>
+        </div>
+        {% endif %}
     </div>
 </div>
 
+<!-- Create Order Modal -->
+<div class="modal-overlay" id="createOrderModal" style="display: none;">
+    <div class="modal" style="max-width: 900px;">
+        <div class="modal-header">
+            <h3 class="modal-title">Create New Order</h3>
+            <button class="modal-close" onclick="closeModal('createOrderModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form method="post" action="{% url 'order_list' %}">
+            {% csrf_token %}
+            <div class="modal-body">
+                <h4 style="margin-bottom: 1rem; color: var(--color-text-primary);">Order Details</h4>
+                <div class="form-grid">
+                    {{ form.as_p }}
+                </div>
+                
+                <hr style="margin: 2rem 0; border: none; border-top: 1px solid var(--color-border);">
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h4 style="color: var(--color-text-primary); margin: 0;">Order Items</h4>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="addOrderItem()">
+                        <i class="fas fa-plus"></i> Add Item
+                    </button>
+                </div>
+                
+                <div id="orderItemsContainer">
+                    {{ formset.management_form }}
+                    <div id="orderItemFormsWrapper">
+                        {% for item_form in formset %}
+                        <div class="order-item-form" style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 1rem; align-items: start; margin-bottom: 1rem; padding: 1rem; background-color: var(--color-background-alt); border-radius: var(--border-radius);">
+                            <div class="form-group" style="margin: 0;">
+                                <label class="form-label">Product</label>
+                                {{ item_form.product }}
+                            </div>
+                            <div class="form-group" style="margin: 0;">
+                                <label class="form-label">Quantity</label>
+                                {{ item_form.quantity }}
+                            </div>
+                            <div style="display: flex; align-items: flex-end; height: 100%; padding-top: 1.8rem;">
+                                <button type="button" class="btn btn-sm btn-danger" onclick="removeOrderItem(this)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                            {{ item_form.id }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                {% if form.non_field_errors %}
+                <div class="alert alert-error mt-2">
+                    {{ form.non_field_errors }}
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeModal('createOrderModal')">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Create Order
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
 <script>
+// Open modal if form has errors
+{% if form.errors or formset.errors %}
     document.addEventListener('DOMContentLoaded', function() {
-        // --- Script for toggling the main form ---
-        var formContainer = document.getElementById('create-form-container');
-        var toggleBtn = document.getElementById('toggle-form-btn');
-        var cancelBtn = document.getElementById('cancel-btn');
+        openModal('createOrderModal');
+    });
+{% endif %}
+
+// Style form fields
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('#createOrderModal form');
+    if (form) {
+        // Add classes to all form inputs
+        form.querySelectorAll('input, select, textarea').forEach(field => {
+            if (field.type !== 'hidden' && field.type !== 'checkbox') {
+                field.classList.add('form-control');
+            }
+        });
         
-        if (toggleBtn) {
-            toggleBtn.addEventListener('click', function() {
-                formContainer.classList.toggle('hidden');
-            });
-        }
-        if (cancelBtn) {
-            cancelBtn.addEventListener('click', function() {
-                formContainer.classList.add('hidden');
-            });
-        }
-        
-        // Toggle filters panel with chevron rotation
-        var filtersContainer = document.getElementById('filters-container');
-        var filterChevron = document.getElementById('filter-chevron');
-        
-        if (filtersContainer && filterChevron) {
-            document.getElementById('toggle-filters-btn').addEventListener('click', function() {
-                if (filtersContainer.style.display === 'none') {
-                    filtersContainer.style.display = 'block';
-                    filterChevron.style.transform = 'rotate(180deg)';
+        // Add required indicator to labels
+        form.querySelectorAll('label').forEach(label => {
+            label.classList.add('form-label');
+            const input = document.getElementById(label.getAttribute('for'));
+            if (input && input.hasAttribute('required')) {
+                label.classList.add('required');
+            }
+        });
+    }
+});
+
+// Add new order item form
+function addOrderItem() {
+    const wrapper = document.getElementById('orderItemFormsWrapper');
+    const totalForms = document.querySelector('input[name="items-TOTAL_FORMS"]');
+    const currentFormCount = parseInt(totalForms.value);
+    
+    // Get the last form to clone
+    const lastForm = wrapper.querySelector('.order-item-form:last-child');
+    if (!lastForm) return;
+    
+    // Clone the form
+    const newForm = lastForm.cloneNode(true);
+    
+    // Update form index in all fields
+    newForm.querySelectorAll('input, select, textarea').forEach(field => {
+        if (field.name) {
+            field.name = field.name.replace(/items-\d+-/, `items-${currentFormCount}-`);
+            field.id = field.id.replace(/id_items-\d+-/, `id_items-${currentFormCount}-`);
+            // Clear values for new form
+            if (field.type !== 'hidden') {
+                if (field.tagName === 'SELECT') {
+                    field.selectedIndex = 0;
+                } else if (field.name.includes('quantity')) {
+                    field.value = '1';
                 } else {
-                    filtersContainer.style.display = 'none';
-                    filterChevron.style.transform = 'rotate(0deg)';
+                    field.value = '';
                 }
-            });
-        }
-
-        // --- NEW SCRIPT FOR ADDING FORMSET ROWS ---
-        var addBtn = document.getElementById('add-item-btn');
-        var rowsContainer = document.getElementById('item-rows-container');
-        var template = document.getElementById('item-form-template');
-        // This is the management form field that tracks the total number of forms
-        var totalFormsInput = document.querySelector('input[name="items-TOTAL_FORMS"]');
-
-        if (addBtn) {
-            addBtn.addEventListener('click', function() {
-                // Get the current number of forms
-                var currentFormCount = parseInt(totalFormsInput.value, 10);
-                
-                // Clone the template's content
-                var newRow = template.content.cloneNode(true);
-                
-                // Find all inputs/selects in the new row
-                var inputs = newRow.querySelectorAll('input, select');
-                
-                // Update their names and IDs
-                // Django formsets use a __prefix__ placeholder
-                inputs.forEach(function(input) {
-                    if (input.name) {
-                        input.name = input.name.replace('__prefix__', currentFormCount);
-                    }
-                    if (input.id) {
-                        input.id = input.id.replace('__prefix__', currentFormCount);
-                    }
-                });
-                
-                // Append the new row to the container
-                rowsContainer.appendChild(newRow);
-                
-                // Increment the total form count in the management form
-                totalFormsInput.value = currentFormCount + 1;
-            });
+            }
         }
     });
+    
+    // Update labels
+    newForm.querySelectorAll('label').forEach(label => {
+        if (label.getAttribute('for')) {
+            label.setAttribute('for', label.getAttribute('for').replace(/id_items-\d+-/, `id_items-${currentFormCount}-`));
+        }
+    });
+    
+    // Append new form
+    wrapper.appendChild(newForm);
+    
+    // Update total forms count
+    totalForms.value = currentFormCount + 1;
+    
+    showNotification('Order item added', 'success');
+}
+
+// Remove order item form
+function removeOrderItem(button) {
+    const wrapper = document.getElementById('orderItemFormsWrapper');
+    const form = button.closest('.order-item-form');
+    
+    // Count visible forms (not marked for deletion)
+    const visibleForms = Array.from(wrapper.querySelectorAll('.order-item-form')).filter(f => {
+        const deleteCheckbox = f.querySelector('input[name*="-DELETE"]');
+        const isHidden = f.style.display === 'none';
+        const isMarkedDeleted = deleteCheckbox && deleteCheckbox.checked;
+        return !isHidden && !isMarkedDeleted;
+    });
+    
+    // Keep at least one visible form
+    if (visibleForms.length <= 1) {
+        showNotification('At least one order item is required', 'warning');
+        return;
+    }
+    
+    // For new order creation, just remove the form
+    form.remove();
+    
+    // Update total forms count
+    const totalForms = document.querySelector('input[name="items-TOTAL_FORMS"]');
+    totalForms.value = parseInt(totalForms.value) - 1;
+    
+    // Re-index remaining visible forms
+    const remainingForms = wrapper.querySelectorAll('.order-item-form');
+    remainingForms.forEach((f, index) => {
+        f.querySelectorAll('input, select, textarea').forEach(field => {
+            if (field.name) {
+                field.name = field.name.replace(/items-\d+-/, `items-${index}-`);
+                field.id = field.id.replace(/id_items-\d+-/, `id_items-${index}-`);
+            }
+        });
+        f.querySelectorAll('label').forEach(label => {
+            if (label.getAttribute('for')) {
+                label.setAttribute('for', label.getAttribute('for').replace(/id_items-\d+-/, `id_items-${index}-`));
+            }
+        });
+    });
+    
+    showNotification('Order item removed', 'success');
+}
 </script>
+{% endblock %}
 
-
-{% endblock content %}

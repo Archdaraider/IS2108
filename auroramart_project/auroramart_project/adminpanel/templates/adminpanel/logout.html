@@ -4,47 +4,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Logged Out - AuroraMart Admin</title>
-    
+    <title>Logged Out - AuroraMart</title>
     <link rel="stylesheet" href="{% static 'css/admin_styles.css' %}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-
-    <style>
-        /*
-         * Use the same styles as the login page for the main body and container
-         * .login-body sets the background and centers the content vertically/horizontally.
-         * .login-container provides the white, rounded, shadowed box.
-         */
-        
-        
-    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="logout-body">
-    
-    <div class="logout-container">
-        <div class="login-header">
-            <div class="logo-container">
-                <img src="{% static 'images/AuroraMart Logo.png' %}" alt="AuroraMart Logo" class="logo-image">
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <img src="{% static 'images/AuroraMart Logo.png' %}" alt="AuroraMart" class="auth-logo">
+                <h1 class="auth-title">Successfully Logged Out</h1>
+                <p class="auth-subtitle">You have been logged out of the admin panel</p>
             </div>
-
-            <h2>You Have Been Logged Out</h2>
-        </div>
-        
-        <p class="logout-message">
-            Your session has been securely ended. Choose an option to proceed.
-        </p>
-        
-        <div class="btn-group">
             
-            <a href="{% url 'admin_login' %}" class="btn-primary">
-                <i class="fas fa-sign-in-alt"></i> Sign in as another Admin
-            </a>
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i>
+                <span>Your session has been ended securely.</span>
+            </div>
             
-            <a href="{% url 'customer_landing_page' %}" class="btn-secondary">
-                <i class="fas fa-shopping-bag"></i> Go to AuroraMart Shop
-            </a>
+            <div class="auth-actions">
+                <a href="{% url 'admin_login' %}" class="btn btn-primary" style="width: 100%; text-align: center;">
+                    <i class="fas fa-sign-in-alt"></i>
+                    Back to Admin Login
+                </a>
+                <a href="{% url 'customer_landing_page' %}" class="btn btn-outline" style="width: 100%; text-align: center;">
+                    <i class="fas fa-home"></i>
+                    Go to Customer Site
+                </a>
+            </div>
             
+            <div class="auth-links">
+                <p style="color: var(--color-text-muted); font-size: 0.85rem; text-align: center;">
+                    <i class="fas fa-shield-alt"></i>
+                    Thank you for using AuroraMart Admin Panel
+                </p>
+            </div>
         </div>
     </div>
+    
+    <script src="{% static 'scripts/admin.js' %}"></script>
 </body>
 </html>
+

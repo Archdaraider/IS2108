@@ -1,252 +1,317 @@
-{% extends "adminpanel/base.html" %}
+{% extends 'adminpanel/base.html' %}
 {% load static %}
 
-{% block title %}Edit Order: {{ order.oID }}{% endblock %}
+{% block header_actions %}
+<a href="{% url 'order_list' %}" class="btn btn-outline">
+    <i class="fas fa-arrow-left"></i>
+    Back to List
+</a>
+{% endblock %}
 
 {% block content %}
-
-<!-- Use one form for the page, pointed at the detail view URL -->
-<form method="post" action="{% url 'order_detail' order.pk %}" novalidate>
-    {% csrf_token %}
-    
-    <!-- Header with Back and Save buttons -->
-    <div class="content-panel">
-        <div class="content-panel-header">
-            <h2>{{ order.oID }}</h2>
-            <div class="form-actions-header">
-                <a href="{% url 'order_list' %}" class="btn-secondary">Back to List</a>
-                <button type="submit" class="btn-primary">Save Changes</button>
-            </div>
-        </div>
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i class="fas fa-shopping-cart"></i>
+            Order Details
+        </h3>
+        <span class="badge badge-info">{{ order.oID }}</span>
     </div>
-
-    <!-- Main error panel for form and formset errors -->
-    {% if form.errors or formset.errors %}
-        <div class="content-panel" style="border-color: #f5c6cb;">
-            <div class="content-panel-body" style="background-color: #fbebee; color: #721c24;">
-                <p><strong>Please correct the errors below:</strong></p>
-                <!-- Main form non-field errors -->
-                {{ form.non_field_errors }}
-                <!-- Formset non-field errors -->
-                {{ formset.non_field_errors }}
-                <!-- Field-specific errors (optional, good for debugging) -->
-                {% for field in form %}{% if field.errors %}<p><strong>{{ field.label }}:</strong> {{ field.errors|striptags }}</p>{% endif %}{% endfor %}
-                {% for item_form in formset %}{% for field in item_form %}{% if field.errors %}<p><strong>Item {{ forloop.parentloop.counter }}:</strong> {{ field.errors|striptags }}</p>{% endif %}{% endfor %}{% endfor %}
+    <form method="post" class="card-body">
+        {% csrf_token %}
+        
+        <h4 style="margin-bottom: 1rem; color: var(--color-text-primary);">Order Information</h4>
+        <div class="form-grid">
+            {% for field in form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}" class="form-label {% if field.field.required %}required{% endif %}">
+                    {{ field.label }}
+                </label>
+                {{ field }}
+                
+                {% if field.help_text %}
+                <div class="form-help">{{ field.help_text }}</div>
+                {% endif %}
+                
+                {% if field.errors %}
+                <div class="form-error">
+                    {% for error in field.errors %}
+                    {{ error }}
+                    {% endfor %}
+                </div>
+                {% endif %}
             </div>
+            {% endfor %}
         </div>
-    {% endif %}
-
-    <!-- Main Order Details Panel -->
-    <div class="content-panel">
-        <div class="content-panel-header">
-            <h3>Order Details</h3>
+        
+        <hr style="margin: 2rem 0; border: none; border-top: 1px solid var(--color-border);">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h4 style="color: var(--color-text-primary); margin: 0;">
+                Order Items
+                <span class="badge badge-secondary">{{ order.items.count }} item{{ order.items.count|pluralize }}</span>
+            </h4>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="addOrderItem()">
+                <i class="fas fa-plus"></i> Add Item
+            </button>
         </div>
-        <div class="content-panel-body">
-            <div class="form-container">
-                <!-- Render main form fields (e.g., Customer, Shipping Address) -->
-                {% for field in form %}
-                    <p>
-                        {{ field.label_tag }}
-                        {{ field }}
-                        {% if field.errors %}
-                            <span class="field-error-message">{{ field.errors|striptags }}</span>
+        
+        <div id="orderItemsContainer">
+            {{ formset.management_form }}
+            <div id="orderItemFormsWrapper">
+                {% for item_form in formset %}
+                <div class="order-item-form" style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 1rem; align-items: start; margin-bottom: 1rem; padding: 1rem; background-color: var(--color-background-alt); border-radius: var(--border-radius);">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Product</label>
+                        {{ item_form.product }}
+                        {% if item_form.product.errors %}
+                        <div class="form-error">{{ item_form.product.errors }}</div>
                         {% endif %}
-                    </p>
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Quantity</label>
+                        {{ item_form.quantity }}
+                        {% if item_form.quantity.errors %}
+                        <div class="form-error">{{ item_form.quantity.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div style="display: flex; align-items: flex-end; height: 100%; padding-top: 1.8rem;">
+                        <button type="button" class="btn btn-sm btn-danger" onclick="removeOrderItem(this)">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        <div style="display: none;">
+                            {{ item_form.DELETE }}
+                        </div>
+                    </div>
+                    
+                    {{ item_form.id }}
+                </div>
                 {% endfor %}
             </div>
         </div>
-    </div>
-
-    <!-- Products (OrderItems) Panel -->
-    <div class="content-panel">
-        <div class="content-panel-header products-header" style="border-bottom: 1px solid #e8e8ea;">
-            <h3>Products</h3>
-            <div style="display: flex; gap: 10px;">
-                <button type="submit" name="delete_selected_items" class="btn-secondary" style="border-color: #dc3545; color: #dc3545;">
-                    Delete Selected
-                </button>
-                <button type="button" id="add-item-btn" class="btn-secondary" style="background-color: #28a745; border-color: #28a745; color: white;">
-                    + Add Product
-                </button>
-            </div>
+        
+        <div class="alert alert-info mt-2">
+            <i class="fas fa-info-circle"></i>
+            <span>Total order amount will be automatically calculated based on product prices and quantities.</span>
         </div>
         
-        <div id="order-items-container">
-    {{ formset.management_form }}
-
-    {% for form in formset %}
-        <div class="item-form-row">
-            <!-- Hidden Fields - CRITICAL: These must be rendered for updates and deletions to work -->
-            {% if form.id %}
-                {{ form.id }}
-            {% endif %}
-            {{ form.order }}
-
-            <!-- Display field errors if any -->
-            {% if form.non_field_errors %}
-                <div class="error">{{ form.non_field_errors }}</div>
-            {% endif %}
-            
-            <!-- Product Selector -->
-            <div>
-                <label for="{{ form.product.id_for_label }}">Product</label>
-                {{ form.product }}
-                {% if form.product.errors %}
-                    <span class="field-error-message">{{ form.product.errors }}</span>
-                {% endif %}
-            </div>
-
-            <!-- Quantity Field -->
-            <div>
-                <label for="{{ form.quantity.id_for_label }}">Quantity</label>
-                {{ form.quantity }}
-                {% if form.quantity.errors %}
-                    <span class="field-error-message">{{ form.quantity.errors }}</span>
-                {% endif %}
-            </div>
-
-            <!-- Delete Checkbox -->
-            <div class="delete-col">
-                {% if form.DELETE %}
-                    <label for="{{ form.DELETE.id_for_label }}" class="text-danger" style="font-size: 0.9rem;">Delete</label>
-                    <div style="text-align: center; margin-top: 5px;">
-                        {{ form.DELETE }}
-                    </div>
-                {% endif %}
-            </div>
+        {% if form.non_field_errors %}
+        <div class="alert alert-error">
+            {{ form.non_field_errors }}
         </div>
-    {% empty %}
-        <p style="color: #777; font-style: italic; padding: 1rem;">No items in this order. Add a product below.</p>
-    {% endfor %}
-</div>
-
-    </div>
-</form>
-
-<!-- This is the empty form template for adding new rows -->
-<template id="item-form-template">
-    <div class="item-form-row" style="display: grid; grid-template-columns: 3fr 1fr 100px; align-items: center; gap: 15px; padding: 10px; border: 1px solid #e8e8ea; margin-bottom: 10px; border-radius: 5px;">
-        <div>{{ formset.empty_form.product }}</div>
-        <div>{{ formset.empty_form.quantity }}</div>
-        <div style="text-align: center;">
-            <label style="display: flex; align-items: center; justify-content: center; gap: 5px; cursor: pointer;">
-                {{ formset.empty_form.DELETE }}
-                <span style="font-size: 12px; color: #dc3545;">Delete</span>
-            </label>
-        </div>
-    </div>
-</template>
-
-<!-- Delete Button (at the bottom) for the *ENTIRE ORDER* -->
-<div class="content-panel delete-zone">
-    <div class="delete-zone-content">
-        <h4>Delete Entire Order</h4>
-        <p>This action is permanent and cannot be undone.</p>
+        {% endif %}
         
-        <form id="delete-form" action="{% url 'order_delete' order.pk %}" method="post">
-            {% csrf_token %}
-            <button type="button" id="delete-btn-confirm" class="btn-danger">Delete This Order</button>
-        </form>
-    </div>
+        {% if formset.non_form_errors %}
+        <div class="alert alert-error">
+            {{ formset.non_form_errors }}
+        </div>
+        {% endif %}
+        
+        <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i>
+                Save Changes
+            </button>
+            <a href="{% url 'order_list' %}" class="btn btn-outline">
+                Cancel
+            </a>
+            <form method="post" action="{% url 'order_delete' order.pk %}" 
+                  style="margin-left: auto;"
+                  onsubmit="return confirmDelete('order', '{{ order.oID }}');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i>
+                    Delete Order
+                </button>
+            </form>
+        </div>
+    </form>
 </div>
 
-<!-- JavaScript for adding rows and confirming delete -->
+<!-- Order Summary Card -->
+<div class="card mt-3">
+    <div class="card-header">
+        <h3 class="card-title">Order Summary</h3>
+    </div>
+    <div class="card-body">
+        <table style="width: 100%;">
+            <tbody>
+                {% for item in order.items.all %}
+                <tr>
+                    <td style="padding: 0.5rem 0;">
+                        <strong>{{ item.product.name }}</strong>
+                    </td>
+                    <td style="padding: 0.5rem 0; text-align: center;">
+                        x {{ item.quantity }}
+                    </td>
+                    <td style="padding: 0.5rem 0; text-align: right;">
+                        ${{ item.unit_price }} each
+                    </td>
+                    <td style="padding: 0.5rem 0; text-align: right;">
+                        <strong>${{ item.unit_price|floatformat:2 }} × {{ item.quantity }} = ${{ item.unit_price|floatformat:2 }}</strong>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" style="text-align: center; padding: 2rem; color: var(--color-text-muted);">
+                        No items in this order
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr style="border-top: 2px solid var(--color-border);">
+                    <td colspan="3" style="padding: 1rem 0; text-align: right;">
+                        <strong style="font-size: 1.2rem;">Total:</strong>
+                    </td>
+                    <td style="padding: 1rem 0; text-align: right;">
+                        <strong style="font-size: 1.2rem; color: var(--color-primary);">
+                            ${{ order.total_amount|floatformat:2 }}
+                        </strong>
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // --- SCRIPT FOR ADDING FORMSET ROWS ---
-        var addBtn = document.getElementById('add-item-btn');
-        var rowsContainer = document.getElementById('order-items-container');
-        var template = document.getElementById('item-form-template');
-        // Get the formset prefix from the management form
-        var managementForm = document.querySelector('#order-items-container input[name*="-TOTAL_FORMS"]');
-        var formsetPrefix = managementForm ? managementForm.name.split('-TOTAL_FORMS')[0] : 'items';
-        var totalFormsInput = document.querySelector('input[name="' + formsetPrefix + '-TOTAL_FORMS"]');
-
-        if (addBtn) {
-            addBtn.addEventListener('click', function() {
-                var currentFormCount = parseInt(totalFormsInput.value, 10);
-                var newRow = template.content.cloneNode(true);
-                var inputs = newRow.querySelectorAll('input, select');
-                
-                inputs.forEach(function(input) {
-                    if (input.name) {
-                        input.name = input.name.replace('__prefix__', currentFormCount);
-                        // Also replace the formset prefix if needed
-                        if (input.name.includes(formsetPrefix + '-__prefix__')) {
-                            input.name = input.name.replace(formsetPrefix + '-__prefix__', formsetPrefix + '-' + currentFormCount);
-                        }
-                    }
-                    if (input.id) {
-                        input.id = input.id.replace('__prefix__', currentFormCount);
-                    }
-                });
-                
-                rowsContainer.appendChild(newRow);
-                totalFormsInput.value = currentFormCount + 1;
-            });
-        }
-
-        // --- SCRIPT FOR DELETE SELECTED FUNCTIONALITY ---
-        var deleteSelectedBtn = document.querySelector('button[name="delete_selected_items"]');
-        if (deleteSelectedBtn) {
-            deleteSelectedBtn.addEventListener('click', function(e) {
-                // Check if any items are selected for deletion
-                var deleteCheckboxes = document.querySelectorAll('input[name$="-DELETE"]:checked');
-                console.log('Delete checkboxes found:', deleteCheckboxes.length);
-                
-                if (deleteCheckboxes.length === 0) {
-                    e.preventDefault();
-                    alert('Please select at least one item to delete.');
-                    return false;
-                }
-                
-                if (!confirm('Are you sure you want to delete the selected items?')) {
-                    e.preventDefault();
-                    return false;
-                }
-                
-                console.log('Proceeding with deletion of', deleteCheckboxes.length, 'items');
-            });
-        }
-
-        // --- SCRIPT FOR QUANTITY CHANGE HANDLING ---
-        // Add event listeners to quantity inputs for real-time validation
-        function addQuantityListeners() {
-            var quantityInputs = document.querySelectorAll('input[name$="-quantity"]');
-            quantityInputs.forEach(function(input) {
-                input.addEventListener('change', function() {
-                    var value = parseInt(this.value);
-                    if (value < 1) {
-                        this.value = 1;
-                        alert('Quantity must be at least 1.');
-                    }
-                });
-            });
-        }
-        
-        // Call the function initially and after adding new rows
-        addQuantityListeners();
-        
-        // Override the add button click to also add quantity listeners
-        if (addBtn) {
-            var originalAddClick = addBtn.onclick;
-            addBtn.addEventListener('click', function() {
-                setTimeout(addQuantityListeners, 100); // Add listeners after DOM update
-            });
-        }
-
-        // --- SCRIPT FOR DELETE CONFIRMATION ---
-        var deleteConfirmBtn = document.getElementById('delete-btn-confirm');
-        if (deleteConfirmBtn) {
-            deleteConfirmBtn.addEventListener('click', function(e) {
-                if (!confirm('Are you sure you want to permanently delete this entire order?')) {
-                    e.preventDefault();
-                } else {
-                    document.getElementById('delete-form').submit();
-                }
-            });
+document.addEventListener('DOMContentLoaded', function() {
+    // Add form-control class to all inputs
+    document.querySelectorAll('input, select, textarea').forEach(field => {
+        if (field.type !== 'checkbox' && field.type !== 'hidden') {
+            field.classList.add('form-control');
         }
     });
-</script>
+});
 
-{% endblock content %}
+// Add new order item form
+function addOrderItem() {
+    const wrapper = document.getElementById('orderItemFormsWrapper');
+    const totalForms = document.querySelector('input[name="items-TOTAL_FORMS"]');
+    const currentFormCount = parseInt(totalForms.value);
+    
+    // Get the last form to clone
+    const lastForm = wrapper.querySelector('.order-item-form:last-child');
+    if (!lastForm) return;
+    
+    // Clone the form
+    const newForm = lastForm.cloneNode(true);
+    
+    // Update form index in all fields
+    newForm.querySelectorAll('input, select, textarea').forEach(field => {
+        if (field.name) {
+            field.name = field.name.replace(/items-\d+-/, `items-${currentFormCount}-`);
+            field.id = field.id.replace(/id_items-\d+-/, `id_items-${currentFormCount}-`);
+            // Clear values for new form
+            if (field.type !== 'hidden') {
+                if (field.tagName === 'SELECT') {
+                    field.selectedIndex = 0;
+                } else if (field.name.includes('quantity')) {
+                    field.value = '1';
+                } else if (!field.name.includes('DELETE')) {
+                    field.value = '';
+                }
+            }
+            // Uncheck DELETE checkbox
+            if (field.type === 'checkbox' && field.name.includes('DELETE')) {
+                field.checked = false;
+                field.style.display = 'none'; // Hide DELETE for new items
+            }
+        }
+    });
+    
+    // Update labels
+    newForm.querySelectorAll('label').forEach(label => {
+        if (label.getAttribute('for')) {
+            label.setAttribute('for', label.getAttribute('for').replace(/id_items-\d+-/, `id_items-${currentFormCount}-`));
+        }
+    });
+    
+    // Make sure form is visible
+    newForm.style.display = 'grid';
+    
+    // Append new form
+    wrapper.appendChild(newForm);
+    
+    // Update total forms count
+    totalForms.value = currentFormCount + 1;
+    
+    showNotification('Order item added', 'success');
+}
+
+// Remove order item form
+function removeOrderItem(button) {
+    const wrapper = document.getElementById('orderItemFormsWrapper');
+    const form = button.closest('.order-item-form');
+    
+    // Count visible forms (not marked for deletion)
+    const visibleForms = Array.from(wrapper.querySelectorAll('.order-item-form')).filter(f => {
+        return !f.classList.contains('marked-for-deletion');
+    });
+    
+    // Keep at least one visible form
+    if (visibleForms.length <= 1) {
+        showNotification('At least one order item is required', 'warning');
+        return;
+    }
+    
+    // Check if this is an existing item (has an id field with value)
+    const idField = form.querySelector('input[name*="-id"]');
+    const deleteCheckbox = form.querySelector('input[name*="-DELETE"]');
+    
+    if (idField && idField.value) {
+        // Existing item - mark for deletion by checking the DELETE checkbox
+        if (deleteCheckbox) {
+            deleteCheckbox.checked = true;
+            console.log('DELETE checkbox checked:', deleteCheckbox.name, '=', deleteCheckbox.checked);
+            console.log('DELETE checkbox value:', deleteCheckbox.value);
+        }
+        
+        // Hide the form visually but keep it in DOM for form submission
+        form.classList.add('marked-for-deletion');
+        form.style.opacity = '0.3';
+        form.style.pointerEvents = 'none';
+        form.style.position = 'relative';
+        
+        // Add a visual indicator
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(220, 53, 69, 0.1); display: flex; align-items: center; justify-content: center; pointer-events: none;';
+        overlay.innerHTML = '<span style="color: var(--color-danger); font-weight: bold; background: white; padding: 0.5rem 1rem; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">MARKED FOR DELETION</span>';
+        form.appendChild(overlay);
+        
+        showNotification('Order item will be deleted when you save', 'success');
+    } else {
+        // New item that hasn't been saved yet - remove entirely from DOM
+        form.remove();
+        
+        // Update total forms count
+        const totalForms = document.querySelector('input[name="items-TOTAL_FORMS"]');
+        totalForms.value = parseInt(totalForms.value) - 1;
+        
+        // Re-index remaining visible forms
+        const remainingForms = wrapper.querySelectorAll('.order-item-form');
+        remainingForms.forEach((f, index) => {
+            f.querySelectorAll('input, select, textarea').forEach(field => {
+                if (field.name) {
+                    field.name = field.name.replace(/items-\d+-/, `items-${index}-`);
+                    field.id = field.id.replace(/id_items-\d+-/, `id_items-${index}-`);
+                }
+            });
+            f.querySelectorAll('label').forEach(label => {
+                if (label.getAttribute('for')) {
+                    label.setAttribute('for', label.getAttribute('for').replace(/id_items-\d+-/, `id_items-${index}-`));
+                }
+            });
+        });
+        
+        showNotification('Order item removed', 'success');
+    }
+}
+</script>
+{% endblock %}
+

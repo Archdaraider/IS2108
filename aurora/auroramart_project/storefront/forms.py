@@ -67,29 +67,69 @@ class CustomerProfileForm(forms.ModelForm):
         ('skilled_trades', 'Skilled Trades'),
     ]
     
-    # Date of birth field (will be converted to age)
-    # Calculate maximum date (14 years ago from today) and minimum date (100 years ago)
-    from datetime import timedelta
-    today = date.today()
-    # Calculate 14 years ago, handling leap year edge cases
-    try:
-        max_date = date(today.year - 14, today.month, today.day)
-    except ValueError:
-        # Handle leap year edge case (e.g., Feb 29 doesn't exist in non-leap years)
-        max_date = date(today.year - 14, today.month, 28)  # Use Feb 28 as fallback
-    min_date = date(today.year - 100, 1, 1)
+    # Date of birth fields - separate month, day, year (like Google)
+    MONTH_CHOICES = [
+        ('', 'Month'),
+        ('1', 'January'),
+        ('2', 'February'),
+        ('3', 'March'),
+        ('4', 'April'),
+        ('5', 'May'),
+        ('6', 'June'),
+        ('7', 'July'),
+        ('8', 'August'),
+        ('9', 'September'),
+        ('10', 'October'),
+        ('11', 'November'),
+        ('12', 'December'),
+    ]
     
-    date_of_birth = forms.DateField(
-        widget=forms.DateInput(attrs={
+    birth_month = forms.ChoiceField(
+        choices=MONTH_CHOICES,
+        widget=forms.Select(attrs={
             'class': 'form-control',
-            'type': 'date',
-            'max': max_date.strftime('%Y-%m-%d'),  # Maximum date: 14 years ago (must be at least 14)
-            'min': min_date.strftime('%Y-%m-%d'),  # Minimum date: 100 years ago
+            'id': 'birth-month',
         }),
-        label='Date of Birth',
-        required=True,
-        help_text='You must be at least 14 years old to register. Your age will be calculated from your date of birth.'
+        label='Month',
+        required=True
     )
+    
+    birth_day = forms.IntegerField(
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'id': 'birth-day',
+            'placeholder': 'Day',
+            'min': 1,
+            'max': 31,
+            'type': 'number',
+            'maxlength': '2',
+            'pattern': '[0-9]{1,2}',
+        }),
+        label='Day',
+        required=True,
+        min_value=1,
+        max_value=31
+    )
+    
+    birth_year = forms.IntegerField(
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'id': 'birth-year',
+            'placeholder': 'Year',
+            'min': 1900,
+            'max': date.today().year - 14,
+            'type': 'number',
+            'maxlength': '4',
+            'pattern': '[0-9]{4}',
+        }),
+        label='Year',
+        required=True,
+        min_value=1900,
+        max_value=date.today().year - 14
+    )
+    
+    # Hidden field to store the combined date_of_birth (for compatibility with existing code)
+    date_of_birth = forms.DateField(required=False, widget=forms.HiddenInput())
     
     # Override occupation field to use dropdown with choices
     occupation = forms.ChoiceField(
@@ -150,28 +190,56 @@ class CustomerProfileForm(forms.ModelForm):
             'household_size': 'Household size',
         }
     
-    def clean_date_of_birth(self):
-        """Validate that the user is at least 14 years old."""
-        date_of_birth = self.cleaned_data.get('date_of_birth')
-        if date_of_birth:
-            from datetime import date
-            today = date.today()
-            age = today.year - date_of_birth.year - ((today.month, today.day) < (date_of_birth.month, date_of_birth.day))
-            
-            if age < 14:
-                raise forms.ValidationError(
-                    'You must be at least 14 years old to register for an account.',
-                    code='age_restriction'
-                )
-            
-            # Also check maximum reasonable age (e.g., 120 years)
-            if age > 120:
-                raise forms.ValidationError(
-                    'Please enter a valid date of birth.',
-                    code='invalid_age'
-                )
+    def clean(self):
+        """Combine month, day, year into date_of_birth and validate."""
+        cleaned_data = super().clean()
+        month = cleaned_data.get('birth_month')
+        day = cleaned_data.get('birth_day')
+        year = cleaned_data.get('birth_year')
         
-        return date_of_birth
+        # Validate that all fields are provided
+        if not month or not day or not year:
+            if not month:
+                self.add_error('birth_month', 'Month is required.')
+            if not day:
+                self.add_error('birth_day', 'Day is required.')
+            if not year:
+                self.add_error('birth_year', 'Year is required.')
+            return cleaned_data
+        
+        # Convert month to integer
+        try:
+            month_int = int(month)
+            day_int = int(day)
+            year_int = int(year)
+        except (ValueError, TypeError):
+            self.add_error('birth_year', 'Please enter valid numbers for date fields.')
+            return cleaned_data
+        
+        # Validate date is valid (e.g., not Feb 30, not invalid dates)
+        try:
+            date_of_birth = date(year_int, month_int, day_int)
+        except ValueError as e:
+            self.add_error('birth_day', f'Invalid date: {str(e)}')
+            return cleaned_data
+        
+        # Validate age (must be at least 14 years old)
+        today = date.today()
+        age = today.year - date_of_birth.year - ((today.month, today.day) < (date_of_birth.month, date_of_birth.day))
+        
+        if age < 14:
+            self.add_error('birth_year', 'You must be at least 14 years old to register for an account.')
+            return cleaned_data
+        
+        # Also check maximum reasonable age (e.g., 120 years)
+        if age > 120:
+            self.add_error('birth_year', 'Please enter a valid date of birth.')
+            return cleaned_data
+        
+        # Store the combined date in date_of_birth field for compatibility
+        cleaned_data['date_of_birth'] = date_of_birth
+        
+        return cleaned_data
 
 
 class CheckoutForm(forms.Form):
@@ -685,3 +753,70 @@ class UserProfileForm(forms.ModelForm):
             'email': 'Email',
             'username': 'Username',
         }
+
+# --- Return/Refund Forms ---
+
+class ReturnRequestForm(forms.Form):
+    """Form for creating a return/refund request."""
+    return_type = forms.ChoiceField(
+        choices=[],
+        widget=forms.RadioSelect(attrs={'class': 'form-radio'}),
+        label='Select Return Type',
+        required=True
+    )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from .models import ReturnRequest
+        self.fields['return_type'].choices = ReturnRequest.RETURN_TYPE_CHOICES
+
+class ReturnItemForm(forms.Form):
+    """Form for each item in a return request."""
+    order_item_id = forms.IntegerField(widget=forms.HiddenInput())
+    quantity = forms.IntegerField(min_value=1, required=True)
+    refund_reason = forms.ChoiceField(
+        choices=[],
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label='Refund Reason',
+        required=True
+    )
+    image = forms.ImageField(
+        required=False,
+        widget=forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
+        label='Upload Image (Optional)'
+    )
+    additional_comments = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Additional comments...'}),
+        label='Additional Comments'
+    )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from .models import ReturnRequest
+        self.fields['refund_reason'].choices = ReturnRequest.REFUND_REASON_CHOICES
+
+class ReturnRequestSubmissionForm(forms.Form):
+    """Final form for submitting return request."""
+    refund_method = forms.ChoiceField(
+        choices=[],
+        widget=forms.RadioSelect(attrs={'class': 'form-radio'}),
+        label='Preferred Refund Option',
+        required=True
+    )
+    accepted_policy = forms.BooleanField(
+        required=True,
+        widget=forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
+        label='I have read and accepted the return policy of AuroraMart'
+    )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from .models import ReturnRequest
+        self.fields['refund_method'].choices = ReturnRequest.REFUND_METHOD_CHOICES
+    
+    def clean_accepted_policy(self):
+        accepted = self.cleaned_data.get('accepted_policy')
+        if not accepted:
+            raise forms.ValidationError('You must accept the return policy to proceed.')
+        return accepted

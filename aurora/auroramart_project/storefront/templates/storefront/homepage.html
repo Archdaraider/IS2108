@@ -4,6 +4,47 @@
 
 {% block title %}AuroraMart - Your Online Shopping Destination{% endblock %}
 
+{% block category_sidebar %}
+{% if navigation_categories %}
+<aside class="category-browser-sidebar">
+    <div class="category-browser-header">
+        <a href="{% url 'homepage' %}" style="text-decoration: none; color: inherit;">
+            <h3 style="font-size: 1.125rem; font-weight: 600; color: #1d1d1f; margin: 0; padding: 1rem 1.5rem; border-bottom: 1px solid #e8e8ea;">AuroraMart</h3>
+        </a>
+    </div>
+    <nav class="category-browser-nav">
+        <a href="{% url 'product_list' %}" class="category-browser-item">
+            <span>All Products</span>
+        </a>
+        {% for item in navigation_categories %}
+        <div class="category-browser-item-wrapper">
+            <a href="{% url 'category_products' item.category.slug %}" class="category-browser-item {% if item.subcategories %}has-subcategories{% endif %}">
+                <span>{{ item.category.name }}</span>
+                {% if item.subcategories %}
+                <i class="fas fa-chevron-right category-arrow"></i>
+                {% endif %}
+            </a>
+            {% if item.subcategories %}
+            <div class="category-subcategory-panel">
+                <div class="subcategory-panel-header">
+                    <h4>{{ item.category.name }}</h4>
+                </div>
+                <div class="subcategory-panel-content">
+                    {% for subcategory in item.subcategories %}
+                    <a href="{% url 'subcategory_products' item.category.slug subcategory.slug %}" class="subcategory-link">
+                        {{ subcategory.name }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </nav>
+</aside>
+{% endif %}
+{% endblock %}
+
 {% block content %}
 <!-- Hero Banner Carousel -->
 <section class="hero-section">
@@ -12,7 +53,9 @@
         <div class="hero-slide">
             <div class="hero-image">
                 {% if banner.image %}
-                    <img src="{{ banner.image.url }}" alt="{{ banner.title }}">
+                    <img src="{{ banner.image.url }}" alt="{{ banner.title|default:'AuroraMart Banner' }}">
+                {% elif banner.image_url %}
+                    <img src="{% static banner.image_url %}" alt="{{ banner.title|default:'AuroraMart Banner' }}">
                 {% else %}
                     <div class="hero-placeholder">
                         <i class="fas fa-image"></i>
@@ -20,7 +63,7 @@
                 {% endif %}
             </div>
             <div class="hero-content">
-                <h1>{{ banner.title }}</h1>
+                <h1>{{ banner.title|default:"Welcome to AuroraMart" }}</h1>
                 {% if banner.subtitle %}
                     <p>{{ banner.subtitle }}</p>
                 {% endif %}

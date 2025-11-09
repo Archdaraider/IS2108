@@ -8,6 +8,9 @@ document.addEventListener('DOMContentLoaded', function() {
     initMessages();
     preventButtonNavigation();
     initAddToCart();
+    initAnimatedSearchPlaceholder();
+    initDateInputRestrictions();
+    initPasswordToggle();
 });
 
 // Prevent buttons from triggering link navigation
@@ -347,45 +350,92 @@ function showMessage(message, type) {
 }
 
 
-// Animated Search Placeholder
+// Animated Search Placeholder with 3D Flip Animation
 function initAnimatedSearchPlaceholder() {
     const placeholderText = document.getElementById('placeholder-text');
+    const placeholderTextNext = document.getElementById('placeholder-text-next');
+    const placeholderContainer = document.querySelector('.placeholder-text-container');
     const searchInput = document.getElementById('search-input');
     
-    if (!placeholderText || !searchInput) {
+    if (!placeholderText || !placeholderTextNext || !placeholderContainer || !searchInput) {
+        console.log('Search placeholder elements not found:', {
+            placeholderText: !!placeholderText,
+            placeholderTextNext: !!placeholderTextNext,
+            placeholderContainer: !!placeholderContainer,
+            searchInput: !!searchInput
+        });
         return;
     }
     
-    // Get subcategories from data attribute
-    const subcategoriesData = searchInput.dataset.subcategories;
-    let subcategories = ['product'];
+    // Get subcategories from data attribute (from ML model predictions)
+    const subcategoriesData = searchInput.getAttribute('data-subcategories') || '';
+    let subcategories = [];
     
-    if (subcategoriesData) {
+    if (subcategoriesData && subcategoriesData.trim() !== '') {
         // Split by comma and trim each item
         subcategories = subcategoriesData.split(',').map(function(item) {
             return item.trim();
         }).filter(function(item) {
-            return item.length > 0;
+            return item.length > 0 && item !== 'product';
         });
     }
     
-    // Ensure we have at least one item
+    // Always add 'product' as fallback, and ensure we have at least 2 items for animation
     if (subcategories.length === 0) {
-        subcategories = ['product'];
+        subcategories = ['product', 'items', 'products'];
+    } else if (subcategories.length === 1) {
+        subcategories.push('product');
     }
+    
+    // Format subcategories - capitalize first letter
+    const formattedSubcategories = subcategories.map(function(subcat) {
+        return subcat.charAt(0).toUpperCase() + subcat.slice(1).toLowerCase();
+    });
+    
+    console.log('Subcategories for animation:', formattedSubcategories);
     
     let currentIndex = 0;
     let interval = null;
+    let isAnimating = false;
     
     function updatePlaceholder() {
         // Only animate if input is empty and not focused
-        if (searchInput.value === '' && document.activeElement !== searchInput) {
-            placeholderText.style.opacity = '0';
+        const inputEmpty = !searchInput.value || searchInput.value.trim() === '';
+        const notFocused = document.activeElement !== searchInput;
+        
+        if (inputEmpty && notFocused && !isAnimating && formattedSubcategories.length > 1) {
+            isAnimating = true;
+            
+            // Set next text
+            const nextIndex = (currentIndex + 1) % formattedSubcategories.length;
+            const nextText = formattedSubcategories[nextIndex] || 'Product';
+            placeholderTextNext.textContent = nextText;
+            
+            // Force reflow to ensure initial state is applied
+            void placeholderContainer.offsetHeight;
+            
+            // Start flip animation
+            placeholderContainer.classList.add('flipping');
+            
+            // After animation completes, swap the texts
             setTimeout(function() {
-                placeholderText.textContent = subcategories[currentIndex] || 'product';
-                placeholderText.style.opacity = '1';
-                currentIndex = (currentIndex + 1) % subcategories.length;
-            }, 300); // Fade out, then change text, then fade in
+                // Swap current and next
+                placeholderText.textContent = nextText;
+                placeholderTextNext.textContent = '';
+                
+                // Reset animation state
+                placeholderContainer.classList.remove('flipping');
+                
+                // Reset next text position for next animation
+                setTimeout(function() {
+                    placeholderTextNext.style.transform = 'rotateX(90deg)';
+                    placeholderTextNext.style.opacity = '0';
+                }, 50);
+                
+                // Move to next index
+                currentIndex = nextIndex;
+                isAnimating = false;
+            }, 600); // Match CSS transition duration
         }
     }
     
@@ -393,7 +443,9 @@ function initAnimatedSearchPlaceholder() {
         if (interval) {
             clearInterval(interval);
         }
-        interval = setInterval(updatePlaceholder, 2500); // Change every 2.5 seconds
+        // Start immediately, then cycle every 3 seconds
+        updatePlaceholder(); // Start immediately
+        interval = setInterval(updatePlaceholder, 3000);
     }
     
     function stopAnimation() {
@@ -406,27 +458,54 @@ function initAnimatedSearchPlaceholder() {
     // Pause animation when user focuses on input
     searchInput.addEventListener('focus', function() {
         stopAnimation();
+        // Hide placeholder when focused
+        if (placeholderContainer) {
+            placeholderContainer.style.opacity = '0';
+        }
     });
     
     // Resume animation when user blurs and input is empty
     searchInput.addEventListener('blur', function() {
-        if (searchInput.value === '') {
+        if (!searchInput.value || searchInput.value.trim() === '') {
+            if (placeholderContainer) {
+                placeholderContainer.style.opacity = '1';
+            }
             startAnimation();
         }
     });
     
     // Stop animation when user types
     searchInput.addEventListener('input', function() {
-        if (searchInput.value === '') {
+        if (!searchInput.value || searchInput.value.trim() === '') {
+            if (placeholderContainer) {
+                placeholderContainer.style.opacity = '1';
+            }
             startAnimation();
         } else {
+            if (placeholderContainer) {
+                placeholderContainer.style.opacity = '0';
+            }
             stopAnimation();
         }
     });
     
-    // Start animation
-    startAnimation();
-    updatePlaceholder();
+    // Initialize with first subcategory
+    if (formattedSubcategories.length > 0) {
+        placeholderText.textContent = formattedSubcategories[0];
+        // Ensure initial state
+        placeholderText.style.transform = 'rotateX(0deg)';
+        placeholderText.style.opacity = '1';
+        placeholderTextNext.style.transform = 'rotateX(90deg)';
+        placeholderTextNext.style.opacity = '0';
+    }
+    
+    // Start animation if we have multiple subcategories
+    if (formattedSubcategories.length > 1) {
+        // Small delay to ensure DOM is ready
+        setTimeout(function() {
+            startAnimation();
+        }, 500);
+    }
 }
 
 // All business logic is handled by Django views via form submissions
@@ -447,3 +526,108 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// Password Toggle - Simple UI only (no business logic)
+// This just changes the display, password submission is handled by Django views
+function initPasswordToggle() {
+    document.querySelectorAll('.password-toggle').forEach(function(btn) {
+        btn.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Find the password input - check parent wrapper first
+            var wrapper = this.closest('.password-input-wrapper');
+            var input = null;
+            
+            if (wrapper) {
+                input = wrapper.querySelector('input[type="password"], input[type="text"]');
+            } else {
+                // Fallback: find input in parent
+                input = this.parentElement.querySelector('input[type="password"], input[type="text"]');
+            }
+            
+            // If still not found, try by data-target attribute
+            if (!input) {
+                var targetId = this.getAttribute('data-target');
+                if (targetId) {
+                    input = document.getElementById(targetId);
+                }
+            }
+            
+            // Final fallback: try common IDs
+            if (!input) {
+                input = document.getElementById('password') || 
+                        document.getElementById('id_new_password1') || 
+                        document.getElementById('id_new_password2');
+            }
+            
+            if (input) {
+                var icon = this.querySelector('i');
+                
+                // Toggle password visibility
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    if (icon) { 
+                        icon.classList.remove('fa-eye');
+                        icon.classList.add('fa-eye-slash');
+                    }
+                } else {
+                    input.type = 'password';
+                    if (icon) { 
+                        icon.classList.remove('fa-eye-slash');
+                        icon.classList.add('fa-eye');
+                    }
+                }
+            }
+        };
+    });
+}
+
+// Restrict date input fields to maximum digits
+function initDateInputRestrictions() {
+    // Restrict day input to 2 digits
+    const dayInput = document.getElementById('birth-day');
+    if (dayInput) {
+        dayInput.addEventListener('input', function(e) {
+            let value = this.value;
+            // Remove any non-digit characters
+            value = value.replace(/\D/g, '');
+            // Limit to 2 digits
+            if (value.length > 2) {
+                value = value.slice(0, 2);
+            }
+            this.value = value;
+        });
+        
+        // Also prevent pasting more than 2 digits
+        dayInput.addEventListener('paste', function(e) {
+            e.preventDefault();
+            const paste = (e.clipboardData || window.clipboardData).getData('text');
+            const digits = paste.replace(/\D/g, '').slice(0, 2);
+            this.value = digits;
+        });
+    }
+    
+    // Restrict year input to 4 digits
+    const yearInput = document.getElementById('birth-year');
+    if (yearInput) {
+        yearInput.addEventListener('input', function(e) {
+            let value = this.value;
+            // Remove any non-digit characters
+            value = value.replace(/\D/g, '');
+            // Limit to 4 digits
+            if (value.length > 4) {
+                value = value.slice(0, 4);
+            }
+            this.value = value;
+        });
+        
+        // Also prevent pasting more than 4 digits
+        yearInput.addEventListener('paste', function(e) {
+            e.preventDefault();
+            const paste = (e.clipboardData || window.clipboardData).getData('text');
+            const digits = paste.replace(/\D/g, '').slice(0, 4);
+            this.value = digits;
+        });
+    }
+}

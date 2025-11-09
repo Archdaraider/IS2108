@@ -298,3 +298,66 @@ class SavedPaymentMethod(models.Model):
 
     class Meta:
         ordering = ['-is_default', '-created_at']
+
+# --- Return/Refund Models ---
+
+class ReturnRequest(models.Model):
+    """Return/refund request for an order."""
+    RETURN_TYPE_CHOICES = [
+        ('not_received', 'I did not receive my item'),
+        ('not_satisfied', 'I received item but I\'m not satisfied'),
+    ]
+    
+    REFUND_REASON_CHOICES = [
+        ('defective', 'Defective/Damaged item'),
+        ('wrong_item', 'Wrong item received'),
+        ('not_as_described', 'Item not as described'),
+        ('quality_issue', 'Quality issue'),
+        ('size_fit', 'Size/Fit issue'),
+        ('changed_mind', 'Changed my mind'),
+        ('duplicate', 'Duplicate order'),
+        ('other', 'Other'),
+    ]
+    
+    REFUND_METHOD_CHOICES = [
+        ('credit_card', 'Refund via credit card'),
+        ('original_payment', 'Refund to original payment method'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('processed', 'Processed'),
+    ]
+    
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='return_requests')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    return_type = models.CharField(max_length=20, choices=RETURN_TYPE_CHOICES)
+    refund_reason = models.CharField(max_length=50, choices=REFUND_REASON_CHOICES)
+    additional_comments = models.TextField(blank=True)
+    refund_method = models.CharField(max_length=30, choices=REFUND_METHOD_CHOICES, default='credit_card')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    accepted_policy = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"Return Request for Order {self.order.oID} - {self.get_status_display()}"
+    
+    class Meta:
+        ordering = ['-created_at']
+
+class ReturnRequestItem(models.Model):
+    """Items included in a return request."""
+    return_request = models.ForeignKey(ReturnRequest, on_delete=models.CASCADE, related_name='items')
+    order_item = models.ForeignKey('adminpanel.OrderItem', on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField()
+    image = models.ImageField(upload_to='returns/', null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.quantity}x {self.order_item.product.name} - Return Request {self.return_request.id}"
+    
+    class Meta:
+        unique_together = ['return_request', 'order_item']

@@ -1,0 +1,114 @@
+{% extends 'storefront/account_base.html' %}
+{% load static %}
+
+{% block title %}{{ action }} Address - AuroraMart{% endblock %}
+
+{% block account_content %}
+<div class="account-address-form-page">
+    <div style="margin-bottom: 2rem;">
+        <a href="{% url 'account_addresses' %}" style="color: #007bff; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+            <i class="fas fa-arrow-left"></i> Back to Addresses
+        </a>
+        <h1 style="font-size: 1.75rem; font-weight: 600; margin: 0; color: #1d1d1f;">{{ action }} Address</h1>
+    </div>
+    
+    <form method="post" style="max-width: 600px;">
+        {% csrf_token %}
+        
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+            {{ form.full_name.label_tag }}
+            {{ form.full_name }}
+            {% if form.full_name.errors %}
+                <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                    {{ form.full_name.errors }}
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+            {{ form.phone_number.label_tag }}
+            {{ form.phone_number }}
+            {% if form.phone_number.errors %}
+                <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                    {{ form.phone_number.errors }}
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+            {{ form.address.label_tag }}
+            {{ form.address }}
+            {% if form.address.errors %}
+                <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                    {{ form.address.errors }}
+                </div>
+            {% endif %}
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+            <div class="form-group">
+                {{ form.city.label_tag }}
+                {{ form.city }}
+                {% if form.city.errors %}
+                    <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                        {{ form.city.errors }}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                {{ form.postal_code.label_tag }}
+                {{ form.postal_code }}
+                {% if form.postal_code.errors %}
+                    <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                        {{ form.postal_code.errors }}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+            {{ form.country.label_tag }}
+            {{ form.country }}
+            {% if form.country.errors %}
+                <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                    {{ form.country.errors }}
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+            {{ form.floor_unit_number.label_tag }}
+            {{ form.floor_unit_number }}
+            {% if form.floor_unit_number.help_text %}
+                <small style="color: #6e6e73; font-size: 0.75rem; display: block; margin-top: 0.25rem;">{{ form.floor_unit_number.help_text }}</small>
+            {% endif %}
+            {% if form.floor_unit_number.errors %}
+                <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                    {{ form.floor_unit_number.errors }}
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+            {{ form.is_default }}
+            {{ form.is_default.label_tag }}
+            {% if form.is_default.errors %}
+                <div class="error-message" style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                    {{ form.is_default.errors }}
+                </div>
+            {% endif %}
+        </div>
+        
+        <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+            <button type="submit" class="btn btn-primary" style="background: #007bff; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; font-size: 0.9375rem; font-weight: 500; cursor: pointer;">
+                Save Address
+            </button>
+            <a href="{% url 'account_addresses' %}" class="btn btn-outline-secondary" style="padding: 0.75rem 1.5rem; border: 1px solid #d2d2d7; color: #1d1d1f; background: white; border-radius: 6px; text-decoration: none; font-size: 0.9375rem; font-weight: 500;">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+

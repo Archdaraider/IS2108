@@ -29,27 +29,9 @@ def create_customer_profile(strategy, details, backend, user=None, is_new=False,
             except Customer.DoesNotExist:
                 pass
         
-        if not customer:
-            # Extract name from details
-            name = details.get('fullname', '') or f"{details.get('first_name', '')} {details.get('last_name', '')}".strip()
-            if not name:
-                name = user.username or user.email.split('@')[0]
-            
-            # Create customer with minimal required fields (user will complete profile in onboarding)
-            Customer.objects.create(
-                user=user,
-                email=user.email,
-                name=name,
-                age=25,  # Default age - user should update this in onboarding
-                gender='Male',  # Default - user should update this
-                employment_status='Full-time',  # Default
-                occupation='Not specified',  # Default
-                education='Bachelor',  # Default
-                household_size=1,  # Default
-                has_children=False,  # Default
-                monthly_income_sgd=5000.00,  # Default
-                preferred_category='Electronics',  # Default
-            )
+        # Don't create Customer here - let onboarding handle it
+        # This ensures all users (regular registration and OAuth) go through onboarding
+        # The onboarding step will create the Customer profile with proper data
     
     # Return dict to continue pipeline
     return {

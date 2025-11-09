@@ -12,14 +12,14 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
-from decouple import config, Csv
+from decouple import config, Csv, AutoConfig
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Load .env file from project root
-# python-decouple automatically looks for .env in current directory and parent directories
-# but we can explicitly set it if needed
+# Explicitly configure decouple to look for .env in BASE_DIR
+config = AutoConfig(search_path=BASE_DIR)
 
 
 # Quick-start development settings - unsuitable for production
@@ -86,6 +86,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'django.template.context_processors.media',
                 'django.template.context_processors.static',
+                'storefront.context_processors.categories',
             ],
         },
     },
@@ -198,5 +199,5 @@ LOGIN_REDIRECT_URL = 'homepage'
 LOGOUT_REDIRECT_URL = 'homepage'
 
 # Social Auth Redirect (custom handling in views)
-SOCIAL_AUTH_LOGIN_REDIRECT_URL = 'homepage'
-SOCIAL_AUTH_NEW_USER_REDIRECT_URL = 'profile_onboarding'
+SOCIAL_AUTH_LOGIN_REDIRECT_URL = 'oauth_redirect_handler'
+SOCIAL_AUTH_NEW_USER_REDIRECT_URL = 'oauth_redirect_handler'  # Will check and show modal if needed

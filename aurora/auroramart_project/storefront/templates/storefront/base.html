@@ -32,14 +32,20 @@
                 <!-- Logo -->
                 <div class="logo">
                     <a href="{% url 'homepage' %}" style="text-decoration: none; display: flex; align-items: center;">
-                        <img src="{% static 'images/AuroraMart Logo.png' %}" alt="AuroraMart" style="height: 70px; width: auto; object-fit: contain; max-width: 200px;">
+                        <img src="{% static 'images/AuroraMart Logo.png' %}" alt="AuroraMart" style="height: 110px; width: auto; object-fit: contain; max-width: 300px;">
                     </a>
                 </div>
 
                 <!-- Search Bar -->
                 <div class="search-container">
                     <form method="GET" action="{% url 'product_list' %}" class="search-form">
-                        <input type="text" name="search" placeholder="Search product" class="search-input" value="{{ search_query|default:'' }}">
+                        <div class="search-input-wrapper">
+                            <input type="text" name="search" class="search-input" value="{{ search_query|default:'' }}" id="search-input" placeholder=" " data-subcategories="{% if predicted_subcategories %}{% for subcat in predicted_subcategories %}{{ subcat }}{% if not forloop.last %},{% endif %}{% endfor %}{% else %}product{% endif %}">
+                            <span class="search-placeholder" id="animated-placeholder">
+                                <span class="placeholder-prefix">Search </span>
+                                <span class="placeholder-text" id="placeholder-text">product</span>
+                            </span>
+                        </div>
                         <button type="submit" class="search-button">
                             <i class="fas fa-search"></i>
                         </button>
@@ -64,12 +70,27 @@
                                 <i class="fas fa-chevron-down"></i>
                             </a>
                             <div class="dropdown-menu">
-                                <a href="#" class="dropdown-item">My Account</a>
-                                <a href="#" class="dropdown-item">My Orders</a>
-                                <a href="{% url 'wishlist' %}" class="dropdown-item">My Wishlist</a>
-                                <a href="#" class="dropdown-item">My Reviews</a>
+                                <a href="{% url 'account_profile' %}" class="dropdown-item">
+                                    <i class="fas fa-user-circle" style="margin-right: 0.5rem; width: 16px;"></i>
+                                    My Account
+                                </a>
+                                <a href="{% url 'my_orders' %}" class="dropdown-item">
+                                    <i class="fas fa-shopping-bag" style="margin-right: 0.5rem; width: 16px;"></i>
+                                    My Orders
+                                </a>
+                                <a href="{% url 'wishlist' %}" class="dropdown-item">
+                                    <i class="fas fa-heart" style="margin-right: 0.5rem; width: 16px;"></i>
+                                    My Wishlist
+                                </a>
+                                <a href="#" class="dropdown-item">
+                                    <i class="fas fa-star" style="margin-right: 0.5rem; width: 16px;"></i>
+                                    My Reviews
+                                </a>
                                 <div class="dropdown-divider"></div>
-                                <a href="{% url 'logout' %}" class="dropdown-item">Logout</a>
+                                <a href="{% url 'logout' %}" class="dropdown-item">
+                                    <i class="fas fa-sign-out-alt" style="margin-right: 0.5rem; width: 16px;"></i>
+                                    Logout
+                                </a>
                             </div>
                         </div>
                     {% else %}
@@ -97,14 +118,25 @@
             <nav class="main-nav">
                 <div class="nav-categories">
                     <a href="{% url 'product_list' %}" class="nav-link">All Products</a>
-                    <a href="{% url 'category_products' 'electronics' %}" class="nav-link">Electronics</a>
-                    <a href="{% url 'category_products' 'fashion-men' %}" class="nav-link">Fashion - Men</a>
-                    <a href="{% url 'category_products' 'fashion-women' %}" class="nav-link">Fashion - Women</a>
-                    <a href="{% url 'category_products' 'home-kitchen' %}" class="nav-link">Home & Kitchen</a>
-                    <a href="{% url 'category_products' 'beauty-personal-care' %}" class="nav-link">Beauty & Personal Care</a>
-                    <a href="{% url 'category_products' 'sports-outdoors' %}" class="nav-link">Sports & Outdoors</a>
-                    <a href="{% url 'category_products' 'books' %}" class="nav-link">Books</a>
-                    <a href="{% url 'category_products' 'groceries-gourmet' %}" class="nav-link">Groceries & Gourmet</a>
+                    {% for item in navigation_categories %}
+                    <div class="nav-category-dropdown">
+                        <a href="{% url 'category_products' item.category.slug %}" class="nav-link nav-category-link">
+                            {{ item.category.name }}
+                            {% if item.subcategories %}
+                            <i class="fas fa-chevron-down" style="margin-left: 0.25rem; font-size: 0.75rem;"></i>
+                            {% endif %}
+                        </a>
+                        {% if item.subcategories %}
+                        <div class="nav-subcategory-dropdown">
+                            {% for subcategory in item.subcategories %}
+                            <a href="{% url 'subcategory_products' item.category.slug subcategory.slug %}" class="nav-subcategory-link">
+                                {{ subcategory.name }}
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
                 </div>
             </nav>
         </div>
@@ -163,6 +195,11 @@
                 </div>
             {% endfor %}
         </div>
+    {% endif %}
+
+    <!-- Profile Onboarding Modal -->
+    {% if show_profile_modal %}
+        {% include 'storefront/profile_onboarding_modal.html' %}
     {% endif %}
 
     <!-- JavaScript -->

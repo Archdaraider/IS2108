@@ -1,0 +1,110 @@
+{% extends 'storefront/base.html' %}
+{% load static %}
+
+{% block title %}My Orders - AuroraMart{% endblock %}
+
+{% block content %}
+<div class="container" style="padding: 2rem 20px;">
+    <!-- Page Header -->
+    <div style="margin-bottom: 2rem;">
+        <h1 style="font-size: 2rem; font-weight: 600; color: #1d1d1f; margin: 0;">My Orders</h1>
+    </div>
+
+    <!-- Orders List -->
+    {% if orders_data %}
+        <div class="orders-list">
+            {% for order_data in orders_data %}
+                {% with order=order_data.order %}
+                <div class="order-card" style="background: white; border: 1px solid #e8e8ea; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                    <!-- Order Header -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <!-- Store Info -->
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div style="width: 40px; height: 40px; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: white;">
+                                <img src="{% static 'images/AuroraMart Logo.png' %}" alt="AuroraMart" style="width: 100%; height: 100%; object-fit: contain; padding: 4px;" onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=\'fas fa-store\' style=\'color: #007bff; font-size: 1.5rem;\'></i>';">
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <a href="{% url 'homepage' %}" style="text-decoration: none; color: #1d1d1f; font-weight: 500; font-size: 1rem;">AuroraMart</a>
+                                <i class="fas fa-chevron-right" style="color: #6e6e73; font-size: 0.75rem;"></i>
+                            </div>
+                        </div>
+                        <!-- To Review Link -->
+                        <a href="{% url 'order_detail' order.id %}" class="review-link" style="color: #007bff; text-decoration: none; font-size: 0.875rem; font-weight: 500;">To review</a>
+                    </div>
+
+                    <!-- Order ID and Date -->
+                    <div style="margin-bottom: 0.75rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                        <div style="color: #1d1d1f; font-size: 0.875rem; font-weight: 500;">
+                            Order ID: <span style="color: #007bff;">{{ order.oID }}</span>
+                        </div>
+                        <div style="color: #6e6e73; font-size: 0.875rem;">
+                            Placed on: {{ order.placed_at|date:"M d, Y" }} at {{ order.placed_at|time:"g:i A" }}
+                        </div>
+                    </div>
+
+                    <!-- Delivery Time -->
+                    <div style="margin-bottom: 1rem; color: #1d1d1f; font-size: 0.875rem;">
+                        Delivery Time: {{ order_data.delivery_time_formatted }}
+                    </div>
+
+                    <!-- Product Thumbnails -->
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
+                        {% for image_url in order_data.product_images %}
+                            <div style="width: 60px; height: 60px; border-radius: 6px; overflow: hidden; background: #f5f5f7; display: flex; align-items: center; justify-content: center;">
+                                {% if image_url %}
+                                    <img src="{{ image_url }}" alt="Product" style="width: 100%; height: 100%; object-fit: cover;">
+                                {% else %}
+                                    <i class="fas fa-image" style="color: #d2d2d7; font-size: 1.5rem;"></i>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                        {% if order_data.has_more_items %}
+                            <a href="#" style="display: flex; align-items: center; color: #007bff; text-decoration: none; font-size: 0.875rem; padding: 0 0.5rem;">
+                                +{{ order_data.remaining_items_count }} more items <i class="fas fa-chevron-right" style="margin-left: 0.25rem; font-size: 0.75rem;"></i>
+                            </a>
+                        {% endif %}
+                    </div>
+
+                    <!-- Order Summary -->
+                    <div style="margin-bottom: 1rem; color: #1d1d1f; font-size: 0.875rem; font-weight: 500;">
+                        Total ({{ order_data.total_items }} Item{{ order_data.total_items|pluralize }}): ${{ order.total_amount|floatformat:2 }}
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1rem;">
+                        <button class="btn-return-refund" style="background: #f5f5f7; color: #1d1d1f; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background 0.2s;">
+                            Return/Refund
+                        </button>
+                        <a href="{% url 'order_detail' order.id %}" class="btn-review" style="background: #ff6b9d; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background 0.2s; text-decoration: none; display: inline-block;">
+                            To Review
+                        </a>
+                    </div>
+                </div>
+                {% endwith %}
+            {% endfor %}
+        </div>
+    {% else %}
+        <div style="text-align: center; padding: 4rem 2rem;">
+            <i class="fas fa-shopping-bag" style="font-size: 4rem; color: #d2d2d7; margin-bottom: 1rem;"></i>
+            <h2 style="font-size: 1.5rem; color: #1d1d1f; margin-bottom: 0.5rem;">No orders yet</h2>
+            <p style="color: #6e6e73; margin-bottom: 2rem;">Start shopping to see your orders here!</p>
+            <a href="{% url 'product_list' %}" class="btn btn-primary" style="display: inline-block; width: auto; padding: 0.75rem 2rem;">Browse Products</a>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+    .btn-return-refund:hover {
+        background: #e8e8ea !important;
+    }
+    
+    .btn-review:hover {
+        background: #ff4d7a !important;
+    }
+    
+    .review-link:hover {
+        text-decoration: underline !important;
+    }
+</style>
+{% endblock %}
+

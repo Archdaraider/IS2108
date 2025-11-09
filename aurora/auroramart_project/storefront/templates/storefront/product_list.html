@@ -38,127 +38,163 @@
         
         <!-- Sort Options -->
         <div class="sort-options">
-            <label for="sort-select">Sort By:</label>
-            <select id="sort-select" class="sort-select">
-                <option value="best_match" {% if sort_by == 'best_match' %}selected{% endif %}>Best Match</option>
-                <option value="price_low" {% if sort_by == 'price_low' %}selected{% endif %}>Price low to high</option>
-                <option value="price_high" {% if sort_by == 'price_high' %}selected{% endif %}>Price high to low</option>
-                <option value="rating" {% if sort_by == 'rating' %}selected{% endif %}>Best rated</option>
-                <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest</option>
-            </select>
+            <form method="get" action="{% if category %}{% url 'category_products' category.slug %}{% else %}{% url 'product_list' %}{% endif %}" style="display: inline;">
+                {% if request.GET.search %}<input type="hidden" name="search" value="{{ request.GET.search }}">{% endif %}
+                {% if request.GET.min_price %}<input type="hidden" name="min_price" value="{{ request.GET.min_price }}">{% endif %}
+                {% if request.GET.max_price %}<input type="hidden" name="max_price" value="{{ request.GET.max_price }}">{% endif %}
+                {% if request.GET.filter_rating %}<input type="hidden" name="filter_rating" value="{{ request.GET.filter_rating }}">{% endif %}
+                <label for="sort-select">Sort By:</label>
+                <select id="sort-select" name="sort" class="sort-select" onchange="this.form.submit()">
+                    <option value="best_match" {% if sort_by == 'best_match' %}selected{% endif %}>Best Match</option>
+                    <option value="price_low" {% if sort_by == 'price_low' %}selected{% endif %}>Price low to high</option>
+                    <option value="price_high" {% if sort_by == 'price_high' %}selected{% endif %}>Price high to low</option>
+                    <option value="rating" {% if sort_by == 'rating' %}selected{% endif %}>Best rated</option>
+                    <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest</option>
+                </select>
+            </form>
         </div>
     </div>
 
     <div class="product-listing-layout">
         <!-- Sidebar Filters -->
         <aside class="filters-sidebar">
-            <div class="filter-section">
-                <h3>Filter</h3>
-                
-                <!-- Price Filter -->
-                <div class="filter-group">
-                    <h4>Price Range</h4>
-                    <div class="price-inputs">
-                        <input type="number" placeholder="Min" class="price-input" id="min-price">
-                        <span>-</span>
-                        <input type="number" placeholder="Max" class="price-input" id="max-price">
+            <form method="get" action="{% if category %}{% url 'category_products' category.slug %}{% else %}{% url 'product_list' %}{% endif %}" id="filter-form">
+                <div class="filter-section">
+                    <h3>Filter</h3>
+                    
+                    <!-- Price Filter -->
+                    <div class="filter-group">
+                        <h4>Price Range</h4>
+                        <div class="price-inputs">
+                            <input type="number" name="min_price" placeholder="Min" class="price-input" id="min-price" value="{{ request.GET.min_price|default:'' }}" min="0" step="0.01">
+                            <span>-</span>
+                            <input type="number" name="max_price" placeholder="Max" class="price-input" id="max-price" value="{{ request.GET.max_price|default:'' }}" min="0" step="0.01">
+                        </div>
                     </div>
-                </div>
 
-                <!-- Rating Filter -->
-                <div class="filter-group">
-                    <h4>Customer Rating</h4>
-                    <div class="rating-filters">
-                        <label class="rating-filter">
-                            <input type="radio" name="rating" value="5">
-                            <span class="stars">
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                            </span>
-                            <span>And Up</span>
-                        </label>
-                        <label class="rating-filter">
-                            <input type="radio" name="rating" value="4">
-                            <span class="stars">
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="far fa-star"></i>
-                            </span>
-                            <span>And Up</span>
-                        </label>
-                        <label class="rating-filter">
-                            <input type="radio" name="rating" value="3">
-                            <span class="stars">
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="far fa-star"></i>
-                                <i class="far fa-star"></i>
-                            </span>
-                            <span>And Up</span>
-                        </label>
-                        <label class="rating-filter">
-                            <input type="radio" name="rating" value="2">
-                            <span class="stars">
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="far fa-star"></i>
-                                <i class="far fa-star"></i>
-                                <i class="far fa-star"></i>
-                            </span>
-                            <span>And Up</span>
-                        </label>
-                        <label class="rating-filter">
-                            <input type="radio" name="rating" value="1">
-                            <span class="stars">
-                                <i class="fas fa-star"></i>
-                                <i class="far fa-star"></i>
-                                <i class="far fa-star"></i>
-                                <i class="far fa-star"></i>
-                                <i class="far fa-star"></i>
-                            </span>
-                            <span>And Up</span>
-                        </label>
+                    <!-- Rating Filter -->
+                    <div class="filter-group">
+                        <h4>Customer Rating</h4>
+                        <div class="rating-filters">
+                            <label class="rating-filter">
+                                <input type="radio" name="filter_rating" value="5" {% if request.GET.filter_rating == '5' %}checked{% endif %}>
+                                <span class="stars">
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                </span>
+                                <span>And Up</span>
+                            </label>
+                            <label class="rating-filter">
+                                <input type="radio" name="filter_rating" value="4" {% if request.GET.filter_rating == '4' %}checked{% endif %}>
+                                <span class="stars">
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                    <i class="far fa-star"></i>
+                                </span>
+                                <span>And Up</span>
+                            </label>
+                            <label class="rating-filter">
+                                <input type="radio" name="filter_rating" value="3" {% if request.GET.filter_rating == '3' %}checked{% endif %}>
+                                <span class="stars">
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                    <i class="far fa-star"></i>
+                                    <i class="far fa-star"></i>
+                                </span>
+                                <span>And Up</span>
+                            </label>
+                            <label class="rating-filter">
+                                <input type="radio" name="filter_rating" value="2" {% if request.GET.filter_rating == '2' %}checked{% endif %}>
+                                <span class="stars">
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                    <i class="far fa-star"></i>
+                                    <i class="far fa-star"></i>
+                                    <i class="far fa-star"></i>
+                                </span>
+                                <span>And Up</span>
+                            </label>
+                            <label class="rating-filter">
+                                <input type="radio" name="filter_rating" value="1" {% if request.GET.filter_rating == '1' %}checked{% endif %}>
+                                <span class="stars">
+                                    <i class="fas fa-star"></i>
+                                    <i class="far fa-star"></i>
+                                    <i class="far fa-star"></i>
+                                    <i class="far fa-star"></i>
+                                    <i class="far fa-star"></i>
+                                </span>
+                                <span>And Up</span>
+                            </label>
+                        </div>
                     </div>
-                </div>
+                    
+                    <!-- Preserve category/subcategory in form -->
+                    {% if category_slug %}
+                        <input type="hidden" name="category" value="{{ category_slug }}">
+                    {% endif %}
+                    {% if subcategory_slug %}
+                        <input type="hidden" name="subcategory" value="{{ subcategory_slug }}">
+                    {% endif %}
+                    {% if request.GET.search %}
+                        <input type="hidden" name="search" value="{{ request.GET.search }}">
+                    {% endif %}
+                    
+                    <!-- Filter Submit Button -->
+                    <div class="filter-group">
+                        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Apply Filters</button>
+                        {% if request.GET.min_price or request.GET.max_price or request.GET.filter_rating %}
+                        <a href="{% if category %}{% url 'category_products' category.slug %}{% else %}{% url 'product_list' %}{% endif %}{% if request.GET.search %}?search={{ request.GET.search }}{% endif %}" class="btn btn-outline" style="width: 100%; margin-top: 0.5rem; text-align: center; display: block;">Clear Filters</a>
+                        {% endif %}
+                    </div>
 
                 <!-- Category Filter -->
                 <div class="filter-group">
                     <h4>Categories</h4>
                     <div class="category-filters">
-                        {% for cat in categories %}
-                        <a href="{% url 'category_products' cat.slug %}" class="category-filter-link">
-                            {{ cat.name }}
-                            <i class="fas fa-chevron-right"></i>
-                        </a>
+                        <a href="{% url 'product_list' %}" class="category-filter-link">All Products</a>
+                        {% for item in navigation_categories %}
+                        <div class="sidebar-category-item">
+                            <a href="{% url 'category_products' item.category.slug %}" class="category-filter-link category-main-link">
+                                {{ item.category.name }}
+                                {% if item.subcategories %}
+                                <i class="fas fa-chevron-down sidebar-chevron"></i>
+                                {% endif %}
+                            </a>
+                            {% if item.subcategories %}
+                            <div class="sidebar-subcategories">
+                                {% for subcategory in item.subcategories %}
+                                <a href="{% url 'subcategory_products' item.category.slug subcategory.slug %}" class="category-filter-link category-sub-link">
+                                    {{ subcategory.name }}
+                                </a>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
                         {% endfor %}
                     </div>
                 </div>
             </div>
+            </form>
         </aside>
 
         <!-- Product Grid -->
         <main class="product-grid-container">
             <!-- Category Tabs -->
-            {% if category %}
+            {% if category and subcategories %}
             <div class="category-tabs">
-                <a href="{% url 'category_products' category.slug %}" class="tab-link active">
+                {% for subcat in subcategories %}
+                <a href="{% url 'subcategory_products' category.slug subcat.slug %}" 
+                   class="tab-link {% if subcategory and subcategory.slug == subcat.slug %}active{% endif %}">
                     <i class="fas fa-image"></i>
-                    Fresh Produce (642)
+                    {{ subcat.name }} ({{ subcat.count }})
                 </a>
-                <a href="{% url 'category_products' category.slug %}" class="tab-link">
-                    <i class="fas fa-image"></i>
-                    Poultry (48)
-                </a>
-                <a href="{% url 'category_products' category.slug %}" class="tab-link">
-                    <i class="fas fa-image"></i>
-                    Dairy (67)
-                </a>
+                {% endfor %}
             </div>
             {% endif %}
 
@@ -177,7 +213,7 @@
                             {% endif %}
                             
                             <!-- Product Badges -->
-                            {% if product.stock <= product.reorder_threshold %}
+                            {% if product.stock <= 0 %}
                             <div class="product-badge sold-out">SOLD OUT</div>
                             {% endif %}
                         </div>
@@ -186,6 +222,14 @@
                             <div class="product-price">${{ product.price|floatformat:2 }}</div>
                             <h3 class="product-name">{{ product.name }}</h3>
                             <div class="product-category">{{ product.category }}</div>
+                            <div class="product-stock" style="font-size: 0.875rem; color: {% if product.stock > 0 %}#28a745{% else %}#dc3545{% endif %}; margin: 0.25rem 0;">
+                                <i class="fas fa-box" style="margin-right: 0.25rem;"></i>
+                                {% if product.stock > 0 %}
+                                    Stock: {{ product.stock }} item{{ product.stock|pluralize }}
+                                {% else %}
+                                    Out of Stock
+                                {% endif %}
+                            </div>
                             <div class="product-rating">
                                 <div class="stars">
                                     {% for i in "12345" %}
@@ -206,13 +250,18 @@
                     
                     <!-- Actions overlay - not part of clickable link -->
                     <div class="product-actions">
-                        <button class="action-btn wishlist-btn" data-product-id="{{ product.id }}" type="button">
-                            {% if product.id in wishlist_product_ids %}
-                                <i class="fas fa-heart" style="color: #dc3545;"></i>
-                            {% else %}
-                                <i class="far fa-heart"></i>
-                            {% endif %}
-                        </button>
+                        <form method="post" action="{% url 'add_to_wishlist' %}" style="display: inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="product_id" value="{{ product.id }}">
+                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                            <button type="submit" class="action-btn wishlist-btn">
+                                {% if product.id in wishlist_product_ids %}
+                                    <i class="fas fa-heart" style="color: #dc3545;"></i>
+                                {% else %}
+                                    <i class="far fa-heart"></i>
+                                {% endif %}
+                            </button>
+                        </form>
                     </div>
                     
                     <!-- Add to cart / Quantity picker - not part of clickable link -->
@@ -221,17 +270,35 @@
                             {% if product.id in cart_product_ids %}
                                 {% for item in cart.items.all %}
                                     {% if item.product_id == product.id %}
-                                        <div class="quantity-picker" data-product-id="{{ product.id }}" data-cart-item-id="{{ item.id }}">
-                                            <button class="quantity-btn minus" type="button">-</button>
+                                        <div class="quantity-picker">
+                                            <form method="post" action="{% url 'update_cart_item' %}" style="display: inline;" class="cart-update-form">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="item_id" value="{{ item.id }}">
+                                                <input type="hidden" name="action" value="decrease">
+                                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                                <button type="submit" class="quantity-btn minus">-</button>
+                                            </form>
                                             <span class="quantity-value">{{ item.quantity }}</span>
-                                            <button class="quantity-btn plus" type="button">+</button>
+                                            <form method="post" action="{% url 'update_cart_item' %}" style="display: inline;" class="cart-update-form">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="item_id" value="{{ item.id }}">
+                                                <input type="hidden" name="action" value="increase">
+                                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                                <button type="submit" class="quantity-btn plus">+</button>
+                                            </form>
                                         </div>
                                     {% endif %}
                                 {% endfor %}
                             {% else %}
-                                <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ product.id }}" type="button">
-                                    Add to cart
-                                </button>
+                                <form method="post" action="{% url 'add_to_cart' %}" style="display: inline;" class="add-to-cart-form">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="product_id" value="{{ product.id }}">
+                                    <input type="hidden" name="quantity" value="1">
+                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                    <button type="submit" class="btn btn-primary add-to-cart-btn">
+                                        Add to cart
+                                    </button>
+                                </form>
                             {% endif %}
                         {% else %}
                             <button class="btn btn-secondary" disabled>
@@ -303,6 +370,14 @@
                             <div class="product-price">${{ product.price|floatformat:2 }}</div>
                             <h3 class="product-name">{{ product.name }}</h3>
                             <div class="product-category">{{ product.category }}</div>
+                            <div class="product-stock" style="font-size: 0.875rem; color: {% if product.stock > 0 %}#28a745{% else %}#dc3545{% endif %}; margin: 0.25rem 0;">
+                                <i class="fas fa-box" style="margin-right: 0.25rem;"></i>
+                                {% if product.stock > 0 %}
+                                    Stock: {{ product.stock }} item{{ product.stock|pluralize }}
+                                {% else %}
+                                    Out of Stock
+                                {% endif %}
+                            </div>
                             <div class="product-rating">
                                 <div class="stars">
                                     {% for i in "12345" %}
@@ -321,25 +396,48 @@
                         </div>
                     </a>
                     <div class="product-actions">
-                        <button class="action-btn wishlist-btn" data-product-id="{{ product.id }}" type="button">
-                            <i class="fas fa-heart"></i>
-                        </button>
+                        <form method="post" action="{% url 'add_to_wishlist' %}" style="display: inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="product_id" value="{{ product.id }}">
+                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                            <button type="submit" class="action-btn wishlist-btn">
+                                <i class="fas fa-heart"></i>
+                            </button>
+                        </form>
                     </div>
                     <div class="product-cart-actions">
                         {% if product.id in cart_product_ids %}
                             {% for item in cart.items.all %}
                                 {% if item.product_id == product.id %}
-                                    <div class="quantity-picker" data-product-id="{{ product.id }}" data-cart-item-id="{{ item.id }}">
-                                        <button class="quantity-btn minus" type="button">-</button>
+                                    <div class="quantity-picker">
+                                        <form method="post" action="{% url 'update_cart_item' %}" style="display: inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="item_id" value="{{ item.id }}">
+                                            <input type="hidden" name="action" value="decrease">
+                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                            <button type="submit" class="quantity-btn minus">-</button>
+                                        </form>
                                         <span class="quantity-value">{{ item.quantity }}</span>
-                                        <button class="quantity-btn plus" type="button">+</button>
+                                        <form method="post" action="{% url 'update_cart_item' %}" style="display: inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="item_id" value="{{ item.id }}">
+                                            <input type="hidden" name="action" value="increase">
+                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                            <button type="submit" class="quantity-btn plus">+</button>
+                                        </form>
                                     </div>
                                 {% endif %}
                             {% endfor %}
                         {% else %}
-                            <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ product.id }}" type="button">
-                                Add to cart
-                            </button>
+                            <form method="post" action="{% url 'add_to_cart' %}" style="display: inline;" class="add-to-cart-form">
+                                {% csrf_token %}
+                                <input type="hidden" name="product_id" value="{{ product.id }}">
+                                <input type="hidden" name="quantity" value="1">
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                <button type="submit" class="btn btn-primary add-to-cart-btn">
+                                    Add to cart
+                                </button>
+                            </form>
                         {% endif %}
                     </div>
                 </div>
@@ -355,4 +453,28 @@
 {% endblock %}
 
 {% block extra_js %}
+<script>
+    // Restore scroll position after page loads (for cases where page reloads)
+    (function() {
+        function restoreScrollPosition() {
+            var scrollPosition = sessionStorage.getItem('scrollPosition');
+            if (scrollPosition !== null) {
+                window.scrollTo(0, parseInt(scrollPosition));
+                sessionStorage.removeItem('scrollPosition');
+            }
+        }
+        
+        // Try immediately if document is already loaded
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            setTimeout(restoreScrollPosition, 0);
+        } else {
+            window.addEventListener('load', restoreScrollPosition);
+        }
+        
+        // Also try on DOMContentLoaded as a fallback
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(restoreScrollPosition, 100);
+        });
+    })();
+</script>
 {% endblock %}

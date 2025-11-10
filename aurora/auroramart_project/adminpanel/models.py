@@ -181,6 +181,21 @@ class Product(models.Model):
 
     def __str__(self):
         return f"{self.sku}: {self.name}"
+    
+    @property
+    def total_sold(self):
+        """Calculate total quantity sold from order items."""
+        from django.db.models import Sum
+        total = OrderItem.objects.filter(product=self).aggregate(
+            total=Sum('quantity')
+        )['total']
+        return total or 0
+    
+    @property
+    def favorites_count(self):
+        """Count how many users have this product in their wishlist."""
+        from storefront.models import WishlistItem
+        return WishlistItem.objects.filter(product=self).count()
 
 class Order(models.Model):
     """

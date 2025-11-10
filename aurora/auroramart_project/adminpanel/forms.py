@@ -21,6 +21,25 @@ class BaseForm(forms.ModelForm):
                     field.widget.attrs['class'] = (current_classes + ' error-field').strip()
 
 class CustomerForm(BaseForm):
+    # Add username and password fields for User creation
+    username = forms.CharField(
+        max_length=150,
+        required=True,
+        help_text="Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only."
+    )
+    password = forms.CharField(
+        widget=forms.PasswordInput,
+        required=True,
+        min_length=8,
+        help_text="Password must be at least 8 characters long."
+    )
+    password_confirm = forms.CharField(
+        widget=forms.PasswordInput,
+        required=True,
+        label="Confirm Password",
+        help_text="Enter the same password as before, for verification."
+    )
+    
     class Meta:
         model = Customer
         exclude = ('user', 'preferred_category',)
@@ -28,6 +47,51 @@ class CustomerForm(BaseForm):
         help_texts = {
             'has_children': 'Check this box if the customer has children.',
         }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # If editing an existing customer, make password optional
+        if self.instance and self.instance.pk:
+            self.fields['username'].required = False
+            self.fields['password'].required = False
+            self.fields['password_confirm'].required = False
+            self.fields['username'].help_text = "Leave blank to keep existing username."
+            self.fields['password'].help_text = "Leave blank to keep existing password."
+            
+            # Pre-fill username if user exists
+            if self.instance.user:
+                self.fields['username'].initial = self.instance.user.username
+    
+    def clean_username(self):
+        username = self.cleaned_data.get('username')
+        # Only validate if username is provided
+        if username:
+            # Check if user already exists (exclude current user when editing)
+            existing_user = User.objects.filter(username=username)
+            if self.instance and self.instance.user:
+                existing_user = existing_user.exclude(pk=self.instance.user.pk)
+            
+            if existing_user.exists():
+                raise forms.ValidationError("A user with that username already exists.")
+        return username
+    
+    def clean_password_confirm(self):
+        password = self.cleaned_data.get('password')
+        password_confirm = self.cleaned_data.get('password_confirm')
+        
+        # Only validate if password is provided
+        if password or password_confirm:
+            if password != password_confirm:
+                raise forms.ValidationError("The two password fields didn't match.")
+            
+            # Validate password strength
+            if password:
+                try:
+                    validate_password(password)
+                except forms.ValidationError as e:
+                    raise forms.ValidationError(list(e.messages))
+        
+        return password_confirm
 
 class ProductForm(BaseForm):
     class Meta:

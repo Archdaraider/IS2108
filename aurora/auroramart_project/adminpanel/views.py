@@ -671,6 +671,7 @@ def customer_list(request):
     age_max = request.GET.get('age_max', '')
     income_min = request.GET.get('income_min', '')
     income_max = request.GET.get('income_max', '')
+    status_filter = request.GET.get('status', '')
     
     if search_query:
         customers = customers.filter(
@@ -680,6 +681,14 @@ def customer_list(request):
     
     if category_filter:
         customers = customers.filter(preferred_category=category_filter)
+    
+    if status_filter:
+        if status_filter == 'active':
+            customers = customers.filter(user__isnull=False, user__is_active=True)
+        elif status_filter == 'inactive':
+            customers = customers.filter(user__isnull=False, user__is_active=False)
+        elif status_filter == 'no_account':
+            customers = customers.filter(user__isnull=True)
     
     if age_min:
         customers = customers.filter(age__gte=age_min)
@@ -705,68 +714,83 @@ def customer_list(request):
     if request.method == 'POST':
         form = CustomerForm(request.POST)
         if form.is_valid():
+            # Create User account first
+            username = form.cleaned_data.get('username')
+            password = form.cleaned_data.get('password')
+            email = form.cleaned_data.get('email')
+            
+            try:
+                # Create the User account
+                user = User.objects.create_user(
+                    username=username,
+                    email=email,
+                    password=password
+                )
+                
+                # Create customer with reference to user
+                customer = form.save(commit=False)
+                customer.user = user
 
-            # --- AI MODEL LOGIC (matching your notebook) ---
-            if customer_model: # Only check for the model
-                try:
-                    customer = form.save(commit=False)
+                # --- AI MODEL LOGIC (matching your notebook) ---
+                if customer_model: # Only check for the model
+                    try:
+                        # 1. Define the full list of 22 features your model was trained on
+                        TRAINING_COLUMNS = [
+                            'age', 'household_size', 'has_children', 'monthly_income_sgd',
+                            'gender_Female', 'gender_Male', 'employment_status_Full-time',
+                            'employment_status_Part-time', 'employment_status_Retired',
+                            'employment_status_Self-employed', 'employment_status_Student',
+                            'occupation_Admin', 'occupation_Education', 'occupation_Sales',
+                            'occupation_Service', 'occupation_Skilled Trades', 'occupation_Tech',
+                            'education_Bachelor', 'education_Diploma', 'education_Doctorate',
+                            'education_Master', 'education_Secondary'
+                        ]
 
-                    # 1. Define the full list of 22 features your model was trained on
-                    TRAINING_COLUMNS = [
-                        'age', 'household_size', 'has_children', 'monthly_income_sgd',
-                        'gender_Female', 'gender_Male', 'employment_status_Full-time',
-                        'employment_status_Part-time', 'employment_status_Retired',
-                        'employment_status_Self-employed', 'employment_status_Student',
-                        'occupation_Admin', 'occupation_Education', 'occupation_Sales',
-                        'occupation_Service', 'occupation_Skilled Trades', 'occupation_Tech',
-                        'education_Bachelor', 'education_Diploma', 'education_Doctorate',
-                        'education_Master', 'education_Secondary'
-                    ]
+                        # 2. Create a dictionary of the *raw* features from the form
+                        raw_data = {
+                            'age': form.cleaned_data.get('age'),
+                            'household_size': form.cleaned_data.get('household_size'),
+                            'has_children': form.cleaned_data.get('has_children'),
+                            'monthly_income_sgd': form.cleaned_data.get('monthly_income_sgd'),
+                            'gender': form.cleaned_data.get('gender'),
+                            'employment_status': form.cleaned_data.get('employment_status'),
+                            'occupation': form.cleaned_data.get('occupation'),
+                            'education': form.cleaned_data.get('education')
+                        }
 
-                    # 2. Create a dictionary of the *raw* features from the form
-                    raw_data = {
-                        'age': form.cleaned_data.get('age'),
-                        'household_size': form.cleaned_data.get('household_size'),
-                        'has_children': form.cleaned_data.get('has_children'),
-                        'monthly_income_sgd': form.cleaned_data.get('monthly_income_sgd'),
-                        'gender': form.cleaned_data.get('gender'),
-                        'employment_status': form.cleaned_data.get('employment_status'),
-                        'occupation': form.cleaned_data.get('occupation'),
-                        'education': form.cleaned_data.get('education')
-                    }
+                        # 3. Convert dictionary to a single-row pandas DataFrame
+                        features_df = pd.DataFrame([raw_data])
 
-                    # 3. Convert dictionary to a single-row pandas DataFrame
-                    features_df = pd.DataFrame([raw_data])
+                        # 4. One-hot encode the categorical variables (just like Cell 11 in your notebook)
+                        features_encoded = pd.get_dummies(features_df, columns=['gender', 'employment_status', 'occupation', 'education'])
 
-                    # 4. One-hot encode the categorical variables (just like Cell 11 in your notebook)
-                    features_encoded = pd.get_dummies(features_df, columns=['gender', 'employment_status', 'occupation', 'education'])
+                        # 5. Add any missing columns that weren't in this input
+                        for col in TRAINING_COLUMNS:
+                            if col not in features_encoded.columns:
+                                features_encoded[col] = 0 # 0 works for False/int
 
-                    # 5. Add any missing columns that weren't in this input
-                    for col in TRAINING_COLUMNS:
-                        if col not in features_encoded.columns:
-                            features_encoded[col] = 0 # 0 works for False/int
+                        # 6. Reorder columns to *exactly* match the training data
+                        features_processed = features_encoded[TRAINING_COLUMNS]
 
-                    # 6. Reorder columns to *exactly* match the training data
-                    features_processed = features_encoded[TRAINING_COLUMNS]
+                        # 7. Make prediction
+                        predicted_category = customer_model.predict(features_processed)[0]
 
-                    # 7. Make prediction
-                    predicted_category = customer_model.predict(features_processed)[0]
+                        # 8. Assign prediction and save
+                        customer.preferred_category = predicted_category
 
-                    # 8. Assign prediction and save
-                    customer.preferred_category = predicted_category
-                    customer.save()
-                    return redirect('adminpanel:customer_list') # Success!
-
-                except Exception as e:
-                    # This will show the error on the form
-                    form.add_error(None, f"Could not predict category: {e}")
-
-            else:
-                # Fallback if model isn't loaded
-                print("WARNING: Customer model not loaded. Saving customer without prediction.")
-                form.save()
-                return redirect('adminpanel:customer_list')
-            # --- End of AI Logic ---
+                    except Exception as e:
+                        # If prediction fails, log it but continue
+                        print(f"WARNING: Could not predict category: {e}")
+                        # preferred_category will remain null
+                
+                # Save the customer
+                customer.save()
+                return redirect('adminpanel:customer_list') # Success!
+                
+            except Exception as e:
+                # If user creation fails, show error
+                form.add_error(None, f"Could not create user account: {e}")
+            
         # If form is invalid, fall through to render context below
 
     else: # GET request
@@ -781,6 +805,7 @@ def customer_list(request):
         'form': form,
         'search_query': search_query,
         'category_filter': category_filter,
+        'status_filter': status_filter,
         'age_min': age_min,
         'age_max': age_max,
         'income_min': income_min,
@@ -800,6 +825,30 @@ def customer_detail(request, pk):
     if request.method == 'POST':
         form = CustomerForm(request.POST, request.FILES, instance=customer)
         if form.is_valid():
+            # Update username and password if provided
+            username = form.cleaned_data.get('username')
+            password = form.cleaned_data.get('password')
+            
+            # Create or update user account
+            if username or password:
+                if customer.user:
+                    # Update existing user
+                    if username:
+                        customer.user.username = username
+                    if password:
+                        customer.user.set_password(password)
+                    customer.user.save()
+                else:
+                    # Create new user if customer doesn't have one
+                    if username and password:
+                        user = User.objects.create_user(
+                            username=username,
+                            email=customer.email,
+                            password=password
+                        )
+                        customer.user = user
+            
+            # Save customer
             form.save()
             return redirect('adminpanel:customer_list') # Redirect to list after update
     else: # GET request
@@ -823,6 +872,28 @@ def customer_delete(request, pk):
 
     customer = get_object_or_404(Customer, pk=pk)
     customer.delete()
+    return redirect('adminpanel:customer_list')
+
+
+@login_required(login_url='adminpanel:admin_login')
+def customer_toggle_active(request, pk):
+    """
+    Toggles the active status of a customer's user account.
+    """
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+
+    customer = get_object_or_404(Customer, pk=pk)
+    
+    # If customer has a user account, toggle its active status
+    if customer.user:
+        customer.user.is_active = not customer.user.is_active
+        customer.user.save()
+    else:
+        # If no user account exists, create one with is_active=False
+        # This allows you to create "inactive" customers
+        pass
+    
     return redirect('adminpanel:customer_list')
 
 

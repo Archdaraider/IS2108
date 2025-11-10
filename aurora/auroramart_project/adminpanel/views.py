@@ -1009,6 +1009,38 @@ def admin_send_message(request, chat_id):
 
 
 @login_required(login_url='adminpanel:admin_login')
+@require_http_methods(["GET"])
+def admin_get_messages(request, chat_id):
+    """Get messages for a chat (used by admin for polling)."""
+    from .models import Chat
+    
+    try:
+        chat = get_object_or_404(Chat, id=chat_id)
+        
+        # Mark customer messages as read when admin fetches
+        chat.messages.filter(is_from_customer=True, is_read=False).update(is_read=True)
+        
+        # Get all messages
+        messages = []
+        for msg in chat.messages.all():
+            messages.append({
+                'id': msg.id,
+                'text': msg.message,
+                'sender': msg.sender_name,
+                'timestamp': msg.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'is_from_customer': msg.is_from_customer
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'messages': messages,
+            'unread_count': chat.unread_count_admin
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+
+@login_required(login_url='adminpanel:admin_login')
 @require_http_methods(["POST"])
 def admin_update_chat_status(request, chat_id):
     """Update chat status (open/in_progress/closed)."""
@@ -1190,9 +1222,16 @@ def customer_send_message(request):
                 customer_name = "Guest"
         
         # Get or create chat - ensure one chat per customer
+        chat = None
         if chat_id:
-            chat = get_object_or_404(Chat, id=chat_id, customer=customer)
-        else:
+            # Try to get the chat by ID
+            try:
+                chat = Chat.objects.get(id=chat_id, customer=customer)
+            except Chat.DoesNotExist:
+                # Chat was deleted or doesn't belong to customer, create new one
+                chat = None
+        
+        if not chat:
             # Check if customer already has an open or in-progress chat
             existing_chat = Chat.objects.filter(
                 customer=customer,

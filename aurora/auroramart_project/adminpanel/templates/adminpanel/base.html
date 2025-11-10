@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{{ page_title }} - AuroraMart Admin{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/admin_styles.css' %}?v=4.3">
+    <link rel="stylesheet" href="{% static 'css/admin_styles.css' %}?v=5.3">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     {% block extra_css %}{% endblock %}
 </head>
@@ -105,6 +105,11 @@
 
         <!-- Main Content Area -->
         <main class="main-content">
+            <!-- Floating Toggle Button (appears when sidebar is hidden) -->
+            <button class="floating-toggle" id="floatingToggle" aria-label="Show sidebar">
+                <i class="fas fa-bars"></i>
+            </button>
+            
             <div class="content-wrapper">
                 <header class="page-header">
                     <h2 class="page-title">{{ page_title }}</h2>
@@ -134,7 +139,7 @@
         </main>
     </div>
 
-    <script src="{% static 'scripts/admin.js' %}"></script>
+    <script src="{% static 'scripts/admin.js' %}?v=2.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <!-- Star Rating Script -->

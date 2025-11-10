@@ -39,6 +39,7 @@ urlpatterns = [
     path('chats/', views.chat_list, name='chat_list'),
     path('chats/<int:chat_id>/', views.chat_detail, name='chat_detail'),
     path('chats/<int:chat_id>/send/', views.admin_send_message, name='admin_send_message'),
+    path('chats/<int:chat_id>/messages/', views.admin_get_messages, name='admin_get_messages'),
     path('chats/<int:chat_id>/status/', views.admin_update_chat_status, name='admin_update_chat_status'),
     path('chats/<int:chat_id>/delete/', views.chat_delete, name='chat_delete'),
     path('chats/bulk-delete/', views.chat_bulk_delete, name='chat_bulk_delete'),

@@ -23,31 +23,37 @@
             <span>All Products</span>
         </a>
         {% for item in navigation_categories %}
-        <div class="category-browser-item-wrapper">
+        <div class="category-browser-item-wrapper" data-category-id="category-{{ forloop.counter }}">
             <a href="{% url 'category_products' item.category.slug %}" class="category-browser-item {% if item.subcategories %}has-subcategories{% endif %}">
                 <span>{{ item.category.name }}</span>
                 {% if item.subcategories %}
                 <i class="fas fa-chevron-right category-arrow"></i>
                 {% endif %}
             </a>
-            {% if item.subcategories %}
-            <div class="category-subcategory-panel">
-                <div class="subcategory-panel-header">
-                    <h4>{{ item.category.name }}</h4>
-                </div>
-                <div class="subcategory-panel-content">
-                    {% for subcategory in item.subcategories %}
-                    <a href="{% url 'subcategory_products' item.category.slug subcategory.slug %}" class="subcategory-link">
-                        {{ subcategory.name }}
-                    </a>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
         </div>
         {% endfor %}
     </nav>
 </aside>
+
+<!-- Subcategory Panels - Rendered OUTSIDE the scrollable area -->
+<div class="category-subcategory-panels-container">
+    {% for item in navigation_categories %}
+    {% if item.subcategories %}
+    <div class="category-subcategory-panel" data-category-id="category-{{ forloop.counter }}">
+        <div class="subcategory-panel-header">
+            <h4>{{ item.category.name }}</h4>
+        </div>
+        <div class="subcategory-panel-content">
+            {% for subcategory in item.subcategories %}
+            <a href="{% url 'subcategory_products' item.category.slug subcategory.slug %}" class="subcategory-link">
+                {{ subcategory.name }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+</div>
 {% endif %}
 {% endblock %}
 

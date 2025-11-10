@@ -354,7 +354,7 @@ function deleteCurrentChat() {
 
 // Poll for new messages every 5 seconds
 setInterval(function() {
-    fetch(`/admin/api/chat/${chatId}/messages/`, {
+    fetch(`/admin/chats/${chatId}/messages/`, {
         headers: {
             'X-Requested-With': 'XMLHttpRequest'
         }

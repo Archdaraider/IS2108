@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initAnimatedSearchPlaceholder();
     initDateInputRestrictions();
     initPasswordToggle();
+    initCategorySubcategoryPanels();
 });
 
 // Prevent buttons from triggering link navigation
@@ -602,6 +603,138 @@ function initPasswordToggle() {
             }
         };
     });
+}
+
+// Category Subcategory Panel Positioning
+function initCategorySubcategoryPanels() {
+    const categoryWrappers = document.querySelectorAll('.category-browser-item-wrapper');
+    const nav = document.querySelector('.category-browser-nav');
+    const sidebar = document.querySelector('.category-browser-sidebar');
+    let currentlyVisiblePanel = null;
+    let hideTimeout = null;
+    
+    if (!categoryWrappers.length) {
+        console.log('No category wrappers found');
+        return;
+    }
+    
+    // Create a map of category ID to panel
+    const panelMap = {};
+    document.querySelectorAll('.category-subcategory-panel').forEach(panel => {
+        const categoryId = panel.getAttribute('data-category-id');
+        if (categoryId) {
+            panelMap[categoryId] = panel;
+        }
+    });
+    
+    console.log('Found panels:', Object.keys(panelMap).length);
+    
+    categoryWrappers.forEach(wrapper => {
+        const categoryId = wrapper.getAttribute('data-category-id');
+        if (!categoryId) return;
+        
+        const panel = panelMap[categoryId];
+        if (!panel) {
+            console.log('No panel found for category:', categoryId);
+            return;
+        }
+        
+        const categoryItem = wrapper.querySelector('.category-browser-item');
+        if (!categoryItem) return;
+        
+        // Function to position and show panel
+        const showPanel = () => {
+            // Clear any pending hide
+            if (hideTimeout) {
+                clearTimeout(hideTimeout);
+                hideTimeout = null;
+            }
+            
+            // Hide previously visible panel
+            if (currentlyVisiblePanel && currentlyVisiblePanel !== panel) {
+                currentlyVisiblePanel.classList.remove('visible');
+            }
+            
+            // Get the position of the category item relative to the viewport
+            const itemRect = categoryItem.getBoundingClientRect();
+            const sidebarRect = sidebar ? sidebar.getBoundingClientRect() : null;
+            
+            // Calculate top position
+            // Position panel to align with the category item
+            const topPosition = itemRect.top;
+            
+            // Make sure panel doesn't go off screen
+            const maxHeight = window.innerHeight - topPosition - 20; // 20px padding from bottom
+            
+            panel.style.top = topPosition + 'px';
+            panel.style.maxHeight = Math.max(300, maxHeight) + 'px'; // At least 300px high
+            
+            // Show panel with class
+            panel.classList.add('visible');
+            
+            currentlyVisiblePanel = panel;
+            
+            console.log('Showing panel:', categoryId, 'at top:', topPosition);
+        };
+        
+        // Function to hide panel with delay
+        const hidePanel = () => {
+            if (hideTimeout) {
+                clearTimeout(hideTimeout);
+            }
+            hideTimeout = setTimeout(() => {
+                panel.classList.remove('visible');
+                if (currentlyVisiblePanel === panel) {
+                    currentlyVisiblePanel = null;
+                }
+                console.log('Hiding panel:', categoryId);
+            }, 200); // Small delay to allow moving to panel
+        };
+        
+        // Show on wrapper hover
+        wrapper.addEventListener('mouseenter', showPanel);
+        
+        // Don't hide immediately when leaving wrapper
+        wrapper.addEventListener('mouseleave', hidePanel);
+        
+        // Keep visible when hovering panel itself
+        panel.addEventListener('mouseenter', () => {
+            if (hideTimeout) {
+                clearTimeout(hideTimeout);
+                hideTimeout = null;
+            }
+            console.log('Mouse entered panel:', categoryId);
+        });
+        
+        // Hide when leaving panel
+        panel.addEventListener('mouseleave', hidePanel);
+    });
+    
+    // Update position on scroll
+    if (nav) {
+        nav.addEventListener('scroll', () => {
+            if (currentlyVisiblePanel) {
+                // Find the wrapper that corresponds to the current panel
+                categoryWrappers.forEach(wrapper => {
+                    const categoryId = wrapper.getAttribute('data-category-id');
+                    if (panelMap[categoryId] === currentlyVisiblePanel) {
+                        const categoryItem = wrapper.querySelector('.category-browser-item');
+                        if (categoryItem) {
+                            const itemRect = categoryItem.getBoundingClientRect();
+                            const sidebarRect = sidebar ? sidebar.getBoundingClientRect() : null;
+                            const topPosition = itemRect.top;
+                            const maxHeight = window.innerHeight - topPosition - 20;
+                            
+                            currentlyVisiblePanel.style.top = topPosition + 'px';
+                            currentlyVisiblePanel.style.maxHeight = Math.max(300, maxHeight) + 'px';
+                        }
+                    }
+                });
+            }
+        });
+    }
+    
+    console.log('Category subcategory panels initialized');
 }
 
 // Restrict date input fields to maximum digits

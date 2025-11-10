@@ -37,7 +37,34 @@ body {
     background-color: var(--color-background);
     color: var(--color-text-primary);
     line-height: 1.6;
-    overflow-x: hidden;
+    overflow-x: auto; /* Allow horizontal scroll when needed */
+    min-width: 320px; /* Minimum viewport width */
+}
+
+/* Custom scrollbar styling for body */
+body::-webkit-scrollbar {
+    height: 12px;
+    width: 12px;
+}
+
+body::-webkit-scrollbar-track {
+    background: var(--color-background);
+}
+
+body::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 6px;
+    border: 2px solid var(--color-background);
+}
+
+body::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-secondary);
+}
+
+/* Firefox scrollbar */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) var(--color-background);
 }
 
 /* --- Admin Container Layout --- */
@@ -58,8 +85,20 @@ body {
     left: 0;
     top: 0;
     height: 100vh;
-    transition: transform var(--transition-speed) ease;
+    transition: transform var(--transition-speed) ease, opacity var(--transition-speed) ease;
     z-index: 1000;
+}
+
+/* Sidebar show/hidden states */
+.sidebar.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.sidebar.hidden {
+    transform: translateX(-100%);
+    opacity: 0;
+    pointer-events: none;
 }
 
 /* Sidebar Header */
@@ -97,11 +136,51 @@ body {
     cursor: pointer;
     padding: 0.5rem;
     border-radius: var(--border-radius);
-    transition: background-color 0.2s;
+    transition: background-color 0.2s, transform 0.1s;
+    display: block; /* Always show the toggle button */
 }
 
 .sidebar-toggle:hover {
     background-color: var(--color-background);
+}
+
+.sidebar-toggle:active {
+    transform: scale(0.95);
+}
+
+/* Floating toggle button (appears when sidebar is hidden on desktop) */
+.floating-toggle {
+    position: fixed;
+    left: 20px;
+    top: 20px;
+    width: 50px;
+    height: 50px;
+    background: var(--color-white);
+    border: 1px solid var(--color-border);
+    border-radius: 50%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    z-index: 999;
+    transition: all 0.3s ease;
+}
+
+.floating-toggle:hover {
+    background: var(--color-background);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    transform: scale(1.1);
+}
+
+.floating-toggle i {
+    font-size: 1.25rem;
+    color: var(--color-text-primary);
+}
+
+/* Show floating button when sidebar is hidden on desktop */
+.sidebar.hidden ~ .main-content .floating-toggle {
+    display: flex;
 }
 
 /* Sidebar Navigation */
@@ -232,11 +311,35 @@ body {
     flex: 1;
     margin-left: var(--sidebar-width);
     min-height: 100vh;
+    overflow-x: auto; /* Enable horizontal scroll */
+    overflow-y: auto;
+    width: calc(100vw - var(--sidebar-width)); /* Ensure proper width calculation */
+}
+
+/* Custom scrollbar for main content */
+.main-content::-webkit-scrollbar {
+    height: 10px;
+    width: 10px;
+}
+
+.main-content::-webkit-scrollbar-track {
+    background: var(--color-background);
+}
+
+.main-content::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 5px;
+}
+
+.main-content::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-secondary);
 }
 
 .content-wrapper {
     padding: 2rem;
-    max-width: 1600px;
+    min-width: 800px; /* Minimum width for content */
+    width: 100%; /* Take full width */
+    max-width: 1600px; /* Max width for very large screens */
 }
 
 /* Page Header */
@@ -416,14 +519,35 @@ body {
 }
 
 .table-wrapper {
-    overflow-x: auto;
+    overflow-x: auto; /* Horizontal scroll for tables */
+    overflow-y: visible;
     border-bottom-left-radius: 12px;
     border-bottom-right-radius: 12px;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+}
+
+/* Custom scrollbar for tables */
+.table-wrapper::-webkit-scrollbar {
+    height: 8px;
+}
+
+.table-wrapper::-webkit-scrollbar-track {
+    background: var(--color-background);
+    border-radius: 4px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 4px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-secondary);
 }
 
 .table-wrapper table {
     width: 100%;
-    min-width: 1200px;
+    min-width: 1000px; /* Reduced from 1200px for better fit */
 }
 
 table {
@@ -879,34 +1003,73 @@ select.form-control::-ms-expand {
     
     .sidebar.show {
         transform: translateX(0);
-}
+        box-shadow: 4px 0 10px rgba(0, 0, 0, 0.1);
+    }
 
     .main-content {
         margin-left: 0;
-}
+        width: 100vw; /* Full viewport width when sidebar is hidden */
+    }
+    
+    .content-wrapper {
+        min-width: 600px; /* Reduced for tablets */
+    }
     
     .page-title {
         font-size: 1.5rem;
-}
+    }
+    
+    /* Show hamburger menu */
+    .sidebar-toggle {
+        display: block;
+    }
 }
 
 @media (max-width: 768px) {
     .content-wrapper {
         padding: 1rem;
-}
+        min-width: 500px; /* Minimum for mobile, will trigger horizontal scroll */
+    }
     
     .page-header {
         flex-direction: column;
         align-items: flex-start;
         gap: 1rem;
+    }
+
+    .kpi-grid {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+    
+    .form-container {
+        grid-template-columns: 1fr;
+    }
+    
+    /* Ensure tables scroll properly */
+    .table-wrapper table {
+        min-width: 800px; /* Reduced for mobile */
+    }
+    
+    /* Adjust card padding */
+    .card {
+        padding: 1rem;
+    }
 }
 
+/* Extra small devices */
+@media (max-width: 480px) {
+    .content-wrapper {
+        padding: 0.75rem;
+        min-width: 400px; /* Will trigger horizontal scroll on very small screens */
+    }
+    
     .kpi-grid {
         grid-template-columns: 1fr;
     }
     
-.form-container {
-        grid-template-columns: 1fr;
+    .table-wrapper table {
+        min-width: 700px; /* Minimum table width */
     }
 }
 

@@ -7,21 +7,94 @@
 document.addEventListener('DOMContentLoaded', function() {
     const sidebar = document.getElementById('sidebar');
     const sidebarToggle = document.getElementById('sidebarToggle');
+    const floatingToggle = document.getElementById('floatingToggle');
+    const mainContent = document.querySelector('.main-content');
     
-    if (sidebarToggle) {
-        sidebarToggle.addEventListener('click', function() {
-            sidebar.classList.toggle('collapsed');
-            // Save preference to localStorage
-            const isCollapsed = sidebar.classList.contains('collapsed');
-            localStorage.setItem('sidebarCollapsed', isCollapsed);
-        });
-        
-        // Restore sidebar state from localStorage
-        const savedState = localStorage.getItem('sidebarCollapsed');
-        if (savedState === 'true') {
-            sidebar.classList.add('collapsed');
-        }
+    if (!sidebar || !sidebarToggle || !mainContent) {
+        console.warn('Sidebar elements not found');
+        return;
     }
+    
+    /**
+     * Apply sidebar visibility state
+     * @param {boolean} shouldHide - True to hide sidebar, false to show
+     */
+    function applySidebarState(shouldHide) {
+        if (shouldHide) {
+            // Hide sidebar
+            sidebar.classList.add('hidden');
+            sidebar.classList.remove('show');
+            mainContent.style.marginLeft = '0';
+            mainContent.style.width = '100%';
+            if (floatingToggle) {
+                floatingToggle.style.display = 'flex';
+            }
+        } else {
+            // Show sidebar
+            sidebar.classList.remove('hidden');
+            sidebar.classList.add('show');
+            mainContent.style.marginLeft = 'var(--sidebar-width)';
+            mainContent.style.width = 'calc(100% - var(--sidebar-width))';
+            if (floatingToggle) {
+                floatingToggle.style.display = 'none';
+            }
+        }
+        
+        // Save preference
+        localStorage.setItem('sidebarHidden', shouldHide.toString());
+        console.log('Sidebar state changed:', shouldHide ? 'hidden' : 'visible');
+    }
+    
+    /**
+     * Toggle sidebar visibility
+     */
+    function toggleSidebar(event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        
+        const isCurrentlyHidden = sidebar.classList.contains('hidden');
+        applySidebarState(!isCurrentlyHidden);
+    }
+    
+    // Main sidebar toggle button (hamburger icon in sidebar header)
+    sidebarToggle.addEventListener('click', toggleSidebar);
+    
+    // Floating toggle button (appears when sidebar is hidden)
+    if (floatingToggle) {
+        floatingToggle.addEventListener('click', toggleSidebar);
+    }
+    
+    // Restore saved sidebar state on page load
+    const savedState = localStorage.getItem('sidebarHidden');
+    const shouldStartHidden = savedState === 'true';
+    applySidebarState(shouldStartHidden);
+    
+    // Close sidebar when clicking outside on mobile/tablet
+    document.addEventListener('click', function(e) {
+        // Only apply on smaller screens
+        if (window.innerWidth > 1024) {
+            return;
+        }
+        
+        // Check if sidebar is currently visible
+        if (sidebar.classList.contains('hidden')) {
+            return;
+        }
+        
+        // Check if click was inside sidebar or on toggle buttons
+        const isClickInsideSidebar = sidebar.contains(e.target);
+        const isClickOnToggle = sidebarToggle.contains(e.target) || 
+                                (floatingToggle && floatingToggle.contains(e.target));
+        
+        // If click was outside sidebar and not on toggle, hide sidebar
+        if (!isClickInsideSidebar && !isClickOnToggle) {
+            applySidebarState(true);
+        }
+    });
+    
+    console.log('Sidebar toggle initialized');
 });
 
 // === AUTO-HIDE ALERTS ===

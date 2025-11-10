@@ -321,3 +321,23 @@ class Message(models.Model):
     def __str__(self):
         sender = "Customer" if self.is_from_customer else "Admin"
         return f"{sender}: {self.message[:50]}..."
+
+
+class Banner(models.Model):
+    """
+    Represents advertisement banners displayed on the storefront homepage.
+    Managed by admin panel for uploading, viewing, and deleting banners.
+    """
+    title = models.CharField(max_length=255, help_text="Banner title for identification")
+    image = models.ImageField(upload_to='banners/', help_text="Banner image (recommended: 1920x500px)")
+    link = models.URLField(blank=True, null=True, help_text="Optional URL to redirect when banner is clicked")
+    order = models.IntegerField(default=0, help_text="Display order (lower numbers show first)")
+    is_active = models.BooleanField(default=True, help_text="Show this banner on storefront")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['order', '-created_at']
+    
+    def __str__(self):
+        return f"{self.title} ({'Active' if self.is_active else 'Inactive'})"

@@ -1270,3 +1270,123 @@ def customer_send_message(request):
         })
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+
+# --- Banner Management Views ---
+
+@login_required(login_url='adminpanel:admin_login')
+def banner_list(request):
+    """
+    Display list of all banners from static folder with ability to view and delete.
+    """
+    import os
+    from django.conf import settings
+    
+    # Get static banners from the folder
+    class BannerFile:
+        def __init__(self, filename, index):
+            self.filename = filename
+            self.title = filename.replace('.png', '').replace('.jpg', '').replace('.jpeg', '').replace('.gif', '').replace('.webp', '')
+            self.image_url = f'/static/images/Banner/{filename}'
+            self.order = index
+    
+    banners = []
+    banner_folder = os.path.join(settings.BASE_DIR, 'storefront', 'static', 'images', 'Banner')
+    
+    if os.path.exists(banner_folder):
+        banner_files = sorted([f for f in os.listdir(banner_folder) 
+                              if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')) 
+                              and not f.startswith('.')])
+        
+        for idx, banner_file in enumerate(banner_files):
+            banner = BannerFile(banner_file, idx)
+            banners.append(banner)
+    
+    context = {
+        'page_title': 'Banner Management',
+        'banners': banners,
+    }
+    
+    return render(request, 'adminpanel/banner_list.html', context)
+
+
+@login_required(login_url='adminpanel:admin_login')
+@require_http_methods(["GET", "POST"])
+def banner_upload(request):
+    """
+    Upload a new banner image directly to static folder.
+    """
+    from django.contrib import messages
+    import os
+    from django.conf import settings
+    
+    if request.method == 'POST':
+        image = request.FILES.get('image')
+        
+        if not image:
+            messages.error(request, 'Banner image is required.')
+            return redirect('adminpanel:banner_upload')
+        
+        try:
+            # Save to static folder
+            banner_folder = os.path.join(settings.BASE_DIR, 'storefront', 'static', 'images', 'Banner')
+            os.makedirs(banner_folder, exist_ok=True)
+            
+            file_path = os.path.join(banner_folder, image.name)
+            
+            # Check if file already exists
+            if os.path.exists(file_path):
+                messages.warning(request, f'Banner "{image.name}" already exists. Overwriting...')
+            
+            with open(file_path, 'wb+') as destination:
+                for chunk in image.chunks():
+                    destination.write(chunk)
+            
+            messages.success(request, f'Banner "{image.name}" uploaded successfully!')
+            return redirect('adminpanel:banner_list')
+        except Exception as e:
+            messages.error(request, f'Error uploading banner: {str(e)}')
+            return redirect('adminpanel:banner_upload')
+    
+    context = {
+        'page_title': 'Upload Banner',
+    }
+    
+    return render(request, 'adminpanel/banner_upload.html', context)
+
+
+@login_required(login_url='adminpanel:admin_login')
+@require_POST
+def banner_delete(request, banner_id):
+    """
+    Delete a banner file from static folder.
+    banner_id is the filename (URL encoded)
+    """
+    from django.contrib import messages
+    import os
+    from django.conf import settings
+    from urllib.parse import unquote
+    
+    try:
+        # Decode filename from URL
+        filename = unquote(banner_id)
+        
+        # Security check - ensure filename doesn't contain path traversal
+        if '..' in filename or '/' in filename or '\\' in filename:
+            messages.error(request, 'Invalid filename')
+            return redirect('adminpanel:banner_list')
+        
+        banner_folder = os.path.join(settings.BASE_DIR, 'storefront', 'static', 'images', 'Banner')
+        file_path = os.path.join(banner_folder, filename)
+        
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+            messages.success(request, f'Banner "{filename}" deleted successfully!')
+        else:
+            messages.error(request, 'Banner file not found')
+    except Exception as e:
+        messages.error(request, f'Error deleting banner: {str(e)}')
+    
+    return redirect('adminpanel:banner_list')
+
+

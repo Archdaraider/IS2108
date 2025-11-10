@@ -49,6 +49,11 @@ urlpatterns = [
     path('api/chat/send/', views.customer_send_message, name='customer_send_message'),
     path('api/chat/<int:chat_id>/messages/', views.customer_get_messages, name='customer_get_messages'),
     
+    # Banner Management
+    path('banners/', views.banner_list, name='banner_list'),
+    path('banners/upload/', views.banner_upload, name='banner_upload'),
+    path('banners/delete/<str:banner_id>/', views.banner_delete, name='banner_delete'),
+    
     #path('reports/', views.custom_reports, name='custom_reports'),
     path('ai-studio/', views.ai_studio_home, name='ai_studio_home'),
 ]

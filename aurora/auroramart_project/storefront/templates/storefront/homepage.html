@@ -57,26 +57,34 @@
     <div class="hero-carousel">
         {% for banner in banners %}
         <div class="hero-slide">
-            <div class="hero-image">
-                {% if banner.image %}
-                    <img src="{{ banner.image.url }}" alt="{{ banner.title|default:'AuroraMart Banner' }}">
-                {% elif banner.image_url %}
-                    <img src="{% static banner.image_url %}" alt="{{ banner.title|default:'AuroraMart Banner' }}">
-                {% else %}
-                    <div class="hero-placeholder">
-                        <i class="fas fa-image"></i>
-                    </div>
-                {% endif %}
-            </div>
-            <div class="hero-content">
-                <h1>{{ banner.title|default:"Welcome to AuroraMart" }}</h1>
-                {% if banner.subtitle %}
-                    <p>{{ banner.subtitle }}</p>
-                {% endif %}
-                {% if banner.link_url %}
-                    <a href="{{ banner.link_url }}" class="btn btn-primary">Shop Now</a>
-                {% endif %}
-            </div>
+            {% if banner.link %}
+            <a href="{{ banner.link }}" target="_blank" style="display: block; width: 100%; height: 100%;">
+            {% endif %}
+                <div class="hero-image">
+                    {% if banner.image %}
+                        <img src="{{ banner.image.url }}" alt="{{ banner.title|default:'AuroraMart Banner' }}">
+                    {% elif banner.image_url %}
+                        <img src="{% static banner.image_url %}" alt="{{ banner.title|default:'AuroraMart Banner' }}">
+                    {% else %}
+                        <div class="hero-placeholder">
+                            <i class="fas fa-image"></i>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="hero-content">
+                    <h1>{{ banner.title|default:"Welcome to AuroraMart" }}</h1>
+                    {% if banner.subtitle %}
+                        <p>{{ banner.subtitle }}</p>
+                    {% elif not banner.link %}
+                        <p>Discover amazing products at great prices</p>
+                    {% endif %}
+                    {% if banner.link_url and not banner.link %}
+                        <a href="{{ banner.link_url }}" class="btn btn-primary">Shop Now</a>
+                    {% endif %}
+                </div>
+            {% if banner.link %}
+            </a>
+            {% endif %}
         </div>
         {% empty %}
         <div class="hero-slide">

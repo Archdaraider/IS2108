@@ -69,10 +69,11 @@ def homepage(request):
     featured_products = Product.objects.filter(quantity_on_hand__gt=0, is_active=True).order_by('-rating')[:8]
     best_sellers = Product.objects.filter(quantity_on_hand__gt=0, is_active=True).order_by('-rating')[:8]
     
-    # Get banners from database
-    banners = Banner.objects.filter(is_active=True).order_by('display_order')
+    # Get banners from admin panel database
+    from adminpanel.models import Banner as AdminBanner
+    admin_banners = AdminBanner.objects.filter(is_active=True).order_by('order')
     
-    # Load all banner images from static/images/Banner folder
+    # Load all banner images from static/images/Banner folder as fallback
     import os
     from django.conf import settings
     
@@ -83,14 +84,17 @@ def homepage(request):
             self.link_url = reverse('product_list')
             self.image = None
             self.image_url = image_path
+            self.link = None  # For compatibility with admin banners
     
-    # Get all banner images from the Banner folder
+    # Get all banner images from the Banner folder as fallback
     banner_folder = os.path.join(settings.BASE_DIR, 'storefront', 'static', 'images', 'Banner')
     static_banners = []
     
-    if os.path.exists(banner_folder):
+    # Only use static banners if no admin banners exist
+    if not admin_banners.exists() and os.path.exists(banner_folder):
         banner_files = sorted([f for f in os.listdir(banner_folder) 
-                              if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp'))])
+                              if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')) 
+                              and not f.startswith('.')])  # Exclude hidden files like .DS_Store
         
         for banner_file in banner_files:
             # Create a static banner object for each image
@@ -98,9 +102,8 @@ def homepage(request):
             static_banner = StaticBanner(banner_path, f"Welcome to AuroraMart")
             static_banners.append(static_banner)
     
-    # Combine static banners with database banners
-    banners_list = static_banners + list(banners)
-    banners = banners_list
+    # Use admin banners if available, otherwise use static banners
+    banners = list(admin_banners) if admin_banners.exists() else static_banners
     
     # Get categories for navigation
     categories = Category.objects.filter(is_active=True)

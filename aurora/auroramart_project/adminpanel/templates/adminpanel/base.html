@@ -67,6 +67,13 @@
                         </a>
                     </li>
                     
+                    <li class="nav-item {% if request.resolver_match.url_name == 'banner_list' or request.resolver_match.url_name == 'banner_upload' %}active{% endif %}">
+                        <a href="{% url 'adminpanel:banner_list' %}" class="nav-link">
+                            <i class="fas fa-image"></i>
+                            <span class="nav-text">Banners</span>
+                        </a>
+                    </li>
+                    
                     {% if user.is_superuser %}
                     <li class="nav-item {% if request.resolver_match.url_name == 'admin_users_list' %}active{% endif %}">
                         <a href="{% url 'adminpanel:admin_users_list' %}" class="nav-link">

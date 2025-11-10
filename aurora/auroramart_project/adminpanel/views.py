@@ -1461,3 +1461,260 @@ def banner_delete(request, banner_id):
     return redirect('adminpanel:banner_list')
 
 
+# --- Reviews Management ---
+
+@login_required(login_url='adminpanel:admin_login')
+def review_list(request):
+    """
+    Display all product reviews with filtering and search.
+    """
+    from storefront.models import ProductReview
+    from django.db.models import Q, Count
+    
+    reviews = ProductReview.objects.select_related('product', 'user').prefetch_related('images', 'reports').all()
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        reviews = reviews.filter(
+            Q(product__name__icontains=search_query) |
+            Q(user__username__icontains=search_query) |
+            Q(title__icontains=search_query) |
+            Q(comment__icontains=search_query)
+        )
+    
+    # Filter by rating
+    rating_filter = request.GET.get('rating', '')
+    if rating_filter:
+        reviews = reviews.filter(rating=rating_filter)
+    
+    # Filter by product
+    product_filter = request.GET.get('product', '')
+    if product_filter:
+        reviews = reviews.filter(product_id=product_filter)
+    
+    # Filter by reported
+    reported_filter = request.GET.get('reported', '')
+    if reported_filter == 'yes':
+        reviews = reviews.annotate(report_count=Count('reports')).filter(report_count__gt=0)
+    
+    # Sorting
+    sort_by = request.GET.get('sort', '-created_at')
+    valid_sort_fields = ['created_at', '-created_at', 'rating', '-rating', 'product__name', '-product__name']
+    if sort_by in valid_sort_fields:
+        reviews = reviews.order_by(sort_by)
+    else:
+        reviews = reviews.order_by('-created_at')
+    
+    # Annotate with report count
+    reviews = reviews.annotate(report_count=Count('reports'))
+    
+    # Get products for filter
+    products = Product.objects.all().order_by('name')
+    
+    context = {
+        'page_title': 'Reviews Management',
+        'reviews': reviews,
+        'search_query': search_query,
+        'rating_filter': rating_filter,
+        'product_filter': product_filter,
+        'reported_filter': reported_filter,
+        'sort_by': sort_by,
+        'products': products,
+    }
+    
+    return render(request, 'adminpanel/review_list.html', context)
+
+
+@login_required(login_url='adminpanel:admin_login')
+@require_POST
+def review_delete(request, pk):
+    """
+    Delete a review.
+    """
+    from storefront.models import ProductReview
+    from django.contrib import messages
+    
+    review = get_object_or_404(ProductReview, pk=pk)
+    product_name = review.product.name
+    review.delete()
+    
+    messages.success(request, f'Review for "{product_name}" deleted successfully!')
+    return redirect('adminpanel:review_list')
+
+
+# --- Returns & Refunds Management ---
+
+@login_required(login_url='adminpanel:admin_login')
+def return_list(request):
+    """
+    Display all return requests with filtering.
+    """
+    from storefront.models import ReturnRequest
+    from django.db.models import Q
+    
+    returns = ReturnRequest.objects.select_related('order', 'user').prefetch_related('items__order_item__product').all()
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        returns = returns.filter(
+            Q(order__id__icontains=search_query) |
+            Q(user__username__icontains=search_query) |
+            Q(user__email__icontains=search_query)
+        )
+    
+    # Filter by status
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        returns = returns.filter(status=status_filter)
+    
+    # Sorting
+    sort_by = request.GET.get('sort', '-created_at')
+    valid_sort_fields = ['created_at', '-created_at', 'status', '-status']
+    if sort_by in valid_sort_fields:
+        returns = returns.order_by(sort_by)
+    else:
+        returns = returns.order_by('-created_at')
+    
+    context = {
+        'page_title': 'Returns & Refunds',
+        'returns': returns,
+        'search_query': search_query,
+        'status_filter': status_filter,
+        'sort_by': sort_by,
+    }
+    
+    return render(request, 'adminpanel/return_list.html', context)
+
+
+@login_required(login_url='adminpanel:admin_login')
+def return_detail(request, pk):
+    """
+    View details of a return request.
+    """
+    from storefront.models import ReturnRequest
+    
+    return_request = get_object_or_404(
+        ReturnRequest.objects.select_related('order', 'user').prefetch_related('items__order_item__product'),
+        pk=pk
+    )
+    
+    context = {
+        'page_title': f'Return Request #{return_request.id}',
+        'return_request': return_request,
+    }
+    
+    return render(request, 'adminpanel/return_detail.html', context)
+
+
+@login_required(login_url='adminpanel:admin_login')
+@require_POST
+def return_approve(request, pk):
+    """
+    Approve a return request.
+    """
+    from storefront.models import ReturnRequest
+    from django.contrib import messages
+    
+    return_request = get_object_or_404(ReturnRequest, pk=pk)
+    
+    if return_request.status != 'pending':
+        messages.warning(request, 'Only pending return requests can be approved.')
+        return redirect('adminpanel:return_detail', pk=pk)
+    
+    return_request.status = 'approved'
+    return_request.save()
+    
+    messages.success(request, f'Return request #{return_request.id} approved successfully!')
+    return redirect('adminpanel:return_detail', pk=pk)
+
+
+@login_required(login_url='adminpanel:admin_login')
+@require_POST
+def return_reject(request, pk):
+    """
+    Reject a return request.
+    """
+    from storefront.models import ReturnRequest
+    from django.contrib import messages
+    
+    return_request = get_object_or_404(ReturnRequest, pk=pk)
+    
+    if return_request.status != 'pending':
+        messages.warning(request, 'Only pending return requests can be rejected.')
+        return redirect('adminpanel:return_detail', pk=pk)
+    
+    return_request.status = 'rejected'
+    return_request.save()
+    
+    messages.success(request, f'Return request #{return_request.id} rejected.')
+    return redirect('adminpanel:return_detail', pk=pk)
+
+
+@login_required(login_url='adminpanel:admin_login')
+@require_POST
+def return_process(request, pk):
+    """
+    Process (complete) a return request and update order status.
+    This will:
+    1. Mark return as processed
+    2. Update order status to CANCELLED
+    3. Restore product stock
+    """
+    from storefront.models import ReturnRequest
+    from django.contrib import messages
+    
+    return_request = get_object_or_404(ReturnRequest, pk=pk)
+    
+    if return_request.status != 'approved':
+        messages.warning(request, 'Only approved return requests can be processed.')
+        return redirect('adminpanel:return_detail', pk=pk)
+    
+    try:
+        # Mark return as processed
+        return_request.status = 'processed'
+        return_request.save()
+        
+        # Update order status
+        order = return_request.order
+        order.fulfillment_status = 'CANCELLED'
+        order.save()
+        
+        # Restore stock for returned items
+        for return_item in return_request.items.all():
+            order_item = return_item.order_item
+            product = order_item.product
+            if product:
+                product.quantity_on_hand += return_item.quantity
+                product.save()
+        
+        messages.success(request, f'Return request #{return_request.id} processed successfully! Order cancelled and stock restored.')
+    except Exception as e:
+        messages.error(request, f'Error processing return: {str(e)}')
+    
+    return redirect('adminpanel:return_detail', pk=pk)
+
+
+@login_required(login_url='adminpanel:admin_login')
+@require_POST
+def return_delete(request, pk):
+    """
+    Delete a return request.
+    """
+    from storefront.models import ReturnRequest
+    from django.contrib import messages
+    
+    return_request = get_object_or_404(ReturnRequest, pk=pk)
+    return_id = return_request.id
+    
+    # Delete associated images
+    for item in return_request.items.all():
+        if item.image:
+            item.image.delete()
+    
+    # Delete the return request (cascade will delete items)
+    return_request.delete()
+    
+    messages.success(request, f'Return request #{return_id} deleted successfully!')
+    return redirect('adminpanel:return_list')

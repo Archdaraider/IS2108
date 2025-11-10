@@ -55,6 +55,18 @@ urlpatterns = [
     path('banners/upload/', views.banner_upload, name='banner_upload'),
     path('banners/delete/<str:banner_id>/', views.banner_delete, name='banner_delete'),
     
+    # Reviews Management
+    path('reviews/', views.review_list, name='review_list'),
+    path('reviews/<int:pk>/delete/', views.review_delete, name='review_delete'),
+    
+    # Returns & Refunds Management
+    path('returns/', views.return_list, name='return_list'),
+    path('returns/<int:pk>/', views.return_detail, name='return_detail'),
+    path('returns/<int:pk>/approve/', views.return_approve, name='return_approve'),
+    path('returns/<int:pk>/reject/', views.return_reject, name='return_reject'),
+    path('returns/<int:pk>/process/', views.return_process, name='return_process'),
+    path('returns/<int:pk>/delete/', views.return_delete, name='return_delete'),
+    
     #path('reports/', views.custom_reports, name='custom_reports'),
     path('ai-studio/', views.ai_studio_home, name='ai_studio_home'),
 ]

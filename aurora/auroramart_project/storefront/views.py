@@ -2081,8 +2081,12 @@ def account_reviews(request):
 @login_required
 def account_returns(request):
     """My Returns page - show return requests."""
-    # For now, return empty list - can be extended later
-    returns = []
+    # Get customer's return requests
+    customer = Customer.objects.filter(user=request.user).first()
+    if customer:
+        returns = ReturnRequest.objects.filter(user=request.user).select_related('order').prefetch_related('items__order_item__product').order_by('-created_at')
+    else:
+        returns = []
     
     cart_context = get_cart_context(request)
     
@@ -2112,7 +2116,9 @@ def account_cancellations(request):
 @login_required
 def return_type_selection(request, order_id):
     """First step: User selects return type (not received vs not satisfied)."""
-    order = get_object_or_404(Order, id=order_id, user=request.user)
+    # Get customer associated with logged-in user
+    customer = get_object_or_404(Customer, user=request.user)
+    order = get_object_or_404(Order, id=order_id, customer=customer)
     
     if request.method == 'POST':
         form = ReturnRequestForm(request.POST)
@@ -2137,7 +2143,9 @@ def return_type_selection(request, order_id):
 @login_required
 def return_request(request, order_id):
     """Main return request page where user selects items and provides details."""
-    order = get_object_or_404(Order, id=order_id, user=request.user)
+    # Get customer associated with logged-in user
+    customer = get_object_or_404(Customer, user=request.user)
+    order = get_object_or_404(Order, id=order_id, customer=customer)
     order_items = OrderItem.objects.filter(order=order)
     
     # Get return_type from session

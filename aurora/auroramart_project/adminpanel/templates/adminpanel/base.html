@@ -74,6 +74,20 @@
                         </a>
                     </li>
                     
+                    <li class="nav-item {% if request.resolver_match.url_name == 'review_list' %}active{% endif %}">
+                        <a href="{% url 'adminpanel:review_list' %}" class="nav-link">
+                            <i class="fas fa-star"></i>
+                            <span class="nav-text">Reviews</span>
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item {% if request.resolver_match.url_name == 'return_list' or request.resolver_match.url_name == 'return_detail' %}active{% endif %}">
+                        <a href="{% url 'adminpanel:return_list' %}" class="nav-link">
+                            <i class="fas fa-undo"></i>
+                            <span class="nav-text">Returns & Refunds</span>
+                        </a>
+                    </li>
+                    
                     {% if user.is_superuser %}
                     <li class="nav-item {% if request.resolver_match.url_name == 'admin_users_list' %}active{% endif %}">
                         <a href="{% url 'adminpanel:admin_users_list' %}" class="nav-link">

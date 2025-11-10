@@ -1,0 +1,230 @@
+{% extends 'adminpanel/base.html' %}
+{% load static %}
+
+{% block title %}Reviews Management - Admin Panel{% endblock %}
+
+{% block extra_css %}
+<style>
+    .review-card {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        transition: box-shadow 0.2s;
+    }
+    .review-card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .review-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 1rem;
+    }
+    .review-meta {
+        flex: 1;
+    }
+    .review-product {
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 0.25rem;
+    }
+    .review-user {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+    .review-rating {
+        color: #f39c12;
+        font-size: 1.1rem;
+        margin-bottom: 0.5rem;
+    }
+    .review-title {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    .review-comment {
+        color: #495057;
+        line-height: 1.6;
+        margin-bottom: 1rem;
+    }
+    .review-images {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    .review-image {
+        width: 80px;
+        height: 80px;
+        object-fit: cover;
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
+    }
+    .review-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 1rem;
+        border-top: 1px solid #dee2e6;
+    }
+    .review-date {
+        color: #6c757d;
+        font-size: 0.85rem;
+    }
+    .badge-reported {
+        background-color: #dc3545;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.85rem;
+    }
+    .badge-verified {
+        background-color: #28a745;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        margin-left: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Filter Bar -->
+<div class="filter-bar">
+    <form method="get" class="filter-form">
+        <div class="filter-grid">
+            <div class="form-group">
+                <label class="form-label">Search</label>
+                <input type="text" name="search" class="form-control" 
+                       placeholder="Product, user, or review text..." value="{{ search_query }}">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Rating</label>
+                <select name="rating" class="form-control">
+                    <option value="">All Ratings</option>
+                    <option value="5" {% if rating_filter == '5' %}selected{% endif %}>5 Stars</option>
+                    <option value="4" {% if rating_filter == '4' %}selected{% endif %}>4 Stars</option>
+                    <option value="3" {% if rating_filter == '3' %}selected{% endif %}>3 Stars</option>
+                    <option value="2" {% if rating_filter == '2' %}selected{% endif %}>2 Stars</option>
+                    <option value="1" {% if rating_filter == '1' %}selected{% endif %}>1 Star</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Product</label>
+                <select name="product" class="form-control">
+                    <option value="">All Products</option>
+                    {% for product in products %}
+                    <option value="{{ product.id }}" {% if product_filter == product.id|stringformat:"s" %}selected{% endif %}>
+                        {{ product.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Reported</label>
+                <select name="reported" class="form-control">
+                    <option value="">All</option>
+                    <option value="yes" {% if reported_filter == 'yes' %}selected{% endif %}>Reported Only</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="filter-actions">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-filter"></i> Apply Filters
+            </button>
+            <a href="{% url 'adminpanel:review_list' %}" class="btn btn-outline">
+                <i class="fas fa-times"></i> Clear
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Reviews List -->
+<div class="table-container">
+    <div class="table-header">
+        <h3 class="table-title">Product Reviews ({{ reviews.count }})</h3>
+        <div class="table-actions">
+            <div class="form-group" style="margin: 0;">
+                <select class="form-control" onchange="window.location.href='?sort=' + this.value + '&search={{ search_query }}&rating={{ rating_filter }}&product={{ product_filter }}&reported={{ reported_filter }}'">
+                    <option value="-created_at" {% if sort_by == '-created_at' %}selected{% endif %}>Newest First</option>
+                    <option value="created_at" {% if sort_by == 'created_at' %}selected{% endif %}>Oldest First</option>
+                    <option value="-rating" {% if sort_by == '-rating' %}selected{% endif %}>Highest Rated</option>
+                    <option value="rating" {% if sort_by == 'rating' %}selected{% endif %}>Lowest Rated</option>
+                    <option value="product__name" {% if sort_by == 'product__name' %}selected{% endif %}>Product (A-Z)</option>
+                    <option value="-product__name" {% if sort_by == '-product__name' %}selected{% endif %}>Product (Z-A)</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    {% if reviews %}
+    <div style="padding: 1rem;">
+        {% for review in reviews %}
+        <div class="review-card">
+            <div class="review-header">
+                <div class="review-meta">
+                    <div class="review-product">{{ review.product.name }}</div>
+                    <div class="review-user">
+                        By: {{ review.user.username }}
+                        {% if review.is_verified_purchase %}
+                        <span class="badge-verified"><i class="fas fa-check-circle"></i> Verified Purchase</span>
+                        {% endif %}
+                        {% if review.report_count > 0 %}
+                        <span class="badge-reported"><i class="fas fa-flag"></i> {{ review.report_count }} Report{{ review.report_count|pluralize }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <form method="post" action="{% url 'adminpanel:review_delete' review.pk %}" 
+                      onsubmit="return confirm('Are you sure you want to delete this review?');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-danger">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </form>
+            </div>
+            
+            <div class="review-rating">
+                {% for i in "12345" %}
+                    {% if forloop.counter <= review.rating %}
+                        <i class="fas fa-star"></i>
+                    {% else %}
+                        <i class="far fa-star"></i>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            
+            <div class="review-title">{{ review.title }}</div>
+            <div class="review-comment">{{ review.comment }}</div>
+            
+            {% if review.images.all %}
+            <div class="review-images">
+                {% for image in review.images.all %}
+                <img src="{{ image.image.url }}" alt="Review image" class="review-image">
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            <div class="review-footer">
+                <div class="review-date">
+                    <i class="far fa-clock"></i> {{ review.created_at|date:"M d, Y \a\t g:i A" }}
+                </div>
+                <div>
+                    <span class="badge badge-info">{{ review.helpful_count }} found helpful</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon"><i class="fas fa-star"></i></div>
+        <div class="empty-state-text">No reviews found</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

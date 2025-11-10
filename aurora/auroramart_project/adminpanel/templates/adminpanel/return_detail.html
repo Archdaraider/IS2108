@@ -1,0 +1,249 @@
+{% extends 'adminpanel/base.html' %}
+{% load static %}
+
+{% block title %}Return Request #{{ return_request.id }} - Admin Panel{% endblock %}
+
+{% block extra_css %}
+<style>
+    .return-detail-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    .return-header {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .return-status-badge {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 1rem;
+    }
+    .return-section {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .section-title {
+        font-weight: 600;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e9ecef;
+    }
+    .info-row {
+        display: flex;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #f8f9fa;
+    }
+    .info-label {
+        font-weight: 600;
+        color: #6c757d;
+        width: 180px;
+    }
+    .info-value {
+        flex: 1;
+        color: #495057;
+    }
+    .item-card {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        display: flex;
+        gap: 1rem;
+    }
+    .item-image {
+        width: 100px;
+        height: 100px;
+        object-fit: cover;
+        border-radius: 4px;
+    }
+    .item-details {
+        flex: 1;
+    }
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+    .return-image {
+        width: 150px;
+        height: 150px;
+        object-fit: cover;
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
+        margin-top: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="return-detail-container">
+    <!-- Header -->
+    <div class="return-header">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h2 style="margin: 0 0 0.5rem 0;">Return Request #{{ return_request.id }}</h2>
+                <div>
+                    {% if return_request.status == 'pending' %}
+                        <span class="return-status-badge badge-warning">Pending Review</span>
+                    {% elif return_request.status == 'approved' %}
+                        <span class="return-status-badge badge-info">Approved</span>
+                    {% elif return_request.status == 'rejected' %}
+                        <span class="return-status-badge badge-danger">Rejected</span>
+                    {% elif return_request.status == 'processed' %}
+                        <span class="return-status-badge badge-success">Processed & Refunded</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+                <a href="{% url 'adminpanel:return_list' %}" class="btn btn-outline">
+                    <i class="fas fa-arrow-left"></i> Back to List
+                </a>
+                <form method="post" action="{% url 'adminpanel:return_delete' return_request.pk %}" 
+                      style="display: inline;"
+                      onsubmit="return confirm('Are you sure you want to delete this return request? This action cannot be undone.');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Request Information -->
+    <div class="return-section">
+        <h3 class="section-title">Request Information</h3>
+        <div class="info-row">
+            <div class="info-label">Order ID:</div>
+            <div class="info-value">
+                <a href="{% url 'adminpanel:order_detail' return_request.order.pk %}">{{ return_request.order.oID }}</a>
+            </div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Customer:</div>
+            <div class="info-value">{{ return_request.user.username }} ({{ return_request.user.email }})</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Return Type:</div>
+            <div class="info-value">{{ return_request.get_return_type_display }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Reason:</div>
+            <div class="info-value">{{ return_request.get_refund_reason_display }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Refund Method:</div>
+            <div class="info-value">{{ return_request.get_refund_method_display }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Created:</div>
+            <div class="info-value">{{ return_request.created_at|date:"F d, Y \a\t g:i A" }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Last Updated:</div>
+            <div class="info-value">{{ return_request.updated_at|date:"F d, Y \a\t g:i A" }}</div>
+        </div>
+        {% if return_request.additional_comments %}
+        <div class="info-row">
+            <div class="info-label">Comments:</div>
+            <div class="info-value">{{ return_request.additional_comments }}</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Returned Items -->
+    <div class="return-section">
+        <h3 class="section-title">Returned Items</h3>
+        {% for item in return_request.items.all %}
+        <div class="item-card">
+            {% if item.order_item.product.image %}
+            <img src="{{ item.order_item.product.image.url }}" alt="{{ item.order_item.product.name }}" class="item-image">
+            {% else %}
+            <div class="item-image" style="background: #f8f9fa; display: flex; align-items: center; justify-content: center;">
+                <i class="fas fa-image" style="font-size: 2rem; color: #dee2e6;"></i>
+            </div>
+            {% endif %}
+            <div class="item-details">
+                <h4 style="margin: 0 0 0.5rem 0;">{{ item.order_item.product.name }}</h4>
+                <p style="margin: 0.25rem 0; color: #6c757d;">SKU: {{ item.order_item.product.sku }}</p>
+                <p style="margin: 0.25rem 0;"><strong>Quantity:</strong> {{ item.quantity }}</p>
+                <p style="margin: 0.25rem 0;"><strong>Unit Price:</strong> ${{ item.order_item.unit_price }}</p>
+                <p style="margin: 0.25rem 0;"><strong>Subtotal:</strong> ${% widthratio item.order_item.unit_price 1 item.quantity %}</p>
+                
+                {% if item.image %}
+                <div>
+                    <strong>Customer Photo:</strong>
+                    <br>
+                    <img src="{{ item.image.url }}" alt="Return item" class="return-image">
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+        
+        <div style="text-align: right; padding-top: 1rem; border-top: 2px solid #dee2e6;">
+            <strong style="font-size: 1.2rem;">Total Refund Amount: ${{ return_request.order.total_amount }}</strong>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    {% if return_request.status == 'pending' %}
+    <div class="return-section">
+        <h3 class="section-title">Actions</h3>
+        <div class="action-buttons">
+            <form method="post" action="{% url 'adminpanel:return_approve' return_request.pk %}" style="flex: 1;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success" style="width: 100%;">
+                    <i class="fas fa-check-circle"></i> Approve Return Request
+                </button>
+            </form>
+            <form method="post" action="{% url 'adminpanel:return_reject' return_request.pk %}" 
+                  onsubmit="return confirm('Are you sure you want to reject this return request?');"
+                  style="flex: 1;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger" style="width: 100%;">
+                    <i class="fas fa-times-circle"></i> Reject Return Request
+                </button>
+            </form>
+        </div>
+        <p style="margin-top: 1rem; color: #6c757d; font-size: 0.9rem;">
+            <i class="fas fa-info-circle"></i> Approving will allow you to process the refund. Rejecting will close the request.
+        </p>
+    </div>
+    {% elif return_request.status == 'approved' %}
+    <div class="return-section">
+        <h3 class="section-title">Process Refund</h3>
+        <form method="post" action="{% url 'adminpanel:return_process' return_request.pk %}" 
+              onsubmit="return confirm('This will:\n1. Mark the return as processed\n2. Cancel the order\n3. Restore product stock\n\nAre you sure?');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary btn-lg" style="width: 100%;">
+                <i class="fas fa-check-double"></i> Process Refund & Restore Stock
+            </button>
+        </form>
+        <p style="margin-top: 1rem; color: #6c757d; font-size: 0.9rem;">
+            <i class="fas fa-info-circle"></i> This will update the order status to "Cancelled" and add the returned items back to inventory.
+        </p>
+    </div>
+    {% elif return_request.status == 'rejected' %}
+    <div class="return-section">
+        <div class="alert alert-danger">
+            <i class="fas fa-ban"></i> This return request has been rejected.
+        </div>
+    </div>
+    {% elif return_request.status == 'processed' %}
+    <div class="return-section">
+        <div class="alert alert-success">
+            <i class="fas fa-check-circle"></i> This return has been processed and the refund has been completed.
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

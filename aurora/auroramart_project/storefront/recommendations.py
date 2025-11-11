@@ -16,9 +16,21 @@ def load_association_rules():
     if _rules_cache is not None:
         return _rules_cache
     
-    # Try to find the joblib file
+    # Load model from adminpanel/mlmodels/ folder as per user specification
+    from django.apps import apps
+    app_path = apps.get_app_config('adminpanel').path
+    
+    # Build paths relative to project structure
+    # BASE_DIR is auroramart_project/auroramart_project/
+    # So BASE_DIR.parent.parent is IS2108/ (project root)
+    project_root = settings.BASE_DIR.parent.parent
+    
     model_paths = [
-        os.path.join(settings.BASE_DIR.parent.parent.parent, 'models', 'b2c_products_500_transactions_50k.joblib'),
+        # Primary location: adminpanel/mlmodels/ (as specified by user)
+        os.path.join(app_path, 'mlmodels', 'b2c_products_500_transactions_50k.joblib'),
+        # Fallback: models/ directory (where notebooks save the files)
+        os.path.join(project_root, 'models', 'b2c_products_500_transactions_50k.joblib'),
+        # Additional fallback: project models directory
         os.path.join(settings.BASE_DIR, 'models', 'b2c_products_500_transactions_50k.joblib'),
     ]
     
@@ -26,12 +38,15 @@ def load_association_rules():
         if os.path.exists(path):
             try:
                 _rules_cache = joblib.load(path)
+                print(f"Successfully loaded association rules from: {path}")
                 return _rules_cache
             except Exception as e:
-                print(f"Error loading association rules: {e}")
+                print(f"Error loading association rules from {path}: {e}")
                 continue
     
     # Return empty DataFrame structure if file not found
+    print("WARNING: Association rules model file not found. Using fallback category-based recommendations.")
+    print("To enable ML-based recommendations, run the association_rules_mining.ipynb notebook and save the model.")
     import pandas as pd
     return pd.DataFrame(columns=['antecedents', 'consequents', 'confidence', 'lift'])
 

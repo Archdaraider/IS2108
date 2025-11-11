@@ -3,6 +3,53 @@
 
 {% block title %}Complete the Set - AuroraMart{% endblock %}
 
+{% block category_sidebar %}
+{% if navigation_categories %}
+<aside class="category-browser-sidebar">
+    <div class="category-browser-header">
+        <a href="{% url 'homepage' %}" style="text-decoration: none; color: inherit;">
+            <h3 style="font-size: 1.125rem; font-weight: 600; color: #1d1d1f; margin: 0; padding: 1rem 1.5rem; border-bottom: 1px solid #e8e8ea;">AuroraMart</h3>
+        </a>
+    </div>
+    <nav class="category-browser-nav">
+        <a href="{% url 'product_list' %}" class="category-browser-item">
+            <span>All Products</span>
+        </a>
+        {% for item in navigation_categories %}
+        <div class="category-browser-item-wrapper" data-category-id="category-{{ forloop.counter }}">
+            <a href="{% url 'category_products' item.category.slug %}" class="category-browser-item {% if item.subcategories %}has-subcategories{% endif %}">
+                <span>{{ item.category.name }}</span>
+                {% if item.subcategories %}
+                <i class="fas fa-chevron-right category-arrow"></i>
+                {% endif %}
+            </a>
+        </div>
+        {% endfor %}
+    </nav>
+</aside>
+
+<!-- Subcategory Panels - Rendered OUTSIDE the scrollable area -->
+<div class="category-subcategory-panels-container">
+    {% for item in navigation_categories %}
+    {% if item.subcategories %}
+    <div class="category-subcategory-panel" data-category-id="category-{{ forloop.counter }}">
+        <div class="subcategory-panel-header">
+            <h4>{{ item.category.name }}</h4>
+        </div>
+        <div class="subcategory-panel-content">
+            {% for subcategory in item.subcategories %}
+            <a href="{% url 'subcategory_products' item.category.slug subcategory.slug %}" class="subcategory-link">
+                {{ subcategory.name }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+
 {% block content %}
 <div class="container" style="padding: 2rem 20px;">
     <!-- Breadcrumbs -->
@@ -18,7 +65,7 @@
     <div class="page-header" style="margin-bottom: 2rem;">
         <div class="page-title">
             <h1 style="font-size: 2rem; font-weight: 600; color: #1d1d1f; margin: 0;">Complete the Set</h1>
-            <p style="color: #6e6e73; font-size: 1rem; margin-top: 0.5rem;">Customers browsing this category also loved.</p>
+            <p style="color: #6e6e73; font-size: 1rem; margin-top: 0.5rem;">Based on the items in your cart, we think you'll love these too.</p>
         </div>
     </div>
 

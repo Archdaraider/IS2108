@@ -344,6 +344,7 @@ body {
 .nav-subcategory-dropdown {
     position: absolute;
     top: calc(100% + 0.5rem);
+    bottom: auto;
     left: 0;
     background: white;
     border: 1px solid #e8e8ea;
@@ -362,6 +363,19 @@ body {
     display: block;
     overflow: visible;
     margin: 0;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* Make dropdown appear upward for last 3 categories to prevent going below screen */
+.nav-category-dropdown:nth-last-child(-n+3) .nav-subcategory-dropdown {
+    top: auto;
+    bottom: calc(100% + 0.5rem);
+    transform: translateY(10px);
+}
+
+.nav-category-dropdown:nth-last-child(-n+3):hover .nav-subcategory-dropdown {
+    transform: translateY(0);
 }
 
 .nav-category-dropdown:hover .nav-subcategory-dropdown {

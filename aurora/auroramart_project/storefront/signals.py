@@ -24,7 +24,7 @@ def create_customer_profile(sender, instance, created, **kwargs):
                 age=18,  # Placeholder, will be updated in profile_onboarding
                 gender='Male',  # Placeholder
                 employment_status='Student',  # Placeholder
-                occupation='Not specified',  # Placeholder
+                occupation='Sales',  # Placeholder - using valid choice from OCCUPATION_CHOICES
                 education='High School',  # Placeholder
                 household_size=1,  # Placeholder
                 has_children=False,  # Placeholder

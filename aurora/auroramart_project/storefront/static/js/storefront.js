@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initDateInputRestrictions();
     initPasswordToggle();
     initCategorySubcategoryPanels();
+    initNavigationDropdownPositioning();
 });
 
 // Prevent buttons from triggering link navigation
@@ -735,6 +736,71 @@ function initCategorySubcategoryPanels() {
     }
     
     console.log('Category subcategory panels initialized');
+}
+
+// Fix navigation dropdown positioning for bottom categories
+function initNavigationDropdownPositioning() {
+    const categoryDropdowns = document.querySelectorAll('.nav-category-dropdown');
+    
+    categoryDropdowns.forEach(dropdown => {
+        const subcategoryMenu = dropdown.querySelector('.nav-subcategory-dropdown');
+        if (!subcategoryMenu) return;
+        
+        // Check position on hover
+        dropdown.addEventListener('mouseenter', function() {
+            const rect = dropdown.getBoundingClientRect();
+            const menuHeight = subcategoryMenu.offsetHeight || 400; // Default max height
+            const spaceBelow = window.innerHeight - rect.bottom;
+            const spaceAbove = rect.top;
+            
+            // If not enough space below but enough space above, position upward
+            if (spaceBelow < menuHeight && spaceAbove > menuHeight) {
+                subcategoryMenu.style.top = 'auto';
+                subcategoryMenu.style.bottom = 'calc(100% + 0.5rem)';
+                subcategoryMenu.style.transform = 'translateY(10px)';
+            } else {
+                // Reset to default downward position
+                subcategoryMenu.style.top = 'calc(100% + 0.5rem)';
+                subcategoryMenu.style.bottom = 'auto';
+                subcategoryMenu.style.transform = 'translateY(-10px)';
+            }
+            
+            // Reset transform when menu becomes visible (after CSS transition)
+            setTimeout(() => {
+                if (window.getComputedStyle(subcategoryMenu).visibility === 'visible') {
+                    subcategoryMenu.style.transform = 'translateY(0)';
+                }
+            }, 50);
+        });
+    });
+    
+    // Also check on window resize
+    let resizeTimeout;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            categoryDropdowns.forEach(dropdown => {
+                const subcategoryMenu = dropdown.querySelector('.nav-subcategory-dropdown');
+                if (!subcategoryMenu) return;
+                
+                // Only adjust if currently visible
+                if (window.getComputedStyle(subcategoryMenu).visibility === 'visible') {
+                    const rect = dropdown.getBoundingClientRect();
+                    const menuHeight = subcategoryMenu.offsetHeight || 400;
+                    const spaceBelow = window.innerHeight - rect.bottom;
+                    const spaceAbove = rect.top;
+                    
+                    if (spaceBelow < menuHeight && spaceAbove > menuHeight) {
+                        subcategoryMenu.style.top = 'auto';
+                        subcategoryMenu.style.bottom = 'calc(100% + 0.5rem)';
+                    } else {
+                        subcategoryMenu.style.top = 'calc(100% + 0.5rem)';
+                        subcategoryMenu.style.bottom = 'auto';
+                    }
+                }
+            });
+        }, 100);
+    });
 }
 
 // Restrict date input fields to maximum digits

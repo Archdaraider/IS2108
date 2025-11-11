@@ -122,11 +122,21 @@
     <div class="container">
         <div class="section-header">
             <h2>Recommended For You</h2>
-            <a href="{% url 'product_list' %}" class="section-link">View All <i class="fas fa-arrow-right"></i></a>
+            {% if recommended_category_slug %}
+                <a href="{% url 'category_products' recommended_category_slug %}" class="section-link">View All <i class="fas fa-arrow-right"></i></a>
+            {% else %}
+                <a href="{% url 'product_list' %}" class="section-link">View All <i class="fas fa-arrow-right"></i></a>
+            {% endif %}
         </div>
         
+        {% if recommendation_reason %}
+        <p style="color: #6e6e73; font-size: 0.9375rem; margin-bottom: 1.5rem; font-style: italic;">
+            {{ recommendation_reason }}
+        </p>
+        {% endif %}
+        
         <div class="product-grid">
-            {% for product in featured_products %}
+            {% for product in recommended_for_you %}
             <div class="product-card">
                 <a href="{% url 'product_detail' product.id %}" class="product-card-link">
                 <div class="product-image">
@@ -235,7 +245,7 @@
     <div class="container">
         <div class="section-header">
             <h2>AuroraMart's best sellers</h2>
-            <a href="{% url 'product_list' %}?sort=rating" class="section-link">View All <i class="fas fa-arrow-right"></i></a>
+            <a href="{% url 'product_list' %}?sort=bestsellers" class="section-link">View All <i class="fas fa-arrow-right"></i></a>
         </div>
         
         <div class="product-grid">

@@ -16,6 +16,7 @@ import json
 from adminpanel.models import Product, Customer, Order, OrderItem
 from .models import Cart, CartItem, Wishlist, WishlistItem, ProductReview, Category, SubCategory, Banner, NewsletterSubscription, SavedAddress, SavedPaymentMethod, DeliveryServiceReview, ReturnRequest, ReturnRequestItem
 from .recommendations import get_recommendations, get_category_recommendations
+from .ml_helpers import predict_preferred_category, map_category_to_slug
 from .forms import CustomerProfileForm, CheckoutForm, AddressForm, PaymentMethodForm, UserProfileForm, ReturnRequestForm, ReturnItemForm, ReturnRequestSubmissionForm
 from .cart_helpers import get_or_create_cart, add_product_to_cart, update_cart_item_quantity
 from .business_logic import (
@@ -1599,6 +1600,36 @@ def profile_onboarding(request):
                 }
                 return render(request, 'storefront/profile_onboarding.html', context)
             
+            # --- ML MODEL PREDICTION: Decision Tree Classification for Cold-Start Personalization ---
+            # Predict preferred category using Decision Tree model
+            predicted_category = predict_preferred_category(
+                age=age,
+                gender=data['gender'],
+                employment_status=data['employment_status'],
+                occupation=data['occupation'],
+                education=data['education'],
+                household_size=data['household_size'],
+                has_children=data['has_children'],
+                monthly_income_sgd=data['monthly_income_sgd']
+            )
+            
+            # Map predicted category to a valid category choice (fallback to Electronics if prediction fails)
+            if predicted_category:
+                # Map ML model category to Customer model category choices
+                # ML model predicts from PRODUCT_CATEGORY_CHOICES, Customer uses CATEGORY_CHOICES
+                category_mapping = {
+                    'Fashion - Women': 'Apparel',
+                    'Fashion - Men': 'Apparel',
+                    'Beauty & Personal Care': 'Apparel',  # Closest match
+                    'Electronics': 'Electronics',
+                    'Home & Kitchen': 'Home & Kitchen',
+                    'Groceries & Gourmet': 'Groceries',
+                    'Books': 'Books',
+                }
+                preferred_category = category_mapping.get(predicted_category, 'Electronics')
+            else:
+                preferred_category = 'Electronics'  # Default fallback
+            
             # Create or update customer record
             if customer:
                 # Update existing customer
@@ -1613,7 +1644,7 @@ def profile_onboarding(request):
                 customer.household_size = data['household_size']
                 customer.has_children = data['has_children']
                 customer.monthly_income_sgd = data['monthly_income_sgd']
-                # NOTE: preferred_category is auto-predicted by ML model in admin panel
+                customer.preferred_category = preferred_category  # Set ML-predicted category
                 customer.save()
             else:
                 # Create new customer record using get_or_create to avoid duplicate email errors
@@ -1630,7 +1661,7 @@ def profile_onboarding(request):
                         'household_size': data['household_size'],
                         'has_children': data['has_children'],
                         'monthly_income_sgd': data['monthly_income_sgd'],
-                        'preferred_category': 'Electronics',  # Default placeholder, will be ML-predicted by admin
+                        'preferred_category': preferred_category,  # ML-predicted category
                     }
                 )
                 # If customer already existed, update it
@@ -1645,17 +1676,27 @@ def profile_onboarding(request):
                     customer.household_size = data['household_size']
                     customer.has_children = data['has_children']
                     customer.monthly_income_sgd = data['monthly_income_sgd']
-                    # NOTE: preferred_category is NOT updated here - it's ML-predicted in admin panel
+                    customer.preferred_category = preferred_category  # Set ML-predicted category
                     customer.save()
             
             messages.success(request, 'Profile completed successfully!')
             # Clear the checkout profile message flag since profile is now complete
             request.session.pop('checkout_profile_message_shown', None)
-            # Redirect back to checkout if they came from checkout, otherwise go to homepage
-            # Remove show_onboarding parameter if present
+            
+            # --- COLD-START PERSONALIZATION: Redirect to predicted category page ---
+            # Map predicted category to Category slug and redirect user to curated category page
+            category_slug = map_category_to_slug(predicted_category)
+            
+            # Redirect back to checkout if they came from checkout
             next_url = request.GET.get('next') or request.POST.get('next')
             if next_url and 'checkout' in next_url:
                 return redirect('checkout')
+            
+            # Redirect to predicted category page for cold-start personalization
+            if category_slug:
+                return redirect('category_products', category_slug=category_slug)
+            
+            # Fallback to homepage if category mapping fails
             return redirect('homepage')
         else:
             messages.error(request, 'Please fix the errors below and submit again.')

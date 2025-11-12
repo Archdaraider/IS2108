@@ -54,6 +54,10 @@ def get_recommendations(product_skus, top_n=5):
     """
     Get product recommendations based on association rules.
     
+    This function handles multiple products intelligently:
+    1. First, tries to find rules where multiple products appear together in antecedents (more specific)
+    2. Then, falls back to individual product matching (broader recommendations)
+    
     Args:
         product_skus: List of product SKUs or single SKU
         top_n: Number of recommendations to return
@@ -78,44 +82,135 @@ def get_recommendations(product_skus, top_n=5):
             pass
         return Product.objects.exclude(sku__in=product_skus).order_by('-rating')[:top_n]
     
+    product_skus_set = set(product_skus)
     recommendations = set()
+    recommendation_scores = {}  # Track confidence scores for ranking
     
-    for sku in product_skus:
-        # Find rules where this SKU is in antecedents
+    # Strategy 1: Find rules where multiple cart items appear together in antecedents
+    # This is more specific and typically has higher confidence
+    if len(product_skus) > 1:
         try:
-            matched_rules = rules[rules['antecedents'].apply(lambda x: sku in x if hasattr(x, '__iter__') else False)]
-            if not matched_rules.empty:
-                # Sort by confidence and lift
-                top_rules = matched_rules.sort_values(by=['confidence', 'lift'], ascending=False).head(top_n)
+            # Find rules where ALL cart items are in antecedents (exact match)
+            def all_items_in_antecedents(antecedents):
+                if not hasattr(antecedents, '__iter__'):
+                    return False
+                antecedents_set = set(antecedents) if isinstance(antecedents, (set, list, tuple)) else {antecedents}
+                return product_skus_set.issubset(antecedents_set)
+            
+            exact_match_rules = rules[rules['antecedents'].apply(all_items_in_antecedents)]
+            if not exact_match_rules.empty:
+                # Sort by confidence and lift (highest first)
+                top_rules = exact_match_rules.sort_values(by=['confidence', 'lift'], ascending=False).head(top_n * 2)
                 for _, row in top_rules.iterrows():
                     consequents = row['consequents']
+                    confidence = row.get('confidence', 0)
+                    lift = row.get('lift', 0)
+                    score = confidence * lift  # Combined score
+                    
                     if hasattr(consequents, '__iter__'):
-                        recommendations.update(consequents)
+                        for consequent in consequents:
+                            if consequent not in product_skus_set:
+                                recommendations.add(consequent)
+                                # Track best score for each recommendation
+                                if consequent not in recommendation_scores or score > recommendation_scores[consequent]:
+                                    recommendation_scores[consequent] = score
                     else:
-                        recommendations.add(consequents)
+                        if consequents not in product_skus_set:
+                            recommendations.add(consequents)
+                            if consequents not in recommendation_scores or score > recommendation_scores[consequents]:
+                                recommendation_scores[consequents] = score
+            
+            # Strategy 1b: Find rules where a subset of cart items appear together
+            # (e.g., if cart has [A, B, C], find rules with [A, B] or [B, C] in antecedents)
+            if len(recommendations) < top_n:
+                def subset_match(antecedents):
+                    if not hasattr(antecedents, '__iter__'):
+                        return False
+                    antecedents_set = set(antecedents) if isinstance(antecedents, (set, list, tuple)) else {antecedents}
+                    # Check if antecedents is a subset of cart items (rule applies to cart)
+                    return antecedents_set.issubset(product_skus_set) and len(antecedents_set) > 1
+                
+                subset_match_rules = rules[rules['antecedents'].apply(subset_match)]
+                if not subset_match_rules.empty:
+                    top_rules = subset_match_rules.sort_values(by=['confidence', 'lift'], ascending=False).head(top_n * 2)
+                    for _, row in top_rules.iterrows():
+                        consequents = row['consequents']
+                        confidence = row.get('confidence', 0)
+                        lift = row.get('lift', 0)
+                        score = confidence * lift
+                        
+                        if hasattr(consequents, '__iter__'):
+                            for consequent in consequents:
+                                if consequent not in product_skus_set:
+                                    recommendations.add(consequent)
+                                    if consequent not in recommendation_scores or score > recommendation_scores[consequent]:
+                                        recommendation_scores[consequent] = score
+                        else:
+                            if consequents not in product_skus_set:
+                                recommendations.add(consequents)
+                                if consequents not in recommendation_scores or score > recommendation_scores[consequents]:
+                                    recommendation_scores[consequents] = score
         except Exception as e:
-            print(f"Error processing SKU {sku}: {e}")
-            continue
+            print(f"Error processing multi-item rules: {e}")
+    
+    # Strategy 2: Find rules for individual items (fallback - broader recommendations)
+    # This is the original approach, now used as fallback
+    if len(recommendations) < top_n:
+        for sku in product_skus:
+            try:
+                # Find rules where this SKU is in antecedents
+                matched_rules = rules[rules['antecedents'].apply(lambda x: sku in x if hasattr(x, '__iter__') else False)]
+                if not matched_rules.empty:
+                    # Sort by confidence and lift
+                    top_rules = matched_rules.sort_values(by=['confidence', 'lift'], ascending=False).head(top_n)
+                    for _, row in top_rules.iterrows():
+                        consequents = row['consequents']
+                        confidence = row.get('confidence', 0)
+                        lift = row.get('lift', 0)
+                        score = confidence * lift
+                        
+                        if hasattr(consequents, '__iter__'):
+                            for consequent in consequents:
+                                if consequent not in product_skus_set:
+                                    recommendations.add(consequent)
+                                    # Only update score if not already set (multi-item rules take priority)
+                                    if consequent not in recommendation_scores:
+                                        recommendation_scores[consequent] = score
+                        else:
+                            if consequents not in product_skus_set:
+                                recommendations.add(consequents)
+                                if consequents not in recommendation_scores:
+                                    recommendation_scores[consequents] = score
+            except Exception as e:
+                print(f"Error processing SKU {sku}: {e}")
+                continue
     
     # Remove items that are already in the input list
-    recommendations.difference_update(set(product_skus))
+    recommendations.difference_update(product_skus_set)
+    
+    # Sort recommendations by score (highest first), then convert to list
+    sorted_recommendations = sorted(recommendations, key=lambda x: recommendation_scores.get(x, 0), reverse=True)[:top_n]
     
     # Convert SKUs to Product objects
-    recommended_products = Product.objects.filter(sku__in=list(recommendations)[:top_n])
+    recommended_products = Product.objects.filter(sku__in=sorted_recommendations)
+    
+    # Maintain order based on scores
+    product_dict = {p.sku: p for p in recommended_products}
+    ordered_products = [product_dict[sku] for sku in sorted_recommendations if sku in product_dict]
     
     # If we don't have enough recommendations, fill with similar products
-    if recommended_products.count() < top_n:
+    if len(ordered_products) < top_n:
         try:
             first_product = Product.objects.filter(sku=product_skus[0]).first()
             if first_product:
                 similar = Product.objects.filter(
                     category=first_product.category
-                ).exclude(sku__in=product_skus).exclude(id__in=recommended_products.values_list('id', flat=True)).order_by('-rating')[:top_n - recommended_products.count()]
-                recommended_products = list(recommended_products) + list(similar)
+                ).exclude(sku__in=product_skus).exclude(id__in=[p.id for p in ordered_products]).order_by('-rating')[:top_n - len(ordered_products)]
+                ordered_products = list(ordered_products) + list(similar)
         except:
             pass
     
-    return recommended_products[:top_n]
+    return ordered_products[:top_n]
 
 def get_category_recommendations(category_name, exclude_skus=None, top_n=8):
     """

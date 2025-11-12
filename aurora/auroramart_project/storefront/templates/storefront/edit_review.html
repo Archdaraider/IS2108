@@ -1,0 +1,190 @@
+{% extends 'storefront/base.html' %}
+{% load static %}
+
+{% block title %}Edit Review - {{ product.name }} - AuroraMart{% endblock %}
+
+{% block content %}
+<div class="container" style="padding: 2rem 20px; max-width: 800px;">
+    <!-- Breadcrumbs -->
+    <nav class="breadcrumbs">
+        <a href="{% url 'homepage' %}">Home</a>
+        <span class="breadcrumb-separator">></span>
+        <a href="{% url 'account_reviews' %}">My Reviews</a>
+        <span class="breadcrumb-separator">></span>
+        <span class="breadcrumb-current">Edit Review</span>
+    </nav>
+
+    <!-- Page Header -->
+    <div style="margin-bottom: 2rem;">
+        <h1 style="font-size: 2rem; font-weight: 600; color: #1d1d1f; margin: 0 0 1rem 0;">Edit Review</h1>
+        <p style="color: #6e6e73; font-size: 1rem;">Update your review for this product</p>
+    </div>
+
+    <!-- Product Info -->
+    <div style="background: white; border: 1px solid #e8e8ea; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem;">
+        <div style="display: flex; gap: 1.5rem;">
+            <div style="width: 120px; height: 120px; border-radius: 8px; overflow: hidden; background: #f5f5f7; flex-shrink: 0;">
+                {% if product.image %}
+                    <img src="{{ product.image.url }}" alt="{{ product.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                {% else %}
+                    <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-image" style="color: #d2d2d7; font-size: 2rem;"></i>
+                    </div>
+                {% endif %}
+            </div>
+            <div style="flex: 1;">
+                <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; color: #1d1d1f;">
+                    <a href="{% url 'product_detail' product.id %}" style="text-decoration: none; color: inherit;">{{ product.name }}</a>
+                </h2>
+                <div style="color: #6e6e73; font-size: 0.875rem; margin-bottom: 0.5rem;">
+                    {{ product.category }} {{ product.subcategory }}
+                </div>
+                <div style="font-size: 1.1rem; font-weight: 600; color: #1d1d1f;">
+                    ${{ product.price|floatformat:2 }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Review Images -->
+    {% if review.images.all %}
+    <div style="background: white; border: 1px solid #e8e8ea; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem;">
+        <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: #1d1d1f;">Current Photos</h3>
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            {% for image in review.images.all %}
+            <div style="position: relative;">
+                <img src="{{ image.image.url }}" alt="Review image" style="max-width: 150px; max-height: 150px; border-radius: 6px; object-fit: cover; border: 1px solid #e8e8ea;">
+            </div>
+            {% endfor %}
+        </div>
+        <p style="color: #6e6e73; font-size: 0.875rem; margin-top: 1rem;">Uploading a new photo will replace all existing photos.</p>
+    </div>
+    {% endif %}
+
+    <!-- Edit Review Form -->
+    <div style="background: white; border: 1px solid #e8e8ea; border-radius: 8px; padding: 2rem; margin-bottom: 2rem;">
+        <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1.5rem; color: #1d1d1f;">Edit Your Review</h2>
+        <form method="post" enctype="multipart/form-data" id="edit-review-form">
+            {% csrf_token %}
+            
+            <!-- Rating -->
+            <div class="form-group" style="margin-bottom: 2rem;">
+                <label style="display: block; font-weight: 600; margin-bottom: 1rem; color: #1d1d1f;">Rating</label>
+                <div class="star-rating" style="display: flex; gap: 0.25rem; align-items: center;">
+                    {% for i in "12345" %}
+                        <label for="rating_{{ forloop.counter }}" class="star-label" data-rating="{{ forloop.counter }}" style="font-size: 2rem; color: {% if forloop.counter <= form.rating.value|default:review.rating %}#ffc107{% else %}#d2d2d7{% endif %}; cursor: pointer; transition: color 0.2s; margin: 0; padding: 0.25rem; display: inline-block;">
+                            <i class="fas fa-star"></i>
+                        </label>
+                    {% endfor %}
+                </div>
+                <input type="hidden" name="rating" id="rating_hidden" value="{{ form.rating.value|default:review.rating }}" required>
+                {% if form.rating.errors %}
+                    <div style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                        {{ form.rating.errors }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Title -->
+            <div class="form-group" style="margin-bottom: 2rem;">
+                <label for="{{ form.title.id_for_label }}" style="display: block; font-weight: 600; margin-bottom: 0.5rem; color: #1d1d1f;">{{ form.title.label }}</label>
+                {{ form.title }}
+                {% if form.title.errors %}
+                    <div style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                        {{ form.title.errors }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Comment -->
+            <div class="form-group" style="margin-bottom: 2rem;">
+                <label for="{{ form.comment.id_for_label }}" style="display: block; font-weight: 600; margin-bottom: 0.5rem; color: #1d1d1f;">{{ form.comment.label }}</label>
+                {{ form.comment }}
+                {% if form.comment.errors %}
+                    <div style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                        {{ form.comment.errors }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Image Upload -->
+            <div class="form-group" style="margin-bottom: 2rem;">
+                <label for="{{ form.image.id_for_label }}" style="display: block; font-weight: 600; margin-bottom: 0.5rem; color: #1d1d1f;">{{ form.image.label }}</label>
+                {{ form.image }}
+                {% if form.image.help_text %}
+                    <small style="display: block; color: #6e6e73; font-size: 0.875rem; margin-top: 0.5rem;">{{ form.image.help_text }}</small>
+                {% endif %}
+                {% if form.image.errors %}
+                    <div style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                        {{ form.image.errors }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Anonymous -->
+            <div class="form-group" style="margin-bottom: 2rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    {{ form.is_anonymous }}
+                    <label for="{{ form.is_anonymous.id_for_label }}" style="margin: 0; font-weight: 500; color: #1d1d1f;">{{ form.is_anonymous.label }}</label>
+                </div>
+                {% if form.is_anonymous.errors %}
+                    <div style="color: #dc3545; font-size: 0.875rem; margin-top: 0.5rem;">
+                        {{ form.is_anonymous.errors }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Submit Buttons -->
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <a href="{% url 'account_reviews' %}" class="btn" style="background: #6c757d; color: white; padding: 0.75rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: 500;">
+                    Cancel
+                </a>
+                <button type="submit" class="btn btn-primary" style="background: #007bff; color: white; padding: 0.75rem 1.5rem; border-radius: 6px; border: none; font-weight: 500; cursor: pointer;">
+                    Update Review
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const starLabels = document.querySelectorAll('.star-label');
+    const ratingHidden = document.getElementById('rating_hidden');
+    
+    // Initialize stars based on current rating
+    const currentRating = parseInt(ratingHidden.value) || 0;
+    updateStars(currentRating);
+    
+    starLabels.forEach((label, index) => {
+        label.addEventListener('click', function() {
+            const rating = parseInt(this.getAttribute('data-rating'));
+            ratingHidden.value = rating;
+            updateStars(rating);
+        });
+        
+        label.addEventListener('mouseenter', function() {
+            const rating = parseInt(this.getAttribute('data-rating'));
+            updateStars(rating);
+        });
+    });
+    
+    document.querySelector('.star-rating').addEventListener('mouseleave', function() {
+        const currentRating = parseInt(ratingHidden.value) || 0;
+        updateStars(currentRating);
+    });
+    
+    function updateStars(rating) {
+        starLabels.forEach((label, index) => {
+            const starRating = index + 1;
+            if (starRating <= rating) {
+                label.style.color = '#ffc107';
+            } else {
+                label.style.color = '#d2d2d7';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
+

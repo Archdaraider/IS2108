@@ -5,8 +5,10 @@ from . import views
 urlpatterns = [
     # Main storefront pages
     path('', views.homepage, name='homepage'),
+    path('faq/', views.faq, name='faq'),
     path('products/', views.product_list, name='product_list'),
     path('products/<int:product_id>/', views.product_detail, name='product_detail'),
+    path('products/<int:product_id>/frequently-bought-together/', views.frequently_bought_together, name='frequently_bought_together'),
     path('cart/', views.shopping_cart, name='shopping_cart'),
     path('checkout/', views.checkout, name='checkout'),
     path('wishlist/', views.wishlist, name='wishlist'),
@@ -17,6 +19,7 @@ urlpatterns = [
     
     # Category pages
     path('category/<slug:category_slug>/', views.product_list, name='category_products'),
+    path('category/<slug:category_slug>/next-best-action/', views.next_best_action, name='next_best_action'),
     path('category/<slug:category_slug>/<slug:subcategory_slug>/', views.product_list, name='subcategory_products'),
     
     # Authentication
@@ -64,6 +67,8 @@ urlpatterns = [
     path('account/payment-methods/<int:payment_id>/edit/', views.account_payment_edit, name='account_payment_edit'),
     path('account/payment-methods/<int:payment_id>/delete/', views.account_payment_delete, name='account_payment_delete'),
     path('account/reviews/', views.account_reviews, name='account_reviews'),
+    path('account/reviews/<int:review_id>/edit/', views.edit_review, name='edit_review'),
+    path('account/reviews/<int:review_id>/delete/', views.delete_review, name='delete_review'),
     path('account/returns/', views.account_returns, name='account_returns'),
     path('account/cancellations/', views.account_cancellations, name='account_cancellations'),
     

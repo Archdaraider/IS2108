@@ -1,0 +1,85 @@
+{% extends 'storefront/base.html' %}
+{% load static %}
+
+{% block title %}Frequently Asked Questions - AuroraMart{% endblock %}
+
+{% block content %}
+<div class="container" style="padding: 2rem 20px; max-width: 1000px;">
+    <!-- Page Header -->
+    <div style="text-align: center; margin-bottom: 3rem;">
+        <h1 style="font-size: 2.5rem; font-weight: 600; color: #1d1d1f; margin-bottom: 1rem;">Frequently Asked Questions</h1>
+        <p style="color: #6e6e73; font-size: 1.125rem;">Find answers to common questions about shopping with AuroraMart</p>
+    </div>
+
+    <!-- FAQ Categories -->
+    {% for category in faq_categories %}
+    <div class="faq-category" style="margin-bottom: 3rem;" id="{% if category.title == 'Customer Service' %}customer-service{% elif category.title == 'Account & Profile' %}privacy-policy{% else %}{{ category.title|lower|slugify }}{% endif %}">
+        <h2 style="font-size: 1.5rem; font-weight: 600; color: #1d1d1f; margin-bottom: 1.5rem; padding-bottom: 0.75rem; border-bottom: 2px solid #e8e8ea;">
+            {{ category.title }}
+        </h2>
+        
+        <div class="faq-questions" style="display: grid; gap: 1rem;">
+            {% for item in category.questions %}
+            <div class="faq-item" style="background: white; border: 1px solid #e8e8ea; border-radius: 8px; overflow: hidden;">
+                <button class="faq-question" style="width: 100%; padding: 1.25rem 1.5rem; background: white; border: none; text-align: left; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 1rem; font-weight: 600; color: #1d1d1f; transition: background-color 0.2s;" onclick="toggleFaq(this)">
+                    <span>{{ item.question }}</span>
+                    <i class="fas fa-chevron-down faq-icon" style="color: #6e6e73; transition: transform 0.3s;"></i>
+                </button>
+                <div class="faq-answer" style="max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out;">
+                    <div style="padding: 0 1.5rem 1.25rem 1.5rem; color: #6e6e73; font-size: 0.9375rem; line-height: 1.6;">
+                        {{ item.answer }}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- Contact Support Section -->
+    <div style="background: linear-gradient(135deg, #f5f5f7 0%, #ffffff 100%); border: 2px solid #e8e8ea; border-radius: 12px; padding: 2rem; text-align: center; margin-top: 3rem;">
+        <h3 style="font-size: 1.25rem; font-weight: 600; color: #1d1d1f; margin-bottom: 0.75rem;">Still have questions?</h3>
+        <p style="color: #6e6e73; font-size: 0.9375rem; margin-bottom: 1.5rem;">Our customer service team is here to help!</p>
+        <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+            <a href="#" onclick="if(typeof window.openChatWidget === 'function') { window.openChatWidget(); return false; }" class="btn btn-primary" style="background: #007bff; color: white; padding: 0.75rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: 500; display: inline-block;">
+                <i class="fas fa-comments" style="margin-right: 0.5rem;"></i>Chat with Us
+            </a>
+            <a href="mailto:support@auroramart.com" class="btn" style="background: white; color: #007bff; padding: 0.75rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: 500; display: inline-block; border: 1px solid #007bff;">
+                <i class="fas fa-envelope" style="margin-right: 0.5rem;"></i>Email Us
+            </a>
+        </div>
+    </div>
+</div>
+
+<style>
+.faq-item.active .faq-question {
+    background: #f5f5f7;
+}
+
+.faq-item.active .faq-icon {
+    transform: rotate(180deg);
+}
+
+.faq-item.active .faq-answer {
+    max-height: 500px;
+}
+</style>
+
+<script>
+function toggleFaq(button) {
+    const faqItem = button.closest('.faq-item');
+    const isActive = faqItem.classList.contains('active');
+    
+    // Close all FAQ items
+    document.querySelectorAll('.faq-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    
+    // Open clicked item if it wasn't active
+    if (!isActive) {
+        faqItem.classList.add('active');
+    }
+}
+</script>
+{% endblock %}
+

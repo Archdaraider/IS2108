@@ -122,11 +122,21 @@
     <div class="container">
         <div class="section-header">
             <h2>Recommended For You</h2>
-            <a href="{% url 'product_list' %}" class="section-link">View All <i class="fas fa-arrow-right"></i></a>
+            {% if recommended_category_slug %}
+                <a href="{% url 'category_products' recommended_category_slug %}" class="section-link">View All <i class="fas fa-arrow-right"></i></a>
+            {% else %}
+                <a href="{% url 'product_list' %}" class="section-link">View All <i class="fas fa-arrow-right"></i></a>
+            {% endif %}
         </div>
         
+        {% if recommendation_reason %}
+        <p style="color: #6e6e73; font-size: 0.9375rem; margin-bottom: 1.5rem; font-style: italic;">
+            {{ recommendation_reason }}
+        </p>
+        {% endif %}
+        
         <div class="product-grid">
-            {% for product in featured_products %}
+            {% for product in recommended_for_you %}
             <div class="product-card">
                 <a href="{% url 'product_detail' product.id %}" class="product-card-link">
                 <div class="product-image">
@@ -235,7 +245,7 @@
     <div class="container">
         <div class="section-header">
             <h2>AuroraMart's best sellers</h2>
-            <a href="{% url 'product_list' %}?sort=rating" class="section-link">View All <i class="fas fa-arrow-right"></i></a>
+            <a href="{% url 'product_list' %}?sort=bestsellers" class="section-link">View All <i class="fas fa-arrow-right"></i></a>
         </div>
         
         <div class="product-grid">
@@ -338,32 +348,6 @@
     </div>
 </section>
 
-<!-- Customer Reviews Section -->
-<section class="reviews-section">
-    <div class="container">
-        <div class="reviews-placeholder">
-            <h2>Reviews from other customers?</h2>
-            <p>Share your experience and help others make informed decisions</p>
-            <a href="#" class="btn btn-secondary">Write a Review</a>
-        </div>
-    </div>
-</section>
-
-<!-- Newsletter Subscription -->
-<section class="newsletter-section">
-    <div class="container">
-        <div class="newsletter-content">
-            <h2>Stay Updated</h2>
-            <p>Subscribe to our newsletter for the latest deals and updates</p>
-            <form method="post" action="{% url 'subscribe_newsletter' %}" class="newsletter-form">
-                {% csrf_token %}
-                <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                <input type="email" name="email" placeholder="Enter your email" class="newsletter-input" required>
-                <button type="submit" class="btn btn-primary">Subscribe</button>
-            </form>
-        </div>
-    </div>
-</section>
 {% endblock %}
 
 {% block extra_js %}

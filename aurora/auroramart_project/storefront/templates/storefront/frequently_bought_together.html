@@ -1,7 +1,7 @@
 {% extends 'storefront/base.html' %}
 {% load static %}
 
-{% block title %}Complete the Set - AuroraMart{% endblock %}
+{% block title %}Frequently Bought Together - {{ product.name }} - AuroraMart{% endblock %}
 
 {% block category_sidebar %}
 {% if navigation_categories %}
@@ -56,28 +56,28 @@
     <nav class="breadcrumbs">
         <a href="{% url 'homepage' %}">Home</a>
         <span class="breadcrumb-separator">></span>
-        <a href="{% url 'shopping_cart' %}">Shopping Cart</a>
+        <a href="{% url 'product_detail' product.id %}">{{ product.name }}</a>
         <span class="breadcrumb-separator">></span>
-        <span class="breadcrumb-current">Complete the Set</span>
+        <span class="breadcrumb-current">Frequently Bought Together</span>
     </nav>
 
     <!-- Page Header -->
     <div class="page-header" style="margin-bottom: 2rem;">
         <div class="page-title">
-            <h1 style="font-size: 2rem; font-weight: 600; color: #1d1d1f; margin: 0;">Complete the Set</h1>
-            <p style="color: #6e6e73; font-size: 1rem; margin-top: 0.5rem;">Based on the items in your cart, we think you'll love these too.</p>
+            <h1 style="font-size: 2rem; font-weight: 600; color: #1d1d1f; margin: 0;">Frequently Bought Together</h1>
+            <p style="color: #6e6e73; font-size: 1rem; margin-top: 0.5rem;">Customers who bought <strong>{{ product.name }}</strong> also frequently bought these products.</p>
         </div>
     </div>
 
     <!-- Products Grid -->
     {% if recommended_products %}
         <div class="product-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem;">
-            {% for product in recommended_products %}
+            {% for recommended_product in recommended_products %}
             <div class="product-card">
-                <a href="{% url 'product_detail' product.id %}" class="product-card-link">
+                <a href="{% url 'product_detail' recommended_product.id %}" class="product-card-link">
                 <div class="product-image">
-                    {% if product.image %}
-                        <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                    {% if recommended_product.image %}
+                        <img src="{{ recommended_product.image.url }}" alt="{{ recommended_product.name }}">
                     {% else %}
                         <div class="product-placeholder">
                             <i class="fas fa-image"></i>
@@ -86,10 +86,10 @@
                     <div class="product-actions">
                         <form method="post" action="{% url 'add_to_wishlist' %}" style="display: inline;">
                             {% csrf_token %}
-                            <input type="hidden" name="product_id" value="{{ product.id }}">
+                            <input type="hidden" name="product_id" value="{{ recommended_product.id }}">
                             <input type="hidden" name="next" value="{{ request.get_full_path }}">
                             <button type="submit" class="action-btn wishlist-btn">
-                                {% if product.id in wishlist_product_ids %}
+                                {% if recommended_product.id in wishlist_product_ids %}
                                     <i class="fas fa-heart" style="color: #dc3545;"></i>
                                 {% else %}
                                     <i class="far fa-heart"></i>
@@ -99,13 +99,13 @@
                     </div>
                 </div>
                 <div class="product-info">
-                    <div class="product-price">${{ product.price|floatformat:2 }}</div>
-                    <h3 class="product-name">{{ product.name }}</h3>
-                    <div class="product-category">{{ product.category }}</div>
-                    <div class="product-stock {% if product.quantity_on_hand > 0 %}in-stock{% else %}out-of-stock{% endif %}" style="font-size: 0.875rem; margin: 0.25rem 0;">
+                    <div class="product-price">${{ recommended_product.price|floatformat:2 }}</div>
+                    <h3 class="product-name">{{ recommended_product.name }}</h3>
+                    <div class="product-category">{{ recommended_product.category }}</div>
+                    <div class="product-stock {% if recommended_product.quantity_on_hand > 0 %}in-stock{% else %}out-of-stock{% endif %}" style="font-size: 0.875rem; margin: 0.25rem 0;">
                         <i class="fas fa-box" style="margin-right: 0.25rem;"></i>
-                        {% if product.quantity_on_hand > 0 %}
-                            <span style="color: #28a745;">Stock: {{ product.quantity_on_hand }} item{{ product.quantity_on_hand|pluralize }}</span>
+                        {% if recommended_product.quantity_on_hand > 0 %}
+                            <span style="color: #28a745;">Stock: {{ recommended_product.quantity_on_hand }} item{{ recommended_product.quantity_on_hand|pluralize }}</span>
                         {% else %}
                             <span style="color: #dc3545;">Out of Stock</span>
                         {% endif %}
@@ -113,22 +113,22 @@
                     <div class="product-rating">
                         <div class="stars">
                             {% for i in "12345" %}
-                                {% if forloop.counter <= product.avg_rating %}
+                                {% if forloop.counter <= recommended_product.avg_rating %}
                                     <i class="fas fa-star"></i>
                                 {% else %}
                                     <i class="far fa-star"></i>
                                 {% endif %}
                             {% endfor %}
                         </div>
-                        <span class="rating-text">{{ product.avg_rating|floatformat:1 }} ({{ product.reviews_count|default:0 }})</span>
+                        <span class="rating-text">{{ recommended_product.avg_rating|floatformat:1 }} ({{ recommended_product.reviews_count|default:0 }})</span>
                     </div>
                 </a>
                 </div>
                 <div class="product-cart-actions">
-                    {% if product.quantity_on_hand > 0 %}
-                        {% if product.id in cart_product_ids %}
+                    {% if recommended_product.quantity_on_hand > 0 %}
+                        {% if recommended_product.id in cart_product_ids %}
                             {% for item in cart.items.all %}
-                                {% if item.product_id == product.id %}
+                                {% if item.product_id == recommended_product.id %}
                                     <div class="quantity-picker">
                                         <form method="post" action="{% url 'update_cart_item' %}" style="display: inline;">
                                             {% csrf_token %}
@@ -151,7 +151,7 @@
                         {% else %}
                             <form method="post" action="{% url 'add_to_cart' %}" style="display: inline;" class="add-to-cart-form">
                                 {% csrf_token %}
-                                <input type="hidden" name="product_id" value="{{ product.id }}">
+                                <input type="hidden" name="product_id" value="{{ recommended_product.id }}">
                                 <input type="hidden" name="quantity" value="1">
                                 <input type="hidden" name="next" value="{{ request.get_full_path }}">
                                 <button type="submit" class="btn btn-primary add-to-cart-btn">
@@ -197,8 +197,8 @@
         <div class="no-products" style="text-align: center; padding: 4rem 2rem;">
             <i class="fas fa-box-open" style="font-size: 4rem; color: #d2d2d7; margin-bottom: 1rem;"></i>
             <h2 style="font-size: 1.5rem; color: #1d1d1f; margin-bottom: 0.5rem;">No recommendations available</h2>
-            <p style="color: #6e6e73; margin-bottom: 2rem;">Add items to your cart to see recommendations!</p>
-            <a href="{% url 'product_list' %}" class="btn btn-primary" style="display: inline-block; width: auto; padding: 0.75rem 2rem;">Browse Products</a>
+            <p style="color: #6e6e73; margin-bottom: 2rem;">We couldn't find any products that are frequently bought together with this item.</p>
+            <a href="{% url 'product_detail' product.id %}" class="btn btn-primary" style="display: inline-block; width: auto; padding: 0.75rem 2rem;">Back to Product</a>
         </div>
     {% endif %}
 </div>

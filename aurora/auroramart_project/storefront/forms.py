@@ -3,7 +3,7 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
-from adminpanel.models import Customer
+from adminpanel.models import Customer, OCCUPATION_CHOICES as MODEL_OCCUPATION_CHOICES
 from datetime import date
 
 class UserRegistrationForm(UserCreationForm):
@@ -56,16 +56,9 @@ class UserRegistrationForm(UserCreationForm):
 
 class CustomerProfileForm(forms.ModelForm):
     """Form for customer profile creation and editing"""
-    # Define occupation choices
-    OCCUPATION_CHOICES = [
-        ('', 'Select occupation'),
-        ('sales', 'Sales'),
-        ('service', 'Service'),
-        ('admin', 'Admin'),
-        ('tech', 'Tech'),
-        ('education', 'Education'),
-        ('skilled_trades', 'Skilled Trades'),
-    ]
+    # Define occupation choices - using capitalized values to match model
+    # Imported from adminpanel.models at top of file to ensure consistency
+    OCCUPATION_CHOICES = [('', 'Select occupation')] + list(MODEL_OCCUPATION_CHOICES)
     
     # Date of birth fields - separate month, day, year (like Google)
     MONTH_CHOICES = [
@@ -94,21 +87,14 @@ class CustomerProfileForm(forms.ModelForm):
         required=True
     )
     
-    birth_day = forms.IntegerField(
-        widget=forms.NumberInput(attrs={
+    birth_day = forms.ChoiceField(
+        choices=[('', 'Day')] + [(str(i), str(i)) for i in range(1, 32)],
+        widget=forms.Select(attrs={
             'class': 'form-control',
             'id': 'birth-day',
-            'placeholder': 'Day',
-            'min': 1,
-            'max': 31,
-            'type': 'number',
-            'maxlength': '2',
-            'pattern': '[0-9]{1,2}',
         }),
         label='Day',
-        required=True,
-        min_value=1,
-        max_value=31
+        required=True
     )
     
     birth_year = forms.IntegerField(

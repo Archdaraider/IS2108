@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initDateInputRestrictions();
     initPasswordToggle();
     initCategorySubcategoryPanels();
+    initNavigationDropdownPositioning();
 });
 
 // Prevent buttons from triggering link navigation
@@ -737,33 +738,134 @@ function initCategorySubcategoryPanels() {
     console.log('Category subcategory panels initialized');
 }
 
-// Restrict date input fields to maximum digits
-function initDateInputRestrictions() {
-    // Restrict day input to 2 digits
-    const dayInput = document.getElementById('birth-day');
-    if (dayInput) {
-        dayInput.addEventListener('input', function(e) {
-            let value = this.value;
-            // Remove any non-digit characters
-            value = value.replace(/\D/g, '');
-            // Limit to 2 digits
-            if (value.length > 2) {
-                value = value.slice(0, 2);
-            }
-            this.value = value;
-        });
+// Fix navigation dropdown positioning for bottom categories
+function initNavigationDropdownPositioning() {
+    const categoryDropdowns = document.querySelectorAll('.nav-category-dropdown');
+    
+    categoryDropdowns.forEach(dropdown => {
+        const subcategoryMenu = dropdown.querySelector('.nav-subcategory-dropdown');
+        if (!subcategoryMenu) return;
         
-        // Also prevent pasting more than 2 digits
-        dayInput.addEventListener('paste', function(e) {
-            e.preventDefault();
-            const paste = (e.clipboardData || window.clipboardData).getData('text');
-            const digits = paste.replace(/\D/g, '').slice(0, 2);
-            this.value = digits;
+        // Check position on hover
+        dropdown.addEventListener('mouseenter', function() {
+            const rect = dropdown.getBoundingClientRect();
+            const menuHeight = subcategoryMenu.offsetHeight || 400; // Default max height
+            const spaceBelow = window.innerHeight - rect.bottom;
+            const spaceAbove = rect.top;
+            
+            // If not enough space below but enough space above, position upward
+            if (spaceBelow < menuHeight && spaceAbove > menuHeight) {
+                subcategoryMenu.style.top = 'auto';
+                subcategoryMenu.style.bottom = 'calc(100% + 0.5rem)';
+                subcategoryMenu.style.transform = 'translateY(10px)';
+            } else {
+                // Reset to default downward position
+                subcategoryMenu.style.top = 'calc(100% + 0.5rem)';
+                subcategoryMenu.style.bottom = 'auto';
+                subcategoryMenu.style.transform = 'translateY(-10px)';
+            }
+            
+            // Reset transform when menu becomes visible (after CSS transition)
+            setTimeout(() => {
+                if (window.getComputedStyle(subcategoryMenu).visibility === 'visible') {
+                    subcategoryMenu.style.transform = 'translateY(0)';
+                }
+            }, 50);
         });
+    });
+    
+    // Also check on window resize
+    let resizeTimeout;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            categoryDropdowns.forEach(dropdown => {
+                const subcategoryMenu = dropdown.querySelector('.nav-subcategory-dropdown');
+                if (!subcategoryMenu) return;
+                
+                // Only adjust if currently visible
+                if (window.getComputedStyle(subcategoryMenu).visibility === 'visible') {
+                    const rect = dropdown.getBoundingClientRect();
+                    const menuHeight = subcategoryMenu.offsetHeight || 400;
+                    const spaceBelow = window.innerHeight - rect.bottom;
+                    const spaceAbove = rect.top;
+                    
+                    if (spaceBelow < menuHeight && spaceAbove > menuHeight) {
+                        subcategoryMenu.style.top = 'auto';
+                        subcategoryMenu.style.bottom = 'calc(100% + 0.5rem)';
+                    } else {
+                        subcategoryMenu.style.top = 'calc(100% + 0.5rem)';
+                        subcategoryMenu.style.bottom = 'auto';
+                    }
+                }
+            });
+        }, 100);
+    });
+}
+
+// Restrict date input fields to maximum digits and handle dynamic day dropdown
+function initDateInputRestrictions() {
+    const monthSelect = document.getElementById('birth-month');
+    const daySelect = document.getElementById('birth-day');
+    const yearInput = document.getElementById('birth-year');
+    
+    // Function to update day dropdown based on month and year
+    function updateDayDropdown() {
+        if (!monthSelect || !daySelect) return;
+        
+        const month = parseInt(monthSelect.value);
+        const year = parseInt(yearInput ? yearInput.value : new Date().getFullYear());
+        
+        if (!month) {
+            // Reset to all days if no month selected
+            daySelect.innerHTML = '<option value="">Day</option>' + 
+                Array.from({length: 31}, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('');
+            return;
+        }
+        
+        // Calculate days in month
+        let daysInMonth = 31;
+        if (month === 2) {
+            // February - check for leap year
+            if (year && ((year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0))) {
+                daysInMonth = 29;
+            } else {
+                daysInMonth = 28;
+            }
+        } else if ([4, 6, 9, 11].includes(month)) {
+            // April, June, September, November
+            daysInMonth = 30;
+        }
+        
+        // Get current selected day
+        const currentDay = daySelect.value;
+        
+        // Update day dropdown
+        daySelect.innerHTML = '<option value="">Day</option>' + 
+            Array.from({length: daysInMonth}, (_, i) => {
+                const day = i + 1;
+                return `<option value="${day}" ${currentDay == day ? 'selected' : ''}>${day}</option>`;
+            }).join('');
+        
+        // If current day is invalid for the month, reset it
+        if (currentDay && parseInt(currentDay) > daysInMonth) {
+            daySelect.value = '';
+        }
     }
     
+    // Update day dropdown when month or year changes
+    if (monthSelect) {
+        monthSelect.addEventListener('change', updateDayDropdown);
+    }
+    if (yearInput) {
+        yearInput.addEventListener('input', updateDayDropdown);
+        yearInput.addEventListener('change', updateDayDropdown);
+    }
+    
+    // Initialize day dropdown on page load
+    updateDayDropdown();
+    
     // Restrict year input to 4 digits
-    const yearInput = document.getElementById('birth-year');
     if (yearInput) {
         yearInput.addEventListener('input', function(e) {
             let value = this.value;
@@ -774,6 +876,8 @@ function initDateInputRestrictions() {
                 value = value.slice(0, 4);
             }
             this.value = value;
+            // Update day dropdown when year changes
+            updateDayDropdown();
         });
         
         // Also prevent pasting more than 4 digits
@@ -782,6 +886,7 @@ function initDateInputRestrictions() {
             const paste = (e.clipboardData || window.clipboardData).getData('text');
             const digits = paste.replace(/\D/g, '').slice(0, 4);
             this.value = digits;
+            updateDayDropdown();
         });
     }
 }

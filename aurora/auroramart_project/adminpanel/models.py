@@ -27,12 +27,13 @@ EDUCATION_CHOICES = [
     ('PhD', 'PhD'),
 ]
 
-CATEGORY_CHOICES = [
-    ('Electronics', 'Electronics'),
-    ('Apparel', 'Apparel'),
-    ('Home & Kitchen', 'Home & Kitchen'),
-    ('Groceries', 'Groceries'),
-    ('Books', 'Books'),
+OCCUPATION_CHOICES = [
+    ('Admin', 'Admin'),
+    ('Education', 'Education'),
+    ('Sales', 'Sales'),
+    ('Service', 'Service'),
+    ('Skilled Trades', 'Skilled Trades'),
+    ('Tech', 'Tech'),
 ]
 
 # --- Choices for Product Model (from b2c_products_500.csv) ---
@@ -132,15 +133,16 @@ class Customer(models.Model):
     # --- UPDATED with choices ---
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES)
     employment_status = models.CharField(max_length=50, choices=EMPLOYMENT_CHOICES)
-    occupation = models.CharField(max_length=50)
+    occupation = models.CharField(max_length=50, choices=OCCUPATION_CHOICES)
     education = models.CharField(max_length=50, choices=EDUCATION_CHOICES)
     
     household_size = models.IntegerField()
     has_children = models.BooleanField()
     monthly_income_sgd = models.DecimalField(max_digits=10, decimal_places=2)
     
-    # --- UPDATED with choices ---
-    preferred_category = models.CharField(max_length=100, choices=CATEGORY_CHOICES)
+    # --- UPDATED: Use PRODUCT_CATEGORY_CHOICES to match dataset categories ---
+    # Changed from CATEGORY_CHOICES to PRODUCT_CATEGORY_CHOICES to match actual dataset categories
+    preferred_category = models.CharField(max_length=100, choices=PRODUCT_CATEGORY_CHOICES)
 
     def __str__(self):
         return self.email

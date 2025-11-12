@@ -1,0 +1,62 @@
+Summary of Requirements
+All three features use the SAME association mining model - they just differ in:
+
+Input (what products you feed into the model)
+Context (where on the website they appear)
+
+
+Feature Breakdown & Cursor Prompts
+1. "Frequently Bought Together" (Product Detail Page)
+What it means:
+
+When a customer views a single product, use that product as input to your association rules model
+Show products that are frequently purchased with this item
+
+Cursor Prompt:
+Implement a "Frequently Bought Together" recommendation feature on the product detail page:
+- Input: The current product being viewed (single product)
+- Use our existing association mining model to find matching rules
+- Query the model with the current product ID as the antecedent
+- Display the consequent products (recommendations) on the product page
+- Handle cases where no matching rules exist (show fallback or popular items)
+- Display top 4 recommended products cards 
+- There should also be a 'View All' button similar to the other product sections where customer can click on 'View All' to see all the products recommended based on the association model
+
+2. "Complete the Set" (Shopping Cart Page)
+What it means:
+
+Use products already in the shopping cart as input
+You can choose to use ALL cart items OR one cart item at a time
+Try different combinations if no rules match
+
+Cursor Prompt:
+Implement a "Complete the Set" recommendation feature on the shopping cart page:
+- Input: Product(s) currently in the shopping cart
+- Strategy: Start by querying the association model with all cart items as input
+- If no matching rules are found, try combinations:
+  - Query with pairs of cart items
+  - Query with individual cart items
+  - Use the most recently added item as fallback
+- Display top 4 recommended products that complement the cart contents
+- Exclude products already in the cart from recommendations
+- Add a section titled "Complete the Set" with add-to-cart functionality
+- There should also be a 'View All' button similar to the other product sections where customer can click on 'View All' to see all the products recommended based on the association model
+
+3. "Next Best Action" (Category/Browse Pages)
+What it means:
+
+When browsing a category, use product(s) from that category as input
+Recommendations might come from the same category (different subcategory) or different categories
+Your prof says this is harder and optional - the first two approaches should be sufficient
+
+Cursor Prompt (if you want to implement it):
+Implement a "Next Best Action" recommendation feature on category listing pages:
+- Input: Products from the category the customer is currently browsing
+- Strategy:
+  - Select 1-3 representative products from the visible category items (e.g., top-selling or featured items)
+  - Query the association model with these products
+  - Recommendations may come from the same category (different subcategory) 
+- Display "Customers who viewed [Category] also liked..."
+- Show 4 recommended products to encourage exploration
+- There should also be a 'View All' button similar to the other product sections where customer can click on 'View All' to see all the products recommended based on the association model
+-  if theres a lot of products that wont fit on the page, there can be pagination button, same ones on the category pages

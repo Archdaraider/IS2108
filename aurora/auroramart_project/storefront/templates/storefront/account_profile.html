@@ -176,6 +176,24 @@
             </button>
         </form>
     </div>
+    
+    <!-- Change Password Section -->
+    <div class="profile-section" style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid #e8e8ea;">
+        <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1.5rem; color: #1d1d1f;">Change Password</h2>
+        
+        <form method="post" action="{% url 'password_reset' %}" style="max-width: 600px;">
+            {% csrf_token %}
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label for="id_email" style="display: block; font-weight: 500; margin-bottom: 0.5rem; color: #1d1d1f;">Email Address</label>
+                <input type="email" name="email" id="id_email" class="form-control" value="{{ user.email }}" required readonly style="background: #f5f5f7; cursor: not-allowed;">
+                <small style="color: #6e6e73; font-size: 0.75rem; margin-top: 0.25rem; display: block;">You'll receive password reset instructions at this email address.</small>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="background: #007bff; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; font-size: 0.9375rem; font-weight: 500; cursor: pointer;">
+                Send Password Reset Email
+            </button>
+        </form>
+    </div>
 </div>
 {% endblock %}
 

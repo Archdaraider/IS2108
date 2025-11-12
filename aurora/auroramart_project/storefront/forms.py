@@ -87,21 +87,14 @@ class CustomerProfileForm(forms.ModelForm):
         required=True
     )
     
-    birth_day = forms.IntegerField(
-        widget=forms.NumberInput(attrs={
+    birth_day = forms.ChoiceField(
+        choices=[('', 'Day')] + [(str(i), str(i)) for i in range(1, 32)],
+        widget=forms.Select(attrs={
             'class': 'form-control',
             'id': 'birth-day',
-            'placeholder': 'Day',
-            'min': 1,
-            'max': 31,
-            'type': 'number',
-            'maxlength': '2',
-            'pattern': '[0-9]{1,2}',
         }),
         label='Day',
-        required=True,
-        min_value=1,
-        max_value=31
+        required=True
     )
     
     birth_year = forms.IntegerField(

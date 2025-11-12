@@ -482,8 +482,22 @@ function loadChatMessages() {
             'X-Requested-With': 'XMLHttpRequest'
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        return response.json();
+    })
     .then(data => {
+        // Handle unauthorized access - user doesn't own this chat
+        if (data && (data.reset_chat || (data.success === false && data.error === 'Unauthorized'))) {
+            console.log('Access denied to chat. Resetting chat state.');
+            currentChatId = null;
+            localStorage.removeItem('aurora_chat_id'); // Clear invalid chat ID
+            // Try to check for a new chat
+            checkForChat();
+            return;
+        }
+        
+        if (!data || !data.success) return; // Handle error cases
+        
         if (data.success) {
             const container = document.getElementById('chatMessagesContainer');
             const previousScrollHeight = container.scrollHeight;

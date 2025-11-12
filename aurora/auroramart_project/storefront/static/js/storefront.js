@@ -803,33 +803,69 @@ function initNavigationDropdownPositioning() {
     });
 }
 
-// Restrict date input fields to maximum digits
+// Restrict date input fields to maximum digits and handle dynamic day dropdown
 function initDateInputRestrictions() {
-    // Restrict day input to 2 digits
-    const dayInput = document.getElementById('birth-day');
-    if (dayInput) {
-        dayInput.addEventListener('input', function(e) {
-            let value = this.value;
-            // Remove any non-digit characters
-            value = value.replace(/\D/g, '');
-            // Limit to 2 digits
-            if (value.length > 2) {
-                value = value.slice(0, 2);
-            }
-            this.value = value;
-        });
+    const monthSelect = document.getElementById('birth-month');
+    const daySelect = document.getElementById('birth-day');
+    const yearInput = document.getElementById('birth-year');
+    
+    // Function to update day dropdown based on month and year
+    function updateDayDropdown() {
+        if (!monthSelect || !daySelect) return;
         
-        // Also prevent pasting more than 2 digits
-        dayInput.addEventListener('paste', function(e) {
-            e.preventDefault();
-            const paste = (e.clipboardData || window.clipboardData).getData('text');
-            const digits = paste.replace(/\D/g, '').slice(0, 2);
-            this.value = digits;
-        });
+        const month = parseInt(monthSelect.value);
+        const year = parseInt(yearInput ? yearInput.value : new Date().getFullYear());
+        
+        if (!month) {
+            // Reset to all days if no month selected
+            daySelect.innerHTML = '<option value="">Day</option>' + 
+                Array.from({length: 31}, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('');
+            return;
+        }
+        
+        // Calculate days in month
+        let daysInMonth = 31;
+        if (month === 2) {
+            // February - check for leap year
+            if (year && ((year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0))) {
+                daysInMonth = 29;
+            } else {
+                daysInMonth = 28;
+            }
+        } else if ([4, 6, 9, 11].includes(month)) {
+            // April, June, September, November
+            daysInMonth = 30;
+        }
+        
+        // Get current selected day
+        const currentDay = daySelect.value;
+        
+        // Update day dropdown
+        daySelect.innerHTML = '<option value="">Day</option>' + 
+            Array.from({length: daysInMonth}, (_, i) => {
+                const day = i + 1;
+                return `<option value="${day}" ${currentDay == day ? 'selected' : ''}>${day}</option>`;
+            }).join('');
+        
+        // If current day is invalid for the month, reset it
+        if (currentDay && parseInt(currentDay) > daysInMonth) {
+            daySelect.value = '';
+        }
     }
     
+    // Update day dropdown when month or year changes
+    if (monthSelect) {
+        monthSelect.addEventListener('change', updateDayDropdown);
+    }
+    if (yearInput) {
+        yearInput.addEventListener('input', updateDayDropdown);
+        yearInput.addEventListener('change', updateDayDropdown);
+    }
+    
+    // Initialize day dropdown on page load
+    updateDayDropdown();
+    
     // Restrict year input to 4 digits
-    const yearInput = document.getElementById('birth-year');
     if (yearInput) {
         yearInput.addEventListener('input', function(e) {
             let value = this.value;
@@ -840,6 +876,8 @@ function initDateInputRestrictions() {
                 value = value.slice(0, 4);
             }
             this.value = value;
+            // Update day dropdown when year changes
+            updateDayDropdown();
         });
         
         // Also prevent pasting more than 4 digits
@@ -848,6 +886,7 @@ function initDateInputRestrictions() {
             const paste = (e.clipboardData || window.clipboardData).getData('text');
             const digits = paste.replace(/\D/g, '').slice(0, 4);
             this.value = digits;
+            updateDayDropdown();
         });
     }
 }

@@ -920,6 +920,9 @@ body:has(.category-browser-sidebar) .main-content {
     z-index: 10;
     margin-top: 1rem;
     pointer-events: auto;
+    display: flex;
+    align-items: center;
+    min-height: 40px;
 }
 
 .action-btn {
@@ -1035,6 +1038,13 @@ body:has(.category-browser-sidebar) .main-content {
     background: #20b2aa;
     color: white;
     width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
 }
 
 .btn-primary:hover {
@@ -1542,6 +1552,16 @@ body:has(.category-browser-sidebar) .main-content {
 .product-cart-actions .add-to-cart-btn {
     width: 100%;
     box-sizing: border-box;
+    flex-shrink: 0;
+}
+
+.product-cart-actions .add-to-cart-btn {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .quantity-picker .quantity-btn,

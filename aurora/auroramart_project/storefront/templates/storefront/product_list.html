@@ -255,12 +255,19 @@
                         {% if action_index == forloop.parentloop.counter0 %}
                         <div class="next-best-action-wrapper" style="grid-column: 1 / -1; width: 100%; margin: 2rem 0;">
                             <div class="next-best-action-section" style="background: linear-gradient(135deg, #f5f5f7 0%, #ffffff 100%); border: 2px solid #20b2aa; border-radius: 12px; padding: 2rem; margin: 2rem 0;">
-                                <div class="section-header" style="text-align: center; margin-bottom: 1.5rem;">
-                                    <h2 style="font-size: 1.5rem; font-weight: 600; color: #1d1d1f; margin: 0 0 0.5rem 0; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-                                        <i class="fas fa-sparkles" style="color: #20b2aa;"></i>
-                                        Next Best Action
-                                    </h2>
-                                    <p style="color: #6e6e73; font-size: 0.9375rem; margin: 0;">Explore these recommended products based on what you're viewing</p>
+                                <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                                    <div style="text-align: center; flex: 1;">
+                                        <h2 style="font-size: 1.5rem; font-weight: 600; color: #1d1d1f; margin: 0 0 0.5rem 0; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                                            <i class="fas fa-sparkles" style="color: #20b2aa;"></i>
+                                            Next Best Action
+                                        </h2>
+                                        <p style="color: #6e6e73; font-size: 0.9375rem; margin: 0;">Explore these recommended products based on what you're viewing</p>
+                                    </div>
+                                    {% if category %}
+                                    <a href="{% url 'next_best_action' category.slug %}" class="section-link" style="display: flex; align-items: center; gap: 0.5rem; text-decoration: none; color: #007bff; font-weight: 500; margin-left: 1rem;">
+                                        View All <i class="fas fa-arrow-right"></i>
+                                    </a>
+                                    {% endif %}
                                 </div>
                                 
                                 <div class="product-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-top: 1.5rem;">
@@ -521,67 +528,72 @@
     </div>
     
     <!-- Next Best Action Section -->
-    {% if next_best_products %}
-    <section class="next-best-action-section">
-        <div class="section-header">
-            <h2>Next best action</h2>
-            <p>Customers browsing this category also loved.</p>
+    {% if next_best_action_products and category %}
+    <section class="next-best-action-section" style="margin-top: 3rem;">
+        <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <div>
+                <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 0.5rem;">Next Best Action</h2>
+                <p style="color: #6e6e73; font-size: 0.875rem;">Customers who viewed <strong>{{ category.name }}</strong> also liked...</p>
+            </div>
+            <a href="{% url 'next_best_action' category.slug %}" class="section-link" style="display: flex; align-items: center; gap: 0.5rem; text-decoration: none; color: #007bff; font-weight: 500;">
+                View All <i class="fas fa-arrow-right"></i>
+            </a>
         </div>
         
-        <div class="product-carousel">
-            <div class="product-grid">
-                {% for product in next_best_products %}
-                <div class="product-card" data-product-url="{% url 'product_detail' product.id %}">
-                    <a href="{% url 'product_detail' product.id %}" class="product-card-link">
-                        <div class="product-image">
-                            {% if product.image %}
-                                <img src="{{ product.image.url }}" alt="{{ product.name }}">
+        <div class="product-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem;">
+            {% for product in next_best_action_products %}
+            <div class="product-card">
+                <a href="{% url 'product_detail' product.id %}" class="product-card-link">
+                    <div class="product-image">
+                        {% if product.image %}
+                            <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                        {% else %}
+                            <div class="product-placeholder">
+                                <i class="fas fa-image"></i>
+                            </div>
+                        {% endif %}
+                        <div class="product-actions">
+                            <form method="post" action="{% url 'add_to_wishlist' %}" style="display: inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="product_id" value="{{ product.id }}">
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                <button type="submit" class="action-btn wishlist-btn">
+                                    {% if product.id in wishlist_product_ids %}
+                                        <i class="fas fa-heart" style="color: #dc3545;"></i>
+                                    {% else %}
+                                        <i class="far fa-heart"></i>
+                                    {% endif %}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="product-info">
+                        <div class="product-price">${{ product.price|floatformat:2 }}</div>
+                        <h3 class="product-name">{{ product.name }}</h3>
+                        <div class="product-category">{{ product.category }}</div>
+                        <div class="product-stock" style="font-size: 0.875rem; color: {% if product.quantity_on_hand > 0 %}#28a745{% else %}#dc3545{% endif %}; margin: 0.25rem 0;">
+                            <i class="fas fa-box" style="margin-right: 0.25rem;"></i>
+                            {% if product.quantity_on_hand > 0 %}
+                                Stock: {{ product.quantity_on_hand }} item{{ product.quantity_on_hand|pluralize }}
                             {% else %}
-                                <div class="product-placeholder">
-                                    <i class="fas fa-image"></i>
-                                </div>
+                                Out of Stock
                             {% endif %}
                         </div>
-                        <div class="product-info">
-                            <div class="product-price">${{ product.price|floatformat:2 }}</div>
-                            <h3 class="product-name">{{ product.name }}</h3>
-                            <div class="product-category">{{ product.category }}</div>
-                            <div class="product-stock" style="font-size: 0.875rem; color: {% if product.quantity_on_hand > 0 %}#28a745{% else %}#dc3545{% endif %}; margin: 0.25rem 0;">
-                                <i class="fas fa-box" style="margin-right: 0.25rem;"></i>
-                                {% if product.quantity_on_hand > 0 %}
-                                    Stock: {{ product.quantity_on_hand }} item{{ product.quantity_on_hand|pluralize }}
-                                {% else %}
-                                    Out of Stock
-                                {% endif %}
+                        <div class="product-rating">
+                            <div class="stars">
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= product.avg_rating %}
+                                        <i class="fas fa-star"></i>
+                                    {% else %}
+                                        <i class="far fa-star"></i>
+                                    {% endif %}
+                                {% endfor %}
                             </div>
-                            <div class="product-rating">
-                                <div class="stars">
-                                    {% for i in "12345" %}
-                                        {% if forloop.counter <= product.avg_rating %}
-                                            <i class="fas fa-star"></i>
-                                        {% else %}
-                                            <i class="far fa-star"></i>
-                                        {% endif %}
-                                    {% endfor %}
-                                </div>
-                                <span class="rating-text">{{ product.avg_rating|floatformat:1 }} ({{ product.reviews_count|default:0 }})</span>
-                                {% if product.total_sold > 0 %}
-                                    <span class="sold-count">{{ product.total_sold }}+ Sold</span>
-                                {% endif %}
-                            </div>
+                            <span class="rating-text">{{ product.avg_rating|floatformat:1 }} ({{ product.reviews_count|default:0 }})</span>
                         </div>
-                    </a>
-                    <div class="product-actions">
-                        <form method="post" action="{% url 'add_to_wishlist' %}" style="display: inline;">
-                            {% csrf_token %}
-                            <input type="hidden" name="product_id" value="{{ product.id }}">
-                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                            <button type="submit" class="action-btn wishlist-btn">
-                                <i class="fas fa-heart"></i>
-                            </button>
-                        </form>
                     </div>
-                    <div class="product-cart-actions">
+                </a>
+                <div class="product-cart-actions">
                         {% if product.id in cart_product_ids %}
                             {% for item in cart.items.all %}
                                 {% if item.product_id == product.id %}
@@ -617,11 +629,7 @@
                         {% endif %}
                     </div>
                 </div>
-                {% endfor %}
-            </div>
-            <button class="carousel-btn carousel-next">
-                <i class="fas fa-chevron-right"></i>
-            </button>
+            {% endfor %}
         </div>
     </section>
     {% endif %}

@@ -1190,7 +1190,14 @@ def customer_get_messages(request, chat_id):
                 from .models import Customer
                 customer = Customer.objects.get(user=request.user)
                 if chat.customer.id != customer.id:
-                    return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
+                    # This is expected when localStorage has a chat ID from another user
+                    # Return 200 with reset flag instead of 403 to avoid log noise
+                    # The JavaScript will handle this gracefully
+                    return JsonResponse({
+                        'success': False, 
+                        'error': 'Unauthorized',
+                        'reset_chat': True  # Signal to frontend to reset chat state
+                    }, status=200)
             except Customer.DoesNotExist:
                 return JsonResponse({'success': False, 'error': 'Customer not found'}, status=403)
         

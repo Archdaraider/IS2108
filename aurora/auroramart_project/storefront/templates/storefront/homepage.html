@@ -348,32 +348,6 @@
     </div>
 </section>
 
-<!-- Customer Reviews Section -->
-<section class="reviews-section">
-    <div class="container">
-        <div class="reviews-placeholder">
-            <h2>Reviews from other customers?</h2>
-            <p>Share your experience and help others make informed decisions</p>
-            <a href="#" class="btn btn-secondary">Write a Review</a>
-        </div>
-    </div>
-</section>
-
-<!-- Newsletter Subscription -->
-<section class="newsletter-section">
-    <div class="container">
-        <div class="newsletter-content">
-            <h2>Stay Updated</h2>
-            <p>Subscribe to our newsletter for the latest deals and updates</p>
-            <form method="post" action="{% url 'subscribe_newsletter' %}" class="newsletter-form">
-                {% csrf_token %}
-                <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                <input type="email" name="email" placeholder="Enter your email" class="newsletter-input" required>
-                <button type="submit" class="btn btn-primary">Subscribe</button>
-            </form>
-        </div>
-    </div>
-</section>
 {% endblock %}
 
 {% block extra_js %}

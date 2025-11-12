@@ -431,12 +431,55 @@ def product_list(request, category_slug=None, subcategory_slug=None):
                             if rec_product.sku:
                                 seen_product_skus.add(rec_product.sku)
     
+    # Get "Next Best Action" products for the bottom section (if category exists)
+    next_best_action_products = []
+    if category:
+        # Select 1-3 representative products from the category
+        from django.db.models import Sum, Value, IntegerField
+        from django.db.models.functions import Coalesce
+        representative_products = Product.objects.filter(
+            category=category.name,
+            quantity_on_hand__gt=0,
+            is_active=True
+        ).annotate(
+            total_sold_count=Coalesce(Sum('orderitem__quantity'), Value(0), output_field=IntegerField())
+        ).order_by('-total_sold_count', '-rating', '-id')[:3]
+        
+        if representative_products.exists():
+            try:
+                rep_skus = [p.sku for p in representative_products if p.sku]
+                if rep_skus:
+                    # Query association model with these representative products
+                    next_best_action_products = get_recommendations(rep_skus, top_n=4)
+                    # Filter to only show products from the same category (may be different subcategory)
+                    next_best_action_products = [
+                        p for p in next_best_action_products 
+                        if p.category == category.name
+                    ]
+                    # Exclude products already in cart
+                    next_best_action_products = [p for p in next_best_action_products if p.id not in cart_product_ids]
+            except Exception as e:
+                print(f"Error getting Next Best Action recommendations: {e}")
+                next_best_action_products = []
+        
+        # If we don't have enough, fill with other products from same category
+        if len(next_best_action_products) < 4:
+            additional = Product.objects.filter(
+                category=category.name,
+                quantity_on_hand__gt=0,
+                is_active=True
+            ).exclude(
+                id__in=[p.id for p in next_best_action_products]
+            ).exclude(id__in=cart_product_ids).order_by('-rating')[:4 - len(next_best_action_products)]
+            next_best_action_products = list(next_best_action_products) + list(additional)
+    
     # Get cart context
     cart_context = get_cart_context(request)
     
     context = {
         'products': page_obj,
         'next_best_actions_dict': next_best_actions_dict,
+        'next_best_action_products': next_best_action_products,  # For bottom section
         'category': category,
         'category_slug': category_slug,
         'subcategory_slug': subcategory_slug,
@@ -452,6 +495,88 @@ def product_list(request, category_slug=None, subcategory_slug=None):
         **cart_context,  # Add cart info to context
     }
     return render(request, 'storefront/product_list.html', context)
+
+def next_best_action(request, category_slug):
+    """View All page for Next Best Action recommendations."""
+    category = get_object_or_404(Category, slug=category_slug, is_active=True)
+    
+    # Select 1-3 representative products from the category
+    # Priority: top-selling (by order items), then highest rated, then newest
+    from django.db.models import Sum, Value, IntegerField
+    from django.db.models.functions import Coalesce
+    representative_products = Product.objects.filter(
+        category=category.name,
+        quantity_on_hand__gt=0,
+        is_active=True
+    ).annotate(
+        total_sold_count=Coalesce(Sum('orderitem__quantity'), Value(0), output_field=IntegerField())
+    ).order_by('-total_sold_count', '-rating', '-id')[:3]
+    
+    # Get all recommended products using association rules
+    recommended_products = []
+    if representative_products.exists():
+        try:
+            from .recommendations import get_recommendations
+            # Get SKUs of representative products
+            rep_skus = [p.sku for p in representative_products if p.sku]
+            
+            if rep_skus:
+                # Query association model with these representative products
+                # Get more products for pagination
+                recommended_products = get_recommendations(rep_skus, top_n=100)
+                
+                # Filter to only show products from the same category (may be different subcategory)
+                recommended_products = [
+                    p for p in recommended_products 
+                    if p.category == category.name
+                ]
+        except Exception as e:
+            print(f"Error getting Next Best Action recommendations: {e}")
+            recommended_products = []
+    
+    # If we don't have enough, fill with other products from same category
+    if len(recommended_products) < 100:
+        additional = Product.objects.filter(
+            category=category.name,
+            quantity_on_hand__gt=0,
+            is_active=True
+        ).exclude(
+            id__in=[p.id for p in recommended_products]
+        ).order_by('-rating')[:100 - len(recommended_products)]
+        recommended_products = list(recommended_products) + list(additional)
+    
+    # Convert to QuerySet if it's a list
+    if isinstance(recommended_products, list):
+        product_ids = [p.id for p in recommended_products]
+        recommended_products = Product.objects.filter(id__in=product_ids).order_by('-rating')
+    
+    # Pagination
+    paginator = Paginator(recommended_products, 12)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get cart context
+    cart_context = get_cart_context(request)
+    cart = cart_context['cart']
+    cart_product_ids = set(cart.items.values_list('product_id', flat=True))
+    
+    # Get wishlist product IDs for authenticated users
+    wishlist_product_ids = set()
+    if request.user.is_authenticated:
+        wishlist = get_or_create_wishlist(request)
+        if wishlist:
+            wishlist_product_ids = set(wishlist.items.values_list('product_id', flat=True))
+    
+    context = {
+        'category': category,
+        'recommended_products': page_obj,
+        'page_obj': page_obj,
+        'cart_product_ids': cart_product_ids,
+        'wishlist_product_ids': wishlist_product_ids,
+        'cart': cart,
+        **cart_context,
+    }
+    return render(request, 'storefront/next_best_action.html', context)
 
 def product_detail(request, product_id):
     """Product detail page."""
@@ -548,35 +673,28 @@ def product_detail(request, product_id):
     
     # Get frequently bought together using association rules
     try:
-        frequently_bought = get_recommendations([product.sku], top_n=5)
+        frequently_bought = get_recommendations([product.sku], top_n=4)
         if not frequently_bought:
             frequently_bought = Product.objects.filter(
                 category=product.category,
                 quantity_on_hand__gt=0
-            ).exclude(id=product.id)[:5]
+            ).exclude(id=product.id)[:4]
     except:
         frequently_bought = Product.objects.filter(
             category=product.category,
             quantity_on_hand__gt=0
-        ).exclude(id=product.id)[:5]
+        ).exclude(id=product.id)[:4]
     
-    # Get related products
-    related_products = Product.objects.filter(
-        category=product.category,
-        quantity_on_hand__gt=0
-    ).exclude(id=product.id)[:4]
-    
-    # Get wishlist product IDs for all products (main product + related products + frequently bought)
+    # Get wishlist product IDs for all products (main product + frequently bought)
     wishlist_product_ids = set()
     if request.user.is_authenticated:
         wishlist = get_or_create_wishlist(request)
         if wishlist:
             # Get wishlist IDs for all products shown on the page
             all_product_ids = [product.id]
-            if related_products:
-                all_product_ids.extend(list(related_products.values_list('id', flat=True)))
             if frequently_bought:
-                all_product_ids.extend(list(frequently_bought.values_list('id', flat=True)))
+                # frequently_bought is a list, not a QuerySet
+                all_product_ids.extend([p.id for p in frequently_bought])
             wishlist_product_ids = set(
                 wishlist.items.filter(product_id__in=all_product_ids).values_list('product_id', flat=True)
             )
@@ -605,7 +723,6 @@ def product_detail(request, product_id):
         'user_helpful_review_ids': user_helpful_review_ids,
         'total_sold': total_sold,
         'favorites_count': favorites_count,
-        'related_products': related_products,
         'frequently_bought': frequently_bought,
         'product_images': product_images,
         'in_cart': in_cart,
@@ -615,6 +732,58 @@ def product_detail(request, product_id):
         **cart_context,  # Add cart info to context
     }
     return render(request, 'storefront/product_detail.html', context)
+
+def frequently_bought_together(request, product_id):
+    """View All page for Frequently Bought Together products."""
+    product = get_object_or_404(Product, id=product_id)
+    
+    recommended_products = []
+    try:
+        recommended_products = get_recommendations([product.sku], top_n=100)  # Get more for pagination
+        if not recommended_products:
+            recommended_products = Product.objects.filter(
+                category=product.category,
+                quantity_on_hand__gt=0,
+                is_active=True
+            ).exclude(id=product.id).order_by('-rating')
+    except Exception as e:
+        print(f"Error getting frequently bought together: {e}")
+        recommended_products = Product.objects.filter(
+            category=product.category,
+            quantity_on_hand__gt=0,
+            is_active=True
+        ).exclude(id=product.id).order_by('-rating')
+    
+    # Convert to QuerySet if it's a list (from get_recommendations)
+    if isinstance(recommended_products, list):
+        product_ids = [p.id for p in recommended_products]
+        recommended_products = Product.objects.filter(id__in=product_ids).order_by('-rating')
+    
+    # Pagination
+    paginator = Paginator(recommended_products, 12)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    cart_context = get_cart_context(request)
+    cart = cart_context['cart']
+    cart_product_ids = set(cart.items.values_list('product_id', flat=True))
+    
+    wishlist_product_ids = set()
+    if request.user.is_authenticated:
+        wishlist = get_or_create_wishlist(request)
+        if wishlist:
+            wishlist_product_ids = set(wishlist.items.values_list('product_id', flat=True))
+    
+    context = {
+        'product': product,
+        'recommended_products': page_obj,
+        'page_obj': page_obj,
+        'cart_product_ids': cart_product_ids,
+        'wishlist_product_ids': wishlist_product_ids,
+        'cart': cart,
+        **cart_context,
+    }
+    return render(request, 'storefront/frequently_bought_together.html', context)
 
 def shopping_cart(request):
     """Shopping cart page."""
@@ -885,17 +1054,38 @@ def checkout(request):
                 messages.error(request, f'Error creating order: {str(e)}')
                 return redirect('shopping_cart')
         else:
-            # Form is invalid - preserve POST data so user doesn't lose their selections
-            # Show specific form errors for debugging
-            error_messages = []
-            for field, errors in form.errors.items():
-                for error in errors:
-                    if field == '__all__':
-                        error_messages.append(str(error))
-                    else:
-                        error_messages.append(f"{field}: {error}")
-            if error_messages:
-                messages.error(request, f'Please fix the errors: {"; ".join(error_messages)}')
+            # Form is invalid - show simplified error messages
+            missing_fields = []
+            
+            # Check for address errors
+            address_errors = []
+            if 'full_name' in form.errors or 'phone_number' in form.errors or 'address' in form.errors or 'city' in form.errors or 'postal_code' in form.errors or 'country' in form.errors:
+                address_errors.append('address')
+            if '__all__' in form.errors:
+                for error in form.errors['__all__']:
+                    if 'address' in str(error).lower():
+                        address_errors.append('address')
+            
+            if address_errors:
+                missing_fields.append('address')
+            
+            # Check for payment errors
+            payment_errors = []
+            if 'payment_method' in form.errors:
+                payment_errors.append('payment')
+            if 'card_number' in form.errors or 'card_expiry' in form.errors or 'card_cvv' in form.errors or 'cardholder_name' in form.errors or 'card_type' in form.errors:
+                payment_errors.append('credit card')
+            if '__all__' in form.errors:
+                for error in form.errors['__all__']:
+                    if 'payment' in str(error).lower():
+                        payment_errors.append('payment')
+            
+            if payment_errors:
+                missing_fields.append('credit card')
+            
+            # Show simplified error message
+            if missing_fields:
+                messages.error(request, f"Missing {', '.join(missing_fields)}")
             else:
                 messages.error(request, 'Please fix the errors below and try again.')
     else:
@@ -906,6 +1096,58 @@ def checkout(request):
     # Calculate initial shipping fee (standard delivery)
     shipping_fee = Decimal('0.00')
     total = subtotal + shipping_fee
+    
+    # Determine checkout progress for progress bar
+    # Step 1: Cart (always completed)
+    # Step 2: Information (address) - check if address is selected/filled
+    # Step 3: Shipping (delivery time) - check if delivery time is selected
+    # Step 4: Payment - check if payment method is selected
+    # Step 5: Complete (only after order is placed)
+    
+    has_address = False
+    has_delivery = False
+    has_payment = False
+    
+    # Check if address is selected (from POST or saved addresses)
+    if request.method == 'POST':
+        saved_address_id = request.POST.get('saved_address_id')
+        use_new_address = request.POST.get('use_new_address', '0')
+        if saved_address_id and saved_address_id != '':
+            has_address = True
+        elif use_new_address == '1':
+            # Check if new address fields are filled
+            if all([request.POST.get('full_name'), request.POST.get('phone_number'), 
+                   request.POST.get('address'), request.POST.get('city'), 
+                   request.POST.get('postal_code'), request.POST.get('country')]):
+                has_address = True
+    elif saved_addresses.exists():
+        # If there are saved addresses, user can select one (not completed yet, but available)
+        has_address = False  # Not selected yet, but available
+    
+    # Check if delivery time is selected
+    if request.method == 'POST':
+        if request.POST.get('delivery_time'):
+            has_delivery = True
+    
+    # Check if payment method is selected
+    if request.method == 'POST':
+        saved_payment_id = request.POST.get('saved_payment_id')
+        use_new_payment = request.POST.get('use_new_payment', '0')
+        payment_method = request.POST.get('payment_method')
+        if saved_payment_id and saved_payment_id != '':
+            has_payment = True
+        elif use_new_payment == '1' and payment_method:
+            if payment_method == 'paynow':
+                has_payment = True
+            elif payment_method == 'card':
+                # Check if card fields are filled
+                if all([request.POST.get('card_number'), request.POST.get('card_expiry'), 
+                       request.POST.get('card_cvv'), request.POST.get('cardholder_name'), 
+                       request.POST.get('card_type')]):
+                    has_payment = True
+    elif saved_payment_methods.exists():
+        # If there are saved payment methods, user can select one (not completed yet, but available)
+        has_payment = False  # Not selected yet, but available
     
     # Get cart context
     cart_context = get_cart_context(request)
@@ -919,6 +1161,9 @@ def checkout(request):
         'total': total,
         'saved_addresses': saved_addresses,
         'saved_payment_methods': saved_payment_methods,
+        'has_address': has_address,
+        'has_delivery': has_delivery,
+        'has_payment': has_payment,
         **cart_context,  # Add cart info to context
     }
     return render(request, 'storefront/checkout.html', context)
@@ -949,70 +1194,122 @@ def wishlist(request):
 
 def complete_the_set(request):
     """Complete the Set page showing all recommended products."""
+    from .recommendations import get_recommendations
+    from itertools import combinations
+    from adminpanel.models import Product
+    
     cart = get_or_create_cart(request)
     cart_items = cart.items.all()
     
-    # Get all recommended products for "Complete the Set" section
     recommended_products = []
     if cart_items.exists():
-        # Get SKUs of products in cart
         cart_product_skus = [item.product.sku for item in cart_items if item.product.sku]
         cart_product_ids = [item.product.id for item in cart_items]
         
         if cart_product_skus:
+            # Strategy 1: Query with ALL cart items as input
             try:
-                from .recommendations import get_recommendations
-                recommended_products = get_recommendations(cart_product_skus, top_n=20)
-                # Exclude products already in cart
+                recommended_products = get_recommendations(cart_product_skus, top_n=100)  # Get more for pagination
                 recommended_products = [p for p in recommended_products if p.id not in cart_product_ids]
-            except:
-                pass
-        
-        # If we don't have enough recommendations, fill with products from same categories
-        if len(recommended_products) < 20:
-            from adminpanel.models import Product
-            categories = set([item.product.category for item in cart_items if item.product.category])
-            if categories:
+            except Exception as e:
+                print(f"Error getting recommendations for all cart items: {e}")
+                recommended_products = []
+            
+            # Strategy 2: If no matching rules found, try combinations (pairs of cart items)
+            if len(recommended_products) < 100 and len(cart_product_skus) > 1:
+                try:
+                    for pair in combinations(cart_product_skus, 2):
+                        if len(recommended_products) >= 100: break
+                        pair_recommendations = get_recommendations(list(pair), top_n=100)
+                        for p in pair_recommendations:
+                            if p.id not in cart_product_ids and p.id not in [rp.id for rp in recommended_products]:
+                                recommended_products.append(p)
+                                if len(recommended_products) >= 100: break
+                except Exception as e:
+                    print(f"Error getting recommendations for pairs: {e}")
+            
+            # Strategy 3: If still not enough, try individual cart items
+            if len(recommended_products) < 100:
+                try:
+                    for sku in cart_product_skus:
+                        if len(recommended_products) >= 100: break
+                        individual_recommendations = get_recommendations([sku], top_n=100)
+                        for p in individual_recommendations:
+                            if p.id not in cart_product_ids and p.id not in [rp.id for rp in recommended_products]:
+                                recommended_products.append(p)
+                                if len(recommended_products) >= 100: break
+                except Exception as e:
+                    print(f"Error getting recommendations for individual items: {e}")
+            
+            # Strategy 4: Use the most recently added item as fallback
+            if len(recommended_products) < 100:
+                try:
+                    most_recent_item = cart_items.order_by('-id').first()
+                    if most_recent_item and most_recent_item.product.sku:
+                        fallback_recommendations = get_recommendations([most_recent_item.product.sku], top_n=100)
+                        for p in fallback_recommendations:
+                            if p.id not in cart_product_ids and p.id not in [rp.id for rp in recommended_products]:
+                                recommended_products.append(p)
+                                if len(recommended_products) >= 100: break
+                except Exception as e:
+                    print(f"Error getting recommendations for most recent item: {e}")
+            
+            # Final fallback: Fill with products from same categories
+            if len(recommended_products) < 100:
+                categories = set([item.product.category for item in cart_items if item.product.category])
+                if categories:
+                    additional = Product.objects.filter(
+                        category__in=categories,
+                        quantity_on_hand__gt=0,
+                        is_active=True
+                    ).exclude(id__in=cart_product_ids).exclude(
+                        id__in=[p.id for p in recommended_products]
+                    ).order_by('-rating')[:100 - len(recommended_products)]
+                    recommended_products = list(recommended_products) + list(additional)
+            
+            # Final final fallback: Get any popular products
+            if len(recommended_products) < 100:
                 additional = Product.objects.filter(
-                    category__in=categories,
-                    quantity_on_hand__gt=0
+                    quantity_on_hand__gt=0,
+                    is_active=True
                 ).exclude(id__in=cart_product_ids).exclude(
                     id__in=[p.id for p in recommended_products]
-                ).order_by('-rating')[:20 - len(recommended_products)]
+                ).order_by('-rating')[:100 - len(recommended_products)]
                 recommended_products = list(recommended_products) + list(additional)
-        
-        # If still not enough, get any popular products
-        if len(recommended_products) < 20:
-            from adminpanel.models import Product
-            additional = Product.objects.filter(
-                quantity_on_hand__gt=0
-            ).exclude(id__in=cart_product_ids).exclude(
-                id__in=[p.id for p in recommended_products]
-            ).order_by('-rating')[:20 - len(recommended_products)]
-            recommended_products = list(recommended_products) + list(additional)
     else:
         # If cart is empty, show popular products
-        from adminpanel.models import Product
-        recommended_products = Product.objects.filter(quantity_on_hand__gt=0).order_by('-rating')[:20]
+        recommended_products = Product.objects.filter(
+            quantity_on_hand__gt=0,
+            is_active=True
+        ).order_by('-rating')
     
-    # Get cart context
+    # Convert to QuerySet if it's a list (from get_recommendations)
+    if isinstance(recommended_products, list):
+        product_ids = [p.id for p in recommended_products]
+        recommended_products = Product.objects.filter(id__in=product_ids).order_by('-rating')
+    
+    # Pagination
+    paginator = Paginator(recommended_products, 12)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
     cart_context = get_cart_context(request)
+    cart = cart_context['cart']
+    cart_product_ids = set(cart.items.values_list('product_id', flat=True))
     
-    # Get wishlist product IDs for authenticated users
     wishlist_product_ids = set()
     if request.user.is_authenticated:
         wishlist = get_or_create_wishlist(request)
         if wishlist:
             wishlist_product_ids = set(wishlist.items.values_list('product_id', flat=True))
     
-    # Get cart product IDs
-    cart_product_ids = set([item.product.id for item in cart_items])
-    
     context = {
-        'recommended_products': recommended_products,
+        'recommended_products': page_obj,
+        'page_obj': page_obj,
         'wishlist_product_ids': wishlist_product_ids,
         'cart_product_ids': cart_product_ids,
-        **cart_context,  # Add cart info to context
+        'cart': cart,
+        **cart_context,
     }
     return render(request, 'storefront/complete_the_set.html', context)
 
@@ -1894,7 +2191,7 @@ def profile_onboarding(request):
             
             form = CustomerProfileForm(initial={
                 'birth_month': str(approximate_dob.month),
-                'birth_day': approximate_dob.day,
+                'birth_day': str(approximate_dob.day),
                 'birth_year': approximate_dob.year,
                 'date_of_birth': approximate_dob,
                 'gender': customer.gender,
@@ -2059,7 +2356,7 @@ def account_profile(request):
                             approximate_dob = date(birth_year, 1, 1)
                             customer_form = CustomerProfileForm(instance=customer, initial={
                                 'birth_month': str(approximate_dob.month),
-                                'birth_day': approximate_dob.day,
+                                'birth_day': str(approximate_dob.day),
                                 'birth_year': approximate_dob.year,
                                 'date_of_birth': approximate_dob,
                             })
@@ -2134,7 +2431,7 @@ def account_profile(request):
             approximate_dob = date(birth_year, 1, 1)
             initial_data = {
                 'birth_month': str(approximate_dob.month),
-                'birth_day': approximate_dob.day,
+                'birth_day': str(approximate_dob.day),
                 'birth_year': approximate_dob.year,
                 'date_of_birth': approximate_dob,
             }
@@ -2353,7 +2650,20 @@ def account_payment_delete(request, payment_id):
 @login_required
 def account_reviews(request):
     """My Reviews page - show all reviews by the user."""
-    product_reviews = ProductReview.objects.filter(user=request.user).select_related('product').order_by('-created_at')
+    from django.db.models import Count, Case, When, IntegerField
+    
+    # Get product reviews with images and helpful count
+    product_reviews = ProductReview.objects.filter(
+        user=request.user
+    ).select_related('product').prefetch_related('images').annotate(
+        helpful_count_annotated=Count(
+            Case(
+                When(helpful_votes__is_helpful=True, then=1),
+                output_field=IntegerField()
+            )
+        )
+    ).order_by('-created_at')
+    
     delivery_reviews = DeliveryServiceReview.objects.filter(user=request.user).select_related('order').order_by('-created_at')
     
     cart_context = get_cart_context(request)
@@ -2365,6 +2675,219 @@ def account_reviews(request):
     }
     return render(request, 'storefront/account_reviews.html', context)
 
+@login_required
+def edit_review(request, review_id):
+    """Edit a product review."""
+    from storefront.models import ProductReview, ReviewImage
+    from .forms import ProductReviewForm
+    
+    review = get_object_or_404(ProductReview, id=review_id, user=request.user)
+    
+    if request.method == 'POST':
+        post_data = request.POST.copy()
+        if 'rating' in post_data:
+            rating_value = post_data.get('rating')
+            if rating_value:
+                post_data['rating'] = rating_value
+        
+        post_data['is_anonymous'] = 'is_anonymous' in request.POST
+        
+        form = ProductReviewForm(post_data, request.FILES)
+        if form.is_valid():
+            # Update review
+            review.rating = int(form.cleaned_data.get('rating', review.rating))
+            review.title = form.cleaned_data['title']
+            review.comment = form.cleaned_data['comment']
+            review.is_anonymous = form.cleaned_data.get('is_anonymous', False)
+            review.save()
+            
+            # Handle image upload - replace existing images
+            if 'image' in request.FILES and request.FILES['image']:
+                # Delete old images
+                ReviewImage.objects.filter(review=review).delete()
+                # Add new image
+                ReviewImage.objects.create(
+                    review=review,
+                    image=request.FILES['image']
+                )
+            
+            messages.success(request, 'Review updated successfully!')
+            return redirect('account_reviews')
+    else:
+        # Pre-fill form with existing review data
+        form = ProductReviewForm(initial={
+            'rating': review.rating,
+            'title': review.title,
+            'comment': review.comment,
+            'is_anonymous': review.is_anonymous
+        })
+    
+    cart_context = get_cart_context(request)
+    
+    context = {
+        'form': form,
+        'review': review,
+        'product': review.product,
+        **cart_context,
+    }
+    return render(request, 'storefront/edit_review.html', context)
+
+@login_required
+@require_POST
+def delete_review(request, review_id):
+    """Delete a product review."""
+    from storefront.models import ProductReview
+    
+    review = get_object_or_404(ProductReview, id=review_id, user=request.user)
+    product_name = review.product.name
+    review.delete()
+    
+    messages.success(request, f'Your review for "{product_name}" has been deleted.')
+    return redirect('account_reviews')
+
+def faq(request):
+    """FAQ page with frequently asked questions."""
+    # FAQ data - can be moved to database model later if needed
+    faq_categories = [
+        {
+            'title': 'Orders & Shipping',
+            'questions': [
+                {
+                    'question': 'How long does shipping take?',
+                    'answer': 'Standard shipping is free and typically takes 3-5 business days. Express shipping (+$4.99) takes 1-2 business days, and overnight shipping (+$12.99) delivers the next day.'
+                },
+                {
+                    'question': 'Can I track my order?',
+                    'answer': 'Yes! Once your order ships, you will receive a tracking number via email. You can also view your order status in "My Account > My Orders".'
+                },
+                {
+                    'question': 'What if my order is damaged or incorrect?',
+                    'answer': 'We\'re sorry to hear that! Please contact our customer service team within 7 days of delivery. We\'ll arrange for a replacement or refund. You can also initiate a return request from "My Account > Returns".'
+                },
+                {
+                    'question': 'Can I cancel my order?',
+                    'answer': 'You can cancel your order if it hasn\'t been shipped yet. Go to "My Account > My Orders" and click "Cancel Order" on the order you wish to cancel. Once an order ships, you\'ll need to request a return instead.'
+                },
+                {
+                    'question': 'Do you ship internationally?',
+                    'answer': 'Currently, we only ship within Singapore. We are working on expanding our shipping options in the future.'
+                }
+            ]
+        },
+        {
+            'title': 'Returns & Refunds',
+            'questions': [
+                {
+                    'question': 'What is your return policy?',
+                    'answer': 'You can return most items within 30 days of delivery for a full refund or exchange. Items must be unused, in original packaging, and with all tags attached. Some items like perishables, personalized items, and intimate apparel may not be eligible for return.'
+                },
+                {
+                    'question': 'How do I return an item?',
+                    'answer': 'Go to "My Account > Returns" and select the order you want to return. Choose the items you wish to return and provide a reason. Once approved, you\'ll receive a return label and instructions.'
+                },
+                {
+                    'question': 'How long does it take to process a refund?',
+                    'answer': 'Once we receive your returned item, we\'ll inspect it and process your refund within 5-7 business days. The refund will be issued to your original payment method.'
+                },
+                {
+                    'question': 'Who pays for return shipping?',
+                    'answer': 'If the return is due to our error (wrong item, damaged item), we cover the return shipping cost. For other returns, the customer is responsible for return shipping fees.'
+                }
+            ]
+        },
+        {
+            'title': 'Payment & Billing',
+            'questions': [
+                {
+                    'question': 'What payment methods do you accept?',
+                    'answer': 'We accept Credit/Debit Cards and PayNow. You can save your payment methods in "My Account > Payment Methods" for faster checkout.'
+                },
+                {
+                    'question': 'Is my payment information secure?',
+                    'answer': 'Yes! We use industry-standard encryption to protect your payment information. We never store your full card details on our servers.'
+                },
+                {
+                    'question': 'Can I pay with multiple payment methods?',
+                    'answer': 'Currently, each order must be paid with a single payment method. However, you can split your purchase into multiple orders if needed.'
+                },
+                {
+                    'question': 'Will I receive an invoice?',
+                    'answer': 'Yes, you\'ll receive an order confirmation email with invoice details immediately after placing your order. You can also view and download invoices from "My Account > My Orders".'
+                }
+            ]
+        },
+        {
+            'title': 'Account & Profile',
+            'questions': [
+                {
+                    'question': 'How do I update my profile information?',
+                    'answer': 'Go to "My Account > My Profile" to update your personal information, shipping addresses, and payment methods.'
+                },
+                {
+                    'question': 'Can I change my email address?',
+                    'answer': 'Yes, you can update your email address in "My Account > My Profile". You\'ll need to verify your new email address before it\'s activated.'
+                },
+                {
+                    'question': 'How do I reset my password?',
+                    'answer': 'Click "Forgot Password" on the login page, or go to "My Account > My Profile" and click "Change Password". You\'ll receive an email with instructions to reset your password.'
+                },
+                {
+                    'question': 'Can I delete my account?',
+                    'answer': 'Please contact our customer service team if you wish to delete your account. We\'ll process your request within 7 business days.'
+                }
+            ]
+        },
+        {
+            'title': 'Products & Inventory',
+            'questions': [
+                {
+                    'question': 'How do I know if an item is in stock?',
+                    'answer': 'Product pages show real-time stock availability. If an item is out of stock, you can add it to your wishlist to be notified when it\'s back in stock.'
+                },
+                {
+                    'question': 'Do you offer product warranties?',
+                    'answer': 'Warranty information varies by product. Check the product description page for specific warranty details. Most electronics come with manufacturer warranties.'
+                },
+                {
+                    'question': 'Can I request a product that\'s not available?',
+                    'answer': 'We\'re always looking to expand our product range! Please contact our customer service team with product suggestions, and we\'ll consider adding them to our catalog.'
+                },
+                {
+                    'question': 'Are product descriptions accurate?',
+                    'answer': 'We strive to provide accurate product descriptions and images. However, slight variations may occur. If you receive a product that significantly differs from its description, please contact us for a return or exchange.'
+                }
+            ]
+        },
+        {
+            'title': 'Customer Service',
+            'questions': [
+                {
+                    'question': 'How can I contact customer service?',
+                    'answer': 'You can reach us through the chat widget on our website, email us at support@auroramart.com, or call us at +65 1234 5678 during business hours (Monday-Friday, 9 AM - 6 PM SGT).'
+                },
+                {
+                    'question': 'What are your customer service hours?',
+                    'answer': 'Our customer service team is available Monday through Friday, 9 AM to 6 PM Singapore Time (SGT). We aim to respond to all inquiries within 24 hours.'
+                },
+                {
+                    'question': 'Can I provide feedback about my experience?',
+                    'answer': 'Absolutely! We value your feedback. You can leave product reviews after purchase, or contact our customer service team directly with any suggestions or concerns.'
+                },
+                {
+                    'question': 'Do you have a loyalty program?',
+                    'answer': 'We\'re currently developing a loyalty program! Stay tuned for updates. In the meantime, you can earn rewards through product reviews and referrals.'
+                }
+            ]
+        }
+    ]
+    
+    cart_context = get_cart_context(request)
+    
+    context = {
+        'faq_categories': faq_categories,
+        **cart_context,
+    }
+    return render(request, 'storefront/faq.html', context)
 
 @login_required
 def account_returns(request):

@@ -387,9 +387,13 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Toggle chat widget
-function toggleChatWidget() {
+// Toggle chat widget - make it globally accessible
+window.toggleChatWidget = function toggleChatWidget() {
     const widget = document.getElementById('chatWidget');
+    if (!widget) {
+        console.warn('Chat widget not found');
+        return;
+    }
     const isVisible = widget.style.display !== 'none';
     
     widget.style.display = isVisible ? 'none' : 'flex';
@@ -408,7 +412,7 @@ function toggleChatWidget() {
             messagePollingInterval = null;
         }
     }
-}
+};
 
 // Start a new chat
 function startNewChat() {

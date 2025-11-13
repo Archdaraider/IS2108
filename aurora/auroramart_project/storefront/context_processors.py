@@ -100,7 +100,21 @@ def categories(request):
             # Check if customer profile is incomplete
             try:
                 customer = Customer.objects.get(user=request.user)
-                if not customer.age or not customer.gender or not customer.employment_status:
+                # Check if profile has actual values (not just placeholder values)
+                has_required_fields = bool(customer.age and customer.gender and customer.employment_status)
+                
+                # Check if profile has placeholder values (indicates it wasn't completed through onboarding)
+                is_placeholder = (
+                    customer.age == 18 and
+                    customer.gender == 'Male' and
+                    customer.employment_status == 'Student' and
+                    customer.occupation == 'Sales' and
+                    customer.preferred_category == 'Electronics' and
+                    customer.monthly_income_sgd == 0.00
+                )
+                
+                # Show modal if profile is incomplete or is a placeholder
+                if not has_required_fields or is_placeholder:
                     show_profile_modal = True
                     # Check if there's form data in session (from failed submission)
                     if 'profile_form_data' in request.session:

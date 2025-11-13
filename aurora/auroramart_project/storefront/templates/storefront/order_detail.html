@@ -20,9 +20,7 @@
         <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; color: #6e6e73; font-size: 0.875rem;">
             <span>Order ID: <strong style="color: #007bff;">{{ order.oID }}</strong></span>
             <span>|</span>
-            <span>Placed on: {{ order.placed_at|date:"M d, Y" }} at {{ order.placed_at|time:"g:i A" }}</span>
-            <span>|</span>
-            <span>Delivery: {{ delivery_time_formatted }}</span>
+            <span>Placed on: {{ order.placed_at|date:"M d, Y" }} at {{ order.placed_at|time:"H:i" }} SGT</span>
         </div>
     </div>
 

@@ -16,18 +16,26 @@ def create_customer_profile(strategy, details, backend, user=None, is_new=False,
         is_new: Boolean indicating if this is a new user
     """
     if user:
-        # Check if customer exists by user or email
+        # Check if customer exists by user
         customer = None
         try:
             customer = Customer.objects.get(user=user)
+            # Check if this is a placeholder profile (not completed through onboarding)
+            is_placeholder = (
+                customer.age == 18 and
+                customer.gender == 'Male' and
+                customer.employment_status == 'Student' and
+                customer.occupation == 'Sales' and
+                customer.preferred_category == 'Electronics' and
+                customer.monthly_income_sgd == 0.00
+            )
+            # If it's a placeholder, don't link it - let onboarding create a new one
+            if is_placeholder:
+                customer = None
         except Customer.DoesNotExist:
-            try:
-                customer = Customer.objects.get(email=user.email)
-                # Link the customer to the user if found by email
-                customer.user = user
-                customer.save()
-            except Customer.DoesNotExist:
-                pass
+            # Don't try to link by email - if Customer was deleted, it should stay deleted
+            # Let onboarding create a fresh Customer profile
+            pass
         
         # Don't create Customer here - let onboarding handle it
         # This ensures all users (regular registration and OAuth) go through onboarding

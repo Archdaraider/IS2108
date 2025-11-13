@@ -69,9 +69,17 @@
                     
                     <!-- Action Buttons -->
                     <div style="display: flex; flex-direction: row; gap: 0.75rem; align-items: flex-end; justify-content: flex-end; flex-wrap: wrap; align-self: flex-end;">
-                        <a href="{% url 'return_type_selection' order.id %}" class="btn-return-refund" style="background: #20b2aa; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background 0.2s; white-space: nowrap; text-decoration: none; display: inline-block;">
-                            Return/Refund
-                        </a>
+                        {% if item.return_request %}
+                            <!-- Show return status if return request exists -->
+                            <a href="{% url 'return_request_status' item.return_request.id %}" class="btn-return-status" style="background: {% if item.return_request.status == 'pending' %}#ffa500{% elif item.return_request.status == 'approved' %}#28a745{% elif item.return_request.status == 'rejected' %}#dc3545{% elif item.return_request.status == 'processed' %}#17a2b8{% endif %}; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background 0.2s; white-space: nowrap; text-decoration: none; display: inline-block;">
+                                Return Status: {{ item.return_request.get_status_display }}
+                            </a>
+                        {% else %}
+                            <!-- Show return/refund button if no return request exists -->
+                            <a href="{% url 'return_type_selection' order.id %}" class="btn-return-refund" style="background: #20b2aa; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background 0.2s; white-space: nowrap; text-decoration: none; display: inline-block;">
+                                Return/Refund
+                            </a>
+                        {% endif %}
                         <form method="post" action="{% url 'buy_again_item' order.id item.id %}" style="display: inline;">
                             {% csrf_token %}
                             <button type="submit" class="btn-buy-again" style="background: #20b2aa; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background 0.2s; white-space: nowrap;">

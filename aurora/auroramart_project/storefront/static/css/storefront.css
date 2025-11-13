@@ -1560,6 +1560,12 @@ body:has(.category-browser-sidebar) .main-content {
     flex-shrink: 0;
 }
 
+.product-cart-actions .add-to-cart-form {
+    width: 100%;
+    display: flex;
+    box-sizing: border-box;
+}
+
 .product-cart-actions .add-to-cart-btn {
     white-space: nowrap;
     overflow: hidden;
@@ -1567,6 +1573,7 @@ body:has(.category-browser-sidebar) .main-content {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    width: 100%;
 }
 
 .quantity-picker .quantity-btn,

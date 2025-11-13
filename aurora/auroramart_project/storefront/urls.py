@@ -76,6 +76,7 @@ urlpatterns = [
     path('orders/<int:order_id>/return/', views.return_type_selection, name='return_type_selection'),
     path('orders/<int:order_id>/return/request/', views.return_request, name='return_request'),
     path('orders/<int:order_id>/return/remove-item/<int:item_index>/', views.remove_return_item, name='remove_return_item'),
+    path('returns/<int:return_request_id>/status/', views.return_request_status, name='return_request_status'),
     
     # Buy Again
     path('orders/<int:order_id>/buy-again/', views.buy_again, name='buy_again'),

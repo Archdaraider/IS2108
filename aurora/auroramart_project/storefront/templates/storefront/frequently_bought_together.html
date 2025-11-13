@@ -75,55 +75,55 @@
             {% for recommended_product in recommended_products %}
             <div class="product-card">
                 <a href="{% url 'product_detail' recommended_product.id %}" class="product-card-link">
-                <div class="product-image">
-                    {% if recommended_product.image %}
-                        <img src="{{ recommended_product.image.url }}" alt="{{ recommended_product.name }}">
-                    {% else %}
-                        <div class="product-placeholder">
-                            <i class="fas fa-image"></i>
-                        </div>
-                    {% endif %}
-                    <div class="product-actions">
-                        <form method="post" action="{% url 'add_to_wishlist' %}" style="display: inline;">
-                            {% csrf_token %}
-                            <input type="hidden" name="product_id" value="{{ recommended_product.id }}">
-                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                            <button type="submit" class="action-btn wishlist-btn">
-                                {% if recommended_product.id in wishlist_product_ids %}
-                                    <i class="fas fa-heart" style="color: #dc3545;"></i>
-                                {% else %}
-                                    <i class="far fa-heart"></i>
-                                {% endif %}
-                            </button>
-                        </form>
-                    </div>
-                </div>
-                <div class="product-info">
-                    <div class="product-price">${{ recommended_product.price|floatformat:2 }}</div>
-                    <h3 class="product-name">{{ recommended_product.name }}</h3>
-                    <div class="product-category">{{ recommended_product.category }}</div>
-                    <div class="product-stock {% if recommended_product.quantity_on_hand > 0 %}in-stock{% else %}out-of-stock{% endif %}" style="font-size: 0.875rem; margin: 0.25rem 0;">
-                        <i class="fas fa-box" style="margin-right: 0.25rem;"></i>
-                        {% if recommended_product.quantity_on_hand > 0 %}
-                            <span style="color: #28a745;">Stock: {{ recommended_product.quantity_on_hand }} item{{ recommended_product.quantity_on_hand|pluralize }}</span>
+                    <div class="product-image">
+                        {% if recommended_product.image %}
+                            <img src="{{ recommended_product.image.url }}" alt="{{ recommended_product.name }}">
                         {% else %}
-                            <span style="color: #dc3545;">Out of Stock</span>
+                            <div class="product-placeholder">
+                                <i class="fas fa-image"></i>
+                            </div>
                         {% endif %}
-                    </div>
-                    <div class="product-rating">
-                        <div class="stars">
-                            {% for i in "12345" %}
-                                {% if forloop.counter <= recommended_product.avg_rating %}
-                                    <i class="fas fa-star"></i>
-                                {% else %}
-                                    <i class="far fa-star"></i>
-                                {% endif %}
-                            {% endfor %}
+                        <div class="product-actions">
+                            <form method="post" action="{% url 'add_to_wishlist' %}" style="display: inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="product_id" value="{{ recommended_product.id }}">
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                <button type="submit" class="action-btn wishlist-btn" onclick="event.stopPropagation();">
+                                    {% if recommended_product.id in wishlist_product_ids %}
+                                        <i class="fas fa-heart" style="color: #dc3545;"></i>
+                                    {% else %}
+                                        <i class="far fa-heart"></i>
+                                    {% endif %}
+                                </button>
+                            </form>
                         </div>
-                        <span class="rating-text">{{ recommended_product.avg_rating|floatformat:1 }} ({{ recommended_product.reviews_count|default:0 }})</span>
+                    </div>
+                    <div class="product-info">
+                        <div class="product-price">${{ recommended_product.price|floatformat:2 }}</div>
+                        <h3 class="product-name">{{ recommended_product.name }}</h3>
+                        <div class="product-category">{{ recommended_product.category }}</div>
+                        <div class="product-stock {% if recommended_product.quantity_on_hand > 0 %}in-stock{% else %}out-of-stock{% endif %}" style="font-size: 0.875rem; margin: 0.25rem 0;">
+                            <i class="fas fa-box" style="margin-right: 0.25rem;"></i>
+                            {% if recommended_product.quantity_on_hand > 0 %}
+                                <span style="color: #28a745;">Stock: {{ recommended_product.quantity_on_hand }} item{{ recommended_product.quantity_on_hand|pluralize }}</span>
+                            {% else %}
+                                <span style="color: #dc3545;">Out of Stock</span>
+                            {% endif %}
+                        </div>
+                        <div class="product-rating">
+                            <div class="stars">
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= recommended_product.avg_rating %}
+                                        <i class="fas fa-star"></i>
+                                    {% else %}
+                                        <i class="far fa-star"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            <span class="rating-text">{{ recommended_product.avg_rating|floatformat:1 }} ({{ recommended_product.reviews_count|default:0 }})</span>
+                        </div>
                     </div>
                 </a>
-                </div>
                 <div class="product-cart-actions">
                     {% if recommended_product.quantity_on_hand > 0 %}
                         {% if recommended_product.id in cart_product_ids %}
@@ -135,7 +135,7 @@
                                             <input type="hidden" name="item_id" value="{{ item.id }}">
                                             <input type="hidden" name="action" value="decrease">
                                             <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                                            <button type="submit" class="quantity-btn minus">-</button>
+                                            <button type="submit" class="quantity-btn minus" onclick="event.stopPropagation();">-</button>
                                         </form>
                                         <span class="quantity-value">{{ item.quantity }}</span>
                                         <form method="post" action="{% url 'update_cart_item' %}" style="display: inline;">
@@ -143,7 +143,7 @@
                                             <input type="hidden" name="item_id" value="{{ item.id }}">
                                             <input type="hidden" name="action" value="increase">
                                             <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                                            <button type="submit" class="quantity-btn plus">+</button>
+                                            <button type="submit" class="quantity-btn plus" onclick="event.stopPropagation();">+</button>
                                         </form>
                                     </div>
                                 {% endif %}
@@ -154,13 +154,13 @@
                                 <input type="hidden" name="product_id" value="{{ recommended_product.id }}">
                                 <input type="hidden" name="quantity" value="1">
                                 <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                                <button type="submit" class="btn btn-primary add-to-cart-btn">
+                                <button type="submit" class="btn btn-primary add-to-cart-btn" onclick="event.stopPropagation();">
                                     Add to cart
                                 </button>
                             </form>
                         {% endif %}
                     {% else %}
-                        <button class="btn btn-secondary" disabled>
+                        <button class="btn btn-secondary" disabled onclick="event.stopPropagation();">
                             Out of Stock
                         </button>
                     {% endif %}

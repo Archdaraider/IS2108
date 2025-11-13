@@ -41,10 +41,10 @@
         <h3 style="font-size: 1.25rem; font-weight: 600; color: #1d1d1f; margin-bottom: 0.75rem;">Still have questions?</h3>
         <p style="color: #6e6e73; font-size: 0.9375rem; margin-bottom: 1.5rem;">Our customer service team is here to help!</p>
         <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
-            <a href="#" onclick="if(typeof window.openChatWidget === 'function') { window.openChatWidget(); return false; }" class="btn btn-primary" style="background: #007bff; color: white; padding: 0.75rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: 500; display: inline-block;">
+            <button type="button" onclick="if(typeof window.toggleChatWidget === 'function') { window.toggleChatWidget(); } else if(typeof toggleChatWidget === 'function') { toggleChatWidget(); } else { alert('Chat is not available. Please contact us via email.'); }" class="btn btn-primary" style="background: #007bff; color: white; padding: 0.75rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: 500; display: inline-block; border: none; cursor: pointer; font-size: 0.9375rem;">
                 <i class="fas fa-comments" style="margin-right: 0.5rem;"></i>Chat with Us
-            </a>
-            <a href="mailto:support@auroramart.com" class="btn" style="background: white; color: #007bff; padding: 0.75rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: 500; display: inline-block; border: 1px solid #007bff;">
+            </button>
+            <a href="mailto:support@auroramart.com?subject=Customer%20Inquiry&body=Hello%20AuroraMart%20Support%2C%0A%0A" class="btn" style="background: white; color: #007bff; padding: 0.75rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: 500; display: inline-block; border: 1px solid #007bff; font-size: 0.9375rem;">
                 <i class="fas fa-envelope" style="margin-right: 0.5rem;"></i>Email Us
             </a>
         </div>
@@ -61,7 +61,8 @@
 }
 
 .faq-item.active .faq-answer {
-    max-height: 500px;
+    max-height: 1000px;
+    padding-top: 0;
 }
 </style>
 

@@ -41,13 +41,8 @@
                             Order ID: <span style="color: #007bff;">{{ order.oID }}</span>
                         </div>
                         <div style="color: #6e6e73; font-size: 0.875rem;">
-                            Placed on: {{ order.placed_at|date:"M d, Y" }} at {{ order.placed_at|time:"g:i A" }}
+                            Placed on: {{ order.placed_at|date:"M d, Y" }} at {{ order.placed_at|time:"H:i" }} SGT
                         </div>
-                    </div>
-
-                    <!-- Delivery Time -->
-                    <div style="margin-bottom: 1rem; color: #1d1d1f; font-size: 0.875rem;">
-                        Delivery Time: {{ order_data.delivery_time_formatted }}
                     </div>
 
                     <!-- Product Thumbnails -->

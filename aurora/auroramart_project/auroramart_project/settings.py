@@ -143,7 +143,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Singapore'
 
 USE_I18N = True
 
@@ -254,5 +254,5 @@ else:
     print("  DEFAULT_FROM_EMAIL=noreply@auroramart.com")
 
 # Social Auth Redirect (custom handling in views)
-SOCIAL_AUTH_LOGIN_REDIRECT_URL = 'oauth_redirect_handler'
-SOCIAL_AUTH_NEW_USER_REDIRECT_URL = 'oauth_redirect_handler'  # Will check and show modal if needed
+SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/oauth-redirect/'
+SOCIAL_AUTH_NEW_USER_REDIRECT_URL = '/oauth-redirect/'  # Will check and show modal if needed

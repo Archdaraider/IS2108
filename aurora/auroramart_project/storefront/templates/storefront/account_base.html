@@ -45,7 +45,7 @@
                         <i class="fas fa-shopping-bag" style="margin-right: 0.75rem; width: 20px;"></i>
                         My Orders
                     </a>
-                    <a href="{% url 'account_returns' %}" class="sidebar-link {% if request.resolver_match.url_name == 'account_returns' %}active{% endif %}">
+                    <a href="{% url 'account_returns' %}" class="sidebar-link {% if request.resolver_match.url_name == 'account_returns' or request.resolver_match.url_name == 'return_request_status' %}active{% endif %}">
                         <i class="fas fa-undo" style="margin-right: 0.75rem; width: 20px;"></i>
                         My Returns
                     </a>

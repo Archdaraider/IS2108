@@ -85,32 +85,27 @@ def get_or_create_wishlist(request):
 
 def homepage(request):
     """Homepage with featured products and banners."""
-    # Get featured products - annotate with reviews
-    from django.db.models import Sum, Avg, Count, Value, DecimalField
-    from django.db.models.functions import Coalesce
+    # Get featured products - use product.rating directly
+    from django.db.models import Sum, Count
     from storefront.models import ProductReview
     featured_products = Product.objects.filter(quantity_on_hand__gt=0, is_active=True).annotate(
-        avg_rating=Coalesce(Avg('reviews__rating'), 'rating', output_field=DecimalField(max_digits=3, decimal_places=1)),
         reviews_count=Count('reviews')
-    ).order_by('-avg_rating', '-rating')[:8]
+    ).order_by('-rating')[:8]
     
-    # Get best sellers - products with highest total_sold (actual sales)
-    # Annotate with total_sold from OrderItem aggregation and reviews
+    # Get best sellers - products with highest quantity_sold (from transaction data)
     best_sellers = Product.objects.filter(
         quantity_on_hand__gt=0, 
-        is_active=True
+        is_active=True,
+        quantity_sold__gt=0  # Only show products that have sales data
     ).annotate(
-        total_sold_count=Sum('orderitem__quantity'),
-        avg_rating=Coalesce(Avg('reviews__rating'), 'rating', output_field=DecimalField(max_digits=3, decimal_places=1)),
         reviews_count=Count('reviews')
-    ).order_by('-total_sold_count', '-avg_rating', '-rating')[:8]
+    ).order_by('-quantity_sold', '-rating')[:8]
     
-    # If no products have sales yet, fallback to highest rated products
-    if not best_sellers or all(p.total_sold_count is None or p.total_sold_count == 0 for p in best_sellers):
+    # If no products have sales data yet, fallback to highest rated products
+    if not best_sellers:
         best_sellers = Product.objects.filter(quantity_on_hand__gt=0, is_active=True).annotate(
-            avg_rating=Coalesce(Avg('reviews__rating'), 'rating', output_field=DecimalField(max_digits=3, decimal_places=1)),
             reviews_count=Count('reviews')
-        ).order_by('-avg_rating', '-rating')[:8]
+        ).order_by('-rating')[:8]
     
     # Get banners from admin panel database
     from adminpanel.models import Banner as AdminBanner
@@ -200,9 +195,8 @@ def homepage(request):
                         quantity_on_hand__gt=0,
                         is_active=True
                     ).annotate(
-                        avg_rating=Coalesce(Avg('reviews__rating'), 'rating', output_field=DecimalField(max_digits=3, decimal_places=1)),
                         reviews_count=Count('reviews')
-                    ).order_by('-avg_rating', '-rating', '-id')[:8])
+                    ).order_by('-rating', '-id')[:8])
 
                     recommendation_reason = f"We recommended {predicted_category} because of your profile preferences."
                     
@@ -240,9 +234,8 @@ def homepage(request):
                             quantity_on_hand__gt=0,
                             is_active=True
                         ).annotate(
-                            avg_rating=Coalesce(Avg('reviews__rating'), 'rating', output_field=DecimalField(max_digits=3, decimal_places=1)),
                             reviews_count=Count('reviews')
-                        ).order_by('-avg_rating', '-rating', '-id')[:8])
+                        ).order_by('-rating', '-id')[:8])
                         
                         recommendation_reason = f"We recommended {predicted_category} because of your profile preferences."
                         
@@ -324,27 +317,25 @@ def product_list(request, category_slug=None, subcategory_slug=None):
         except ValueError:
             pass
     
-    # Rating Filter
+    # Annotate products with reviews_count (for display)
+    # Use product.rating directly (from Product model)
+    from django.db.models import Count, Sum, Value, DecimalField
+    from storefront.models import ProductReview
+    products = products.annotate(
+        reviews_count=Count('reviews')
+    )
+    
+    # Rating Filter - use product.rating directly
     filter_rating = request.GET.get('filter_rating')
     if filter_rating:
         try:
             filter_rating = int(filter_rating)
             if 1 <= filter_rating <= 5:
-                # Filter products with average rating >= filter_rating
-                # Since we're using the product's rating field, filter by that
+                # Filter products with rating >= filter_rating
+                # Use product.rating directly
                 products = products.filter(rating__gte=filter_rating)
         except ValueError:
             pass
-    
-    # Annotate products with avg_rating and reviews_count from ProductReview
-    # Use Coalesce to fallback to product.rating if no reviews exist
-    from django.db.models import Avg, Count, Sum, Value, DecimalField
-    from django.db.models.functions import Coalesce
-    from storefront.models import ProductReview
-    products = products.annotate(
-        avg_rating=Coalesce(Avg('reviews__rating'), 'rating', output_field=DecimalField(max_digits=3, decimal_places=1)),
-        reviews_count=Count('reviews')
-    )
     
     # Sorting
     sort_by = request.GET.get('sort', 'best_match')
@@ -353,17 +344,15 @@ def product_list(request, category_slug=None, subcategory_slug=None):
     elif sort_by == 'price_high':
         products = products.order_by('-price')
     elif sort_by == 'rating':
-        # Sort by avg_rating from reviews, fallback to product.rating
-        products = products.order_by('-avg_rating', '-rating')
+        # Sort by product.rating directly
+        products = products.order_by('-rating')
     elif sort_by == 'bestsellers' or sort_by == 'best_sellers':
-        # Sort by total_sold (actual sales) - best sellers
-        products = products.annotate(
-            total_sold_count=Sum('orderitem__quantity')
-        ).order_by('-total_sold_count', '-avg_rating', '-rating')
+        # Sort by quantity_sold (from transaction data) - best sellers
+        products = products.order_by('-quantity_sold', '-rating')
     elif sort_by == 'newest':
         products = products.order_by('-id')
     else:  # best_match
-        products = products.order_by('-avg_rating', '-rating', '-id')
+        products = products.order_by('-rating', '-id')
     
     # Pagination
     paginator = Paginator(products, 12)
@@ -439,6 +428,20 @@ def product_list(request, category_slug=None, subcategory_slug=None):
                     # Filter out already seen products
                     recommendations = [p for p in recommendations if p.id not in seen_product_ids]
                     
+                    # Annotate recommendations with reviews
+                    if recommendations:
+                        from django.db.models import Count
+                        from storefront.models import ProductReview
+                        # Store original order
+                        original_order = [p.id for p in recommendations]
+                        product_ids = [p.id for p in recommendations]
+                        annotated_recs = Product.objects.filter(id__in=product_ids).annotate(
+                            reviews_count=Count('reviews')
+                        )
+                        # Maintain order
+                        product_dict = {p.id: p for p in annotated_recs}
+                        recommendations = [product_dict[pid] for pid in original_order if pid in product_dict]
+                    
                     # Store recommendations at the index after this chunk (only if we have recommendations)
                     if recommendations:
                         next_best_actions_dict[i + chunk_size] = recommendations[:4]
@@ -480,6 +483,18 @@ def product_list(request, category_slug=None, subcategory_slug=None):
                     ]
                     # Exclude products already in cart
                     next_best_action_products = [p for p in next_best_action_products if p.id not in cart_product_ids]
+                    
+                    # Annotate with reviews
+                    if next_best_action_products:
+                        from django.db.models import Count
+                        from storefront.models import ProductReview
+                        product_ids = [p.id for p in next_best_action_products]
+                        annotated_products = Product.objects.filter(id__in=product_ids).annotate(
+                            reviews_count=Count('reviews')
+                        )
+                        # Maintain order
+                        product_dict = {p.id: p for p in annotated_products}
+                        next_best_action_products = [product_dict[p.id] for p in next_best_action_products if p.id in product_dict]
             except Exception as e:
                 print(f"Error getting Next Best Action recommendations: {e}")
                 next_best_action_products = []
@@ -545,10 +560,14 @@ def next_best_action(request, category_slug):
             print(f"Error getting Next Best Action recommendations: {e}")
             recommended_products = []
     
-    # Convert to QuerySet if it's a list
+    # Convert to QuerySet if it's a list and annotate with reviews
     if isinstance(recommended_products, list):
         product_ids = [p.id for p in recommended_products]
-        recommended_products = Product.objects.filter(id__in=product_ids).order_by('-rating')
+        from django.db.models import Count
+        from storefront.models import ProductReview
+        recommended_products = Product.objects.filter(id__in=product_ids).annotate(
+            reviews_count=Count('reviews')
+        ).order_by('-rating')
     
     # Pagination
     paginator = Paginator(recommended_products, 12)
@@ -580,12 +599,14 @@ def next_best_action(request, category_slug):
 
 def product_detail(request, product_id):
     """Product detail page."""
+    from storefront.models import ProductReview
     product = get_object_or_404(Product, id=product_id)
     
     # Get all reviews for rating distribution
     all_reviews = ProductReview.objects.filter(product=product).select_related('user').prefetch_related('images', 'helpful_votes')
     reviews_count = all_reviews.count()
-    avg_rating = all_reviews.aggregate(Avg('rating'))['rating__avg'] or float(product.rating)
+    # Use product.rating directly from Product model
+    avg_rating = float(product.rating)
     
     # Calculate star display (full stars, half stars, empty stars)
     full_stars = int(avg_rating)
@@ -674,6 +695,16 @@ def product_detail(request, product_id):
     # Get frequently bought together using association rules
     try:
         frequently_bought = get_recommendations([product.sku], top_n=4)
+        # Annotate with reviews_count
+        if frequently_bought:
+            from django.db.models import Count
+            product_ids = [p.id for p in frequently_bought]
+            annotated_frequently_bought = Product.objects.filter(id__in=product_ids).annotate(
+                reviews_count=Count('reviews')
+            )
+            # Maintain order
+            product_dict = {p.id: p for p in annotated_frequently_bought}
+            frequently_bought = [product_dict[p.id] for p in frequently_bought if p.id in product_dict]
     except:
         frequently_bought = []
     
@@ -736,10 +767,14 @@ def frequently_bought_together(request, product_id):
         print(f"Error getting frequently bought together: {e}")
         recommended_products = []
     
-    # Convert to QuerySet if it's a list (from get_recommendations)
+    # Convert to QuerySet if it's a list (from get_recommendations) and annotate with reviews
     if isinstance(recommended_products, list):
         product_ids = [p.id for p in recommended_products]
-        recommended_products = Product.objects.filter(id__in=product_ids).order_by('-rating')
+        from django.db.models import Count
+        from storefront.models import ProductReview
+        recommended_products = Product.objects.filter(id__in=product_ids).annotate(
+            reviews_count=Count('reviews')
+        ).order_by('-rating')
     
     # Pagination
     paginator = Paginator(recommended_products, 12)
@@ -786,8 +821,26 @@ def shopping_cart(request):
                 recommended_products = get_recommendations(cart_product_skus, top_n=4)
                 # Exclude products already in cart
                 recommended_products = [p for p in recommended_products if p.id not in cart_product_ids]
-            except:
+            except Exception as e:
+                # Log error for debugging but don't show to user
+                import traceback
+                print(f"Error getting recommendations: {e}")
+                traceback.print_exc()
                 recommended_products = []
+    
+    # Annotate recommended products with reviews
+    if recommended_products:
+        from django.db.models import Count
+        from storefront.models import ProductReview
+        # Store original order
+        original_order = [p.id for p in recommended_products]
+        product_ids = [p.id for p in recommended_products]
+        annotated_products = Product.objects.filter(id__in=product_ids).annotate(
+            reviews_count=Count('reviews')
+        )
+        # Maintain original order
+        product_dict = {p.id: p for p in annotated_products}
+        recommended_products = [product_dict[pid] for pid in original_order if pid in product_dict]
     
     # Limit to 4 products for the cart page
     recommended_products = recommended_products[:4]
@@ -1188,10 +1241,14 @@ def complete_the_set(request):
                 print(f"Error getting recommendations for all cart items: {e}")
                 recommended_products = []
     
-    # Convert to QuerySet if it's a list (from get_recommendations)
+    # Convert to QuerySet if it's a list (from get_recommendations) and annotate with reviews
     if isinstance(recommended_products, list):
         product_ids = [p.id for p in recommended_products]
-        recommended_products = Product.objects.filter(id__in=product_ids).order_by('-rating')
+        from django.db.models import Count
+        from storefront.models import ProductReview
+        recommended_products = Product.objects.filter(id__in=product_ids).annotate(
+            reviews_count=Count('reviews')
+        ).order_by('-rating')
     
     # Pagination
     paginator = Paginator(recommended_products, 12)
@@ -1990,6 +2047,14 @@ def profile_onboarding(request):
         # Occupation values: 'Admin', 'Education', 'Sales', 'Service', 'Skilled Trades', 'Tech'
         ml_occupation = data['occupation'] if data['occupation'] else 'Sales'
         
+        # Get has_children value - ensure it's a proper boolean
+        has_children_value = data.get('has_children')
+        # Convert to boolean if it's a string
+        if isinstance(has_children_value, str):
+            has_children_value = has_children_value.lower() in ('true', '1', 'yes')
+        elif not isinstance(has_children_value, bool):
+            has_children_value = bool(has_children_value) if has_children_value is not None else False
+        
         # Predict preferred category using Decision Tree model
         predicted_category = predict_preferred_category(
             age=age,
@@ -1998,7 +2063,7 @@ def profile_onboarding(request):
             occupation=ml_occupation,  # Use mapped occupation value
             education=data['education'],
             household_size=data['household_size'],
-            has_children=data['has_children'],
+            has_children=has_children_value,
             monthly_income_sgd=data['monthly_income_sgd']
         )
         
@@ -2375,6 +2440,16 @@ def account_profile(request):
                 # Occupation values: 'Admin', 'Education', 'Sales', 'Service', 'Skilled Trades', 'Tech'
                 ml_occupation = data.get('occupation', customer.occupation) or 'Sales'
                 
+                # Get has_children value - ensure it's a proper boolean
+                has_children_value = data.get('has_children')
+                if has_children_value is None:
+                    has_children_value = customer.has_children if customer.has_children is not None else False
+                # Convert to boolean if it's a string
+                if isinstance(has_children_value, str):
+                    has_children_value = has_children_value.lower() in ('true', '1', 'yes')
+                elif not isinstance(has_children_value, bool):
+                    has_children_value = bool(has_children_value)
+                
                 # Predict new preferred category
                 predicted_category = predict_preferred_category(
                     age=customer.age,
@@ -2383,7 +2458,7 @@ def account_profile(request):
                     occupation=ml_occupation,
                     education=data.get('education', customer.education) or 'Bachelor',
                     household_size=data.get('household_size', customer.household_size) or 1,
-                    has_children=data.get('has_children', customer.has_children) or False,
+                    has_children=has_children_value,
                     monthly_income_sgd=float(data.get('monthly_income_sgd', customer.monthly_income_sgd) or 0.00)
                 )
                 
@@ -2938,12 +3013,8 @@ def return_type_selection(request, order_id):
     customer = get_object_or_404(Customer, user=request.user)
     order = get_object_or_404(Order, id=order_id, customer=customer)
     
-    # Check if there's already a return request for this order
-    existing_return = ReturnRequest.objects.filter(order=order, user=request.user).first()
-    if existing_return:
-        # Redirect to status page if return request already exists
-        messages.info(request, 'You have already initiated a return/refund request for this order.')
-        return redirect('return_request_status', return_request_id=existing_return.id)
+    # Allow users to create return requests for items that don't already have one
+    # The return_request view will handle checking which specific items already have returns
     
     if request.method == 'POST':
         form = ReturnRequestForm(request.POST)

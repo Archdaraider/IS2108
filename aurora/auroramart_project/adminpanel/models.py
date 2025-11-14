@@ -90,7 +90,7 @@ PRODUCT_SUBCATEGORY_CHOICES = [
     ('Makeup', 'Makeup'),
     ('Medical Devices', 'Medical Devices'),
     ('Monitors', 'Monitors'),
-    ('Non?Fiction', 'Non-fiction'), # Corrected '?' from CSV
+    ('Non-Fiction', 'Non-fiction'), 
     ('Oils & Fluids', 'Oils & Fluids'),
     ('Outerwear', 'Outerwear'),
     ('Pantry Staples', 'Pantry Staples'),
@@ -161,6 +161,15 @@ class Product(models.Model):
     sku = models.CharField(max_length=50, unique=True, verbose_name="SKU")
     name = models.CharField(max_length=255)
     description = models.TextField()
+    
+    def save(self, *args, **kwargs):
+        """Override save to automatically fix description encoding issues."""
+        import re
+        # Fix "?" that should be "-" (encoding issue from CSV)
+        # Replace '?' with '-' when it appears between alphanumeric characters
+        if self.description:
+            self.description = re.sub(r'([a-zA-Z0-9])\?([a-zA-Z0-9])', r'\1-\2', self.description)
+        super().save(*args, **kwargs)
     category = models.CharField(max_length=100, choices=PRODUCT_CATEGORY_CHOICES)
     subcategory = models.CharField(max_length=100, choices=PRODUCT_SUBCATEGORY_CHOICES)
     
@@ -175,6 +184,10 @@ class Product(models.Model):
     )
     quantity_on_hand = models.IntegerField() # Renamed from stock
     reorder_quantity = models.IntegerField() # Renamed from reorder_threshold
+    quantity_sold = models.IntegerField(
+        default=0,
+        help_text="Pre-populated quantity sold from transaction data"
+    )
     image = models.ImageField(upload_to='products/', null=True, blank=True)
     is_active = models.BooleanField(
         default=True,
@@ -186,12 +199,22 @@ class Product(models.Model):
     
     @property
     def total_sold(self):
-        """Calculate total quantity sold from order items."""
-        from django.db.models import Sum
-        total = OrderItem.objects.filter(product=self).aggregate(
-            total=Sum('quantity')
-        )['total']
-        return total or 0
+        """Calculate total quantity sold from pre-populated data or order items."""
+        # Use pre-populated quantity_sold if available, otherwise calculate from OrderItem
+        if self.quantity_sold and self.quantity_sold > 0:
+            # Also add any additional sales from actual orders
+            from django.db.models import Sum
+            additional_sales = OrderItem.objects.filter(product=self).aggregate(
+                total=Sum('quantity')
+            )['total'] or 0
+            return self.quantity_sold + additional_sales
+        else:
+            # Fallback to calculating from OrderItem if quantity_sold not set
+            from django.db.models import Sum
+            total = OrderItem.objects.filter(product=self).aggregate(
+                total=Sum('quantity')
+            )['total']
+            return total or 0
     
     @property
     def favorites_count(self):

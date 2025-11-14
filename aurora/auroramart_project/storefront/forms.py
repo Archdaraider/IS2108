@@ -177,6 +177,38 @@ class CustomerProfileForm(forms.ModelForm):
             'household_size': 'Household size',
         }
     
+    def clean_has_children(self):
+        """Convert has_children to proper boolean value."""
+        # Get the raw value from form data (before cleaning)
+        # Django Select widgets with boolean choices return strings "True" or "False"
+        value = self.data.get('has_children') if hasattr(self, 'data') else None
+        
+        # Handle string values from form submission (Django forms return strings from Select widgets)
+        if isinstance(value, str):
+            # Django converts True/False to strings "True"/"False" in HTML
+            if value == 'True' or value.lower() in ('true', '1', 'yes'):
+                return True
+            elif value == 'False' or value.lower() in ('false', '0', 'no', ''):
+                return False
+        # Handle boolean values (shouldn't happen with Select widget, but handle it)
+        elif isinstance(value, bool):
+            return value
+        # Handle integer values (1/0)
+        elif isinstance(value, int):
+            return bool(value)
+        # If value is None, try to get from cleaned_data (after parent clean)
+        elif hasattr(self, 'cleaned_data'):
+            value = self.cleaned_data.get('has_children')
+            if isinstance(value, bool):
+                return value
+            elif isinstance(value, str):
+                if value == 'True' or value.lower() in ('true', '1', 'yes'):
+                    return True
+                elif value == 'False' or value.lower() in ('false', '0', 'no', ''):
+                    return False
+        # Default to False if value is None or unexpected type
+        return False
+    
     def clean(self):
         """Combine month, day, year into date_of_birth and validate."""
         cleaned_data = super().clean()

@@ -115,7 +115,15 @@
                                     
                                     <div>
                                         <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #1d1d1f;">Upload Image (Optional)</label>
-                                        {{ form.image }}
+                                        <div style="position: relative;">
+                                            <input type="file" name="image" id="id_image_{{ item.id }}" accept="image/*" style="display: none;" onchange="handleImageUpload(this, 'image-preview-{{ item.id }}')">
+                                            <label for="id_image_{{ item.id }}" class="image-upload-label" style="display: block; width: 200px; height: 200px; border: 2px dashed #d2d2d7; border-radius: 8px; cursor: pointer; position: relative; overflow: hidden; background: #f5f5f7; transition: all 0.2s;">
+                                                <div id="image-preview-{{ item.id }}" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column; color: #6e6e73;">
+                                                    <i class="fas fa-plus" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
+                                                    <span style="font-size: 0.875rem;">Upload Photo</span>
+                                                </div>
+                                            </label>
+                                        </div>
                                         {% if form.image.errors %}
                                             <div style="color: #dc3545; font-size: 0.875rem; margin-top: 0.25rem;">{{ form.image.errors }}</div>
                                         {% endif %}
@@ -268,11 +276,30 @@
         min-height: 80px;
     }
     
+    .image-upload-label:hover {
+        border-color: #007bff;
+        background: #f0f7ff;
+    }
+    
     @media (max-width: 968px) {
         .return-request-layout {
             grid-template-columns: 1fr !important;
         }
     }
 </style>
+
+<script>
+    // Image upload preview
+    function handleImageUpload(input, previewId) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById(previewId);
+                preview.innerHTML = '<img src="' + e.target.result + '" id="preview-img" style="max-width: 100%; max-height: 100%; object-fit: cover; border-radius: 6px;">';
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+</script>
 {% endblock %}
 

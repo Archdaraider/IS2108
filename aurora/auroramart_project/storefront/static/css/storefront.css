@@ -984,6 +984,14 @@ body:has(.category-browser-sidebar) .main-content {
     min-height: 0;
 }
 
+/* Push cart actions to bottom of product-info */
+.product-info .add-to-cart-form,
+.product-info .quantity-picker,
+.product-info > button.btn-secondary {
+    margin-top: auto;
+    flex-shrink: 0;
+}
+
 .product-price {
     font-size: 1.25rem;
     font-weight: 600;
@@ -997,6 +1005,7 @@ body:has(.category-browser-sidebar) .main-content {
     font-weight: 500;
     margin-bottom: 0.5rem;
     line-height: 1.4;
+    min-height: 2.8em; /* Accommodate 2 lines of text (1.4 line-height * 2) */
 }
 
 .product-name a {

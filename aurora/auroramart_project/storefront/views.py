@@ -2618,6 +2618,10 @@ def account_address_edit(request, address_id):
             
             address.save()
             messages.success(request, 'Address updated successfully!')
+            # Redirect to next URL if provided, otherwise to account_addresses
+            next_url = request.GET.get('next') or request.POST.get('next')
+            if next_url:
+                return redirect(next_url)
             return redirect('account_addresses')
     else:
         form = AddressForm(instance=address)
@@ -2640,6 +2644,10 @@ def account_address_delete(request, address_id):
     address = get_object_or_404(SavedAddress, id=address_id, user=request.user)
     address.delete()
     messages.success(request, 'Address deleted successfully!')
+    # Redirect to next URL if provided, otherwise to account_addresses
+    next_url = request.POST.get('next')
+    if next_url:
+        return redirect(next_url)
     return redirect('account_addresses')
 
 

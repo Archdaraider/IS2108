@@ -138,15 +138,16 @@
         <div class="product-grid">
             {% for product in recommended_for_you %}
             <div class="product-card">
-                <a href="{% url 'product_detail' product.id %}" class="product-card-link">
                 <div class="product-image">
-                    {% if product.image %}
-                        <img src="{{ product.image.url }}" alt="{{ product.name }}">
-                    {% else %}
-                        <div class="product-placeholder">
-                            <i class="fas fa-image"></i>
-                        </div>
-                    {% endif %}
+                    <a href="{% url 'product_detail' product.id %}">
+                        {% if product.image %}
+                            <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                        {% else %}
+                            <div class="product-placeholder">
+                                <i class="fas fa-image"></i>
+                            </div>
+                        {% endif %}
+                    </a>
                     <div class="product-actions">
                         <form method="post" action="{% url 'add_to_wishlist' %}" style="display: inline;">
                             {% csrf_token %}
@@ -163,9 +164,10 @@
                     </div>
                 </div>
                 <div class="product-info">
-                    <div class="product-price">${{ product.price|floatformat:2 }}</div>
-                    <h3 class="product-name">{{ product.name }}</h3>
-                    <div class="product-category">{{ product.category }}</div>
+                    <h3 class="product-name">
+                        <a href="{% url 'product_detail' product.id %}">{{ product.name }}</a>
+                    </h3>
+                    <div class="product-category">{{ product.category }} - {{ product.subcategory }}</div>
                     <div class="product-stock" style="font-size: 0.875rem; color: {% if product.quantity_on_hand > 0 %}#28a745{% else %}#dc3545{% endif %}; margin: 0.25rem 0;">
                         <i class="fas fa-box" style="margin-right: 0.25rem;"></i>
                         {% if product.quantity_on_hand > 0 %}
@@ -189,9 +191,7 @@
                             <div class="sold-count" style="margin-top: 0.25rem; font-size: 0.875rem; color: #666;">{{ product.total_sold }}+ Sold</div>
                         {% endif %}
                     </div>
-                </a>
-                </div>
-                <div class="product-cart-actions">
+                    <div class="product-price">${{ product.price|floatformat:2 }}</div>
                     {% if product.quantity_on_hand > 0 %}
                         {% if product.id in cart_product_ids %}
                             {% for item in cart.items.all %}
@@ -222,7 +222,7 @@
                                 <input type="hidden" name="quantity" value="1">
                                 <input type="hidden" name="next" value="{{ request.get_full_path }}">
                                 <button type="submit" class="btn btn-primary add-to-cart-btn">
-                                    Add to cart
+                                    Add to Cart
                                 </button>
                             </form>
                         {% endif %}
@@ -254,15 +254,16 @@
         <div class="product-grid">
             {% for product in best_sellers %}
             <div class="product-card">
-                <a href="{% url 'product_detail' product.id %}" class="product-card-link">
                 <div class="product-image">
-                    {% if product.image %}
-                        <img src="{{ product.image.url }}" alt="{{ product.name }}">
-                    {% else %}
-                        <div class="product-placeholder">
-                            <i class="fas fa-image"></i>
-                        </div>
-                    {% endif %}
+                    <a href="{% url 'product_detail' product.id %}">
+                        {% if product.image %}
+                            <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                        {% else %}
+                            <div class="product-placeholder">
+                                <i class="fas fa-image"></i>
+                            </div>
+                        {% endif %}
+                    </a>
                     <div class="product-actions">
                         <form method="post" action="{% url 'add_to_wishlist' %}" style="display: inline;">
                             {% csrf_token %}
@@ -279,9 +280,10 @@
                     </div>
                 </div>
                 <div class="product-info">
-                    <div class="product-price">${{ product.price|floatformat:2 }}</div>
-                    <h3 class="product-name">{{ product.name }}</h3>
-                    <div class="product-category">{{ product.category }}</div>
+                    <h3 class="product-name">
+                        <a href="{% url 'product_detail' product.id %}">{{ product.name }}</a>
+                    </h3>
+                    <div class="product-category">{{ product.category }} - {{ product.subcategory }}</div>
                     <div class="product-stock" style="font-size: 0.875rem; color: {% if product.quantity_on_hand > 0 %}#28a745{% else %}#dc3545{% endif %}; margin: 0.25rem 0;">
                         <i class="fas fa-box" style="margin-right: 0.25rem;"></i>
                         {% if product.quantity_on_hand > 0 %}
@@ -305,9 +307,7 @@
                             <div class="sold-count" style="margin-top: 0.25rem; font-size: 0.875rem; color: #666;">{{ product.total_sold }}+ Sold</div>
                         {% endif %}
                     </div>
-                </a>
-                </div>
-                <div class="product-cart-actions">
+                    <div class="product-price">${{ product.price|floatformat:2 }}</div>
                     {% if product.quantity_on_hand > 0 %}
                         {% if product.id in cart_product_ids %}
                             {% for item in cart.items.all %}
@@ -338,7 +338,7 @@
                                 <input type="hidden" name="quantity" value="1">
                                 <input type="hidden" name="next" value="{{ request.get_full_path }}">
                                 <button type="submit" class="btn btn-primary add-to-cart-btn">
-                                    Add to cart
+                                    Add to Cart
                                 </button>
                             </form>
                         {% endif %}

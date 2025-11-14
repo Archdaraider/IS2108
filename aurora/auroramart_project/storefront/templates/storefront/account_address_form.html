@@ -6,14 +6,17 @@
 {% block account_content %}
 <div class="account-address-form-page">
     <div style="margin-bottom: 2rem;">
-        <a href="{% url 'account_addresses' %}" style="color: #007bff; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
-            <i class="fas fa-arrow-left"></i> Back to Addresses
+        <a href="{% if request.GET.next %}{{ request.GET.next }}{% else %}{% url 'account_addresses' %}{% endif %}" style="color: #007bff; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+            <i class="fas fa-arrow-left"></i> {% if request.GET.next %}Back to Checkout{% else %}Back to Addresses{% endif %}
         </a>
         <h1 style="font-size: 1.75rem; font-weight: 600; margin: 0; color: #1d1d1f;">{{ action }} Address</h1>
     </div>
     
     <form method="post" style="max-width: 600px;">
         {% csrf_token %}
+        {% if request.GET.next %}
+            <input type="hidden" name="next" value="{{ request.GET.next }}">
+        {% endif %}
         
         <div class="form-group" style="margin-bottom: 1.5rem;">
             {{ form.full_name.label_tag }}
@@ -104,7 +107,7 @@
             <button type="submit" class="btn btn-primary" style="background: #007bff; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; font-size: 0.9375rem; font-weight: 500; cursor: pointer;">
                 Save Address
             </button>
-            <a href="{% url 'account_addresses' %}" class="btn btn-outline-secondary" style="padding: 0.75rem 1.5rem; border: 1px solid #d2d2d7; color: #1d1d1f; background: white; border-radius: 6px; text-decoration: none; font-size: 0.9375rem; font-weight: 500;">
+            <a href="{% if request.GET.next %}{{ request.GET.next }}{% else %}{% url 'account_addresses' %}{% endif %}" class="btn btn-outline-secondary" style="padding: 0.75rem 1.5rem; border: 1px solid #d2d2d7; color: #1d1d1f; background: white; border-radius: 6px; text-decoration: none; font-size: 0.9375rem; font-weight: 500;">
                 Cancel
             </a>
         </div>

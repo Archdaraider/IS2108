@@ -434,48 +434,24 @@ def product_list(request, category_slug=None, subcategory_slug=None):
                             top_n=4  # Show 4 products in "Next best action"
                         )
                     else:
-                        # Fallback: use category recommendations
-                        recommendations = get_category_recommendations(
-                            category.name,
-                            exclude_skus=list(seen_product_skus),
-                            top_n=4
-                        )
+                        recommendations = []
                     
                     # Filter out already seen products
                     recommendations = [p for p in recommendations if p.id not in seen_product_ids]
                     
-                    # If we don't have enough, fill with category products
-                    if len(recommendations) < 4:
-                        additional = Product.objects.filter(
-                            category=category.name,
-                            quantity_on_hand__gt=0
-                        ).exclude(id__in=seen_product_ids).exclude(
-                            id__in=[p.id for p in recommendations]
-                        ).order_by('-rating')[:4 - len(recommendations)]
-                        recommendations = list(recommendations) + list(additional)
-                    
-                    # Store recommendations at the index after this chunk
-                    next_best_actions_dict[i + chunk_size] = recommendations[:4]
-                    
-                    # Add recommended product IDs to seen set
-                    for rec_product in recommendations[:4]:
-                        seen_product_ids.add(rec_product.id)
-                        if rec_product.sku:
-                            seen_product_skus.add(rec_product.sku)
-                            
-                except Exception as e:
-                    # Fallback: use popular products in category
-                    fallback_recs = Product.objects.filter(
-                        category=category.name,
-                        quantity_on_hand__gt=0
-                    ).exclude(id__in=seen_product_ids).order_by('-rating')[:4]
-                    
-                    if fallback_recs.exists():
-                        next_best_actions_dict[i + chunk_size] = list(fallback_recs)
-                        for rec_product in fallback_recs:
+                    # Store recommendations at the index after this chunk (only if we have recommendations)
+                    if recommendations:
+                        next_best_actions_dict[i + chunk_size] = recommendations[:4]
+                        
+                        # Add recommended product IDs to seen set
+                        for rec_product in recommendations[:4]:
                             seen_product_ids.add(rec_product.id)
                             if rec_product.sku:
                                 seen_product_skus.add(rec_product.sku)
+                            
+                except Exception as e:
+                    # No fallback - just skip if error occurs
+                    pass
     
     # Get "Next Best Action" products for the bottom section (if category exists)
     next_best_action_products = []
@@ -507,17 +483,6 @@ def product_list(request, category_slug=None, subcategory_slug=None):
             except Exception as e:
                 print(f"Error getting Next Best Action recommendations: {e}")
                 next_best_action_products = []
-        
-        # If we don't have enough, fill with other products from same category
-        if len(next_best_action_products) < 4:
-            additional = Product.objects.filter(
-                category=category.name,
-                quantity_on_hand__gt=0,
-                is_active=True
-            ).exclude(
-                id__in=[p.id for p in next_best_action_products]
-            ).exclude(id__in=cart_product_ids).order_by('-rating')[:4 - len(next_best_action_products)]
-            next_best_action_products = list(next_best_action_products) + list(additional)
     
     # Get cart context
     cart_context = get_cart_context(request)
@@ -579,17 +544,6 @@ def next_best_action(request, category_slug):
         except Exception as e:
             print(f"Error getting Next Best Action recommendations: {e}")
             recommended_products = []
-    
-    # If we don't have enough, fill with other products from same category
-    if len(recommended_products) < 100:
-        additional = Product.objects.filter(
-            category=category.name,
-            quantity_on_hand__gt=0,
-            is_active=True
-        ).exclude(
-            id__in=[p.id for p in recommended_products]
-        ).order_by('-rating')[:100 - len(recommended_products)]
-        recommended_products = list(recommended_products) + list(additional)
     
     # Convert to QuerySet if it's a list
     if isinstance(recommended_products, list):
@@ -720,16 +674,8 @@ def product_detail(request, product_id):
     # Get frequently bought together using association rules
     try:
         frequently_bought = get_recommendations([product.sku], top_n=4)
-        if not frequently_bought:
-            frequently_bought = Product.objects.filter(
-                category=product.category,
-                quantity_on_hand__gt=0
-            ).exclude(id=product.id)[:4]
     except:
-        frequently_bought = Product.objects.filter(
-            category=product.category,
-            quantity_on_hand__gt=0
-        ).exclude(id=product.id)[:4]
+        frequently_bought = []
     
     # Get wishlist product IDs for all products (main product + frequently bought)
     wishlist_product_ids = set()
@@ -786,19 +732,9 @@ def frequently_bought_together(request, product_id):
     recommended_products = []
     try:
         recommended_products = get_recommendations([product.sku], top_n=100)  # Get more for pagination
-        if not recommended_products:
-            recommended_products = Product.objects.filter(
-                category=product.category,
-                quantity_on_hand__gt=0,
-                is_active=True
-            ).exclude(id=product.id).order_by('-rating')
     except Exception as e:
         print(f"Error getting frequently bought together: {e}")
-        recommended_products = Product.objects.filter(
-            category=product.category,
-            quantity_on_hand__gt=0,
-            is_active=True
-        ).exclude(id=product.id).order_by('-rating')
+        recommended_products = []
     
     # Convert to QuerySet if it's a list (from get_recommendations)
     if isinstance(recommended_products, list):
@@ -851,34 +787,7 @@ def shopping_cart(request):
                 # Exclude products already in cart
                 recommended_products = [p for p in recommended_products if p.id not in cart_product_ids]
             except:
-                pass
-        
-        # If we don't have enough recommendations, fill with products from same categories
-        if len(recommended_products) < 4:
-            from adminpanel.models import Product
-            categories = set([item.product.category for item in cart_items if item.product.category])
-            if categories:
-                additional = Product.objects.filter(
-                    category__in=categories,
-                    quantity_on_hand__gt=0
-                ).exclude(id__in=cart_product_ids).exclude(
-                    id__in=[p.id for p in recommended_products]
-                ).order_by('-rating')[:4 - len(recommended_products)]
-                recommended_products = list(recommended_products) + list(additional)
-        
-        # If still not enough, get any popular products
-        if len(recommended_products) < 4:
-            from adminpanel.models import Product
-            additional = Product.objects.filter(
-                quantity_on_hand__gt=0
-            ).exclude(id__in=cart_product_ids).exclude(
-                id__in=[p.id for p in recommended_products]
-            ).order_by('-rating')[:4 - len(recommended_products)]
-            recommended_products = list(recommended_products) + list(additional)
-    else:
-        # If cart is empty, show popular products
-        from adminpanel.models import Product
-        recommended_products = Product.objects.filter(quantity_on_hand__gt=0).order_by('-rating')[:4]
+                recommended_products = []
     
     # Limit to 4 products for the cart page
     recommended_products = recommended_products[:4]
@@ -1260,7 +1169,6 @@ def wishlist(request):
 def complete_the_set(request):
     """Complete the Set page showing all recommended products."""
     from .recommendations import get_recommendations
-    from itertools import combinations
     from adminpanel.models import Product
     
     cart = get_or_create_cart(request)
@@ -1272,81 +1180,13 @@ def complete_the_set(request):
         cart_product_ids = [item.product.id for item in cart_items]
         
         if cart_product_skus:
-            # Strategy 1: Query with ALL cart items as input
+            # Query with ALL cart items as input
             try:
                 recommended_products = get_recommendations(cart_product_skus, top_n=100)  # Get more for pagination
                 recommended_products = [p for p in recommended_products if p.id not in cart_product_ids]
             except Exception as e:
                 print(f"Error getting recommendations for all cart items: {e}")
                 recommended_products = []
-            
-            # Strategy 2: If no matching rules found, try combinations (pairs of cart items)
-            if len(recommended_products) < 100 and len(cart_product_skus) > 1:
-                try:
-                    for pair in combinations(cart_product_skus, 2):
-                        if len(recommended_products) >= 100: break
-                        pair_recommendations = get_recommendations(list(pair), top_n=100)
-                        for p in pair_recommendations:
-                            if p.id not in cart_product_ids and p.id not in [rp.id for rp in recommended_products]:
-                                recommended_products.append(p)
-                                if len(recommended_products) >= 100: break
-                except Exception as e:
-                    print(f"Error getting recommendations for pairs: {e}")
-            
-            # Strategy 3: If still not enough, try individual cart items
-            if len(recommended_products) < 100:
-                try:
-                    for sku in cart_product_skus:
-                        if len(recommended_products) >= 100: break
-                        individual_recommendations = get_recommendations([sku], top_n=100)
-                        for p in individual_recommendations:
-                            if p.id not in cart_product_ids and p.id not in [rp.id for rp in recommended_products]:
-                                recommended_products.append(p)
-                                if len(recommended_products) >= 100: break
-                except Exception as e:
-                    print(f"Error getting recommendations for individual items: {e}")
-            
-            # Strategy 4: Use the most recently added item as fallback
-            if len(recommended_products) < 100:
-                try:
-                    most_recent_item = cart_items.order_by('-id').first()
-                    if most_recent_item and most_recent_item.product.sku:
-                        fallback_recommendations = get_recommendations([most_recent_item.product.sku], top_n=100)
-                        for p in fallback_recommendations:
-                            if p.id not in cart_product_ids and p.id not in [rp.id for rp in recommended_products]:
-                                recommended_products.append(p)
-                                if len(recommended_products) >= 100: break
-                except Exception as e:
-                    print(f"Error getting recommendations for most recent item: {e}")
-            
-            # Final fallback: Fill with products from same categories
-            if len(recommended_products) < 100:
-                categories = set([item.product.category for item in cart_items if item.product.category])
-                if categories:
-                    additional = Product.objects.filter(
-                        category__in=categories,
-                        quantity_on_hand__gt=0,
-                        is_active=True
-                    ).exclude(id__in=cart_product_ids).exclude(
-                        id__in=[p.id for p in recommended_products]
-                    ).order_by('-rating')[:100 - len(recommended_products)]
-                    recommended_products = list(recommended_products) + list(additional)
-            
-            # Final final fallback: Get any popular products
-            if len(recommended_products) < 100:
-                additional = Product.objects.filter(
-                    quantity_on_hand__gt=0,
-                    is_active=True
-                ).exclude(id__in=cart_product_ids).exclude(
-                    id__in=[p.id for p in recommended_products]
-                ).order_by('-rating')[:100 - len(recommended_products)]
-                recommended_products = list(recommended_products) + list(additional)
-    else:
-        # If cart is empty, show popular products
-        recommended_products = Product.objects.filter(
-            quantity_on_hand__gt=0,
-            is_active=True
-        ).order_by('-rating')
     
     # Convert to QuerySet if it's a list (from get_recommendations)
     if isinstance(recommended_products, list):

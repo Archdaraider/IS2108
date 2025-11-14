@@ -189,14 +189,17 @@
                         <div class="product-rating">
                             <div class="stars">
                                 {% for i in "12345" %}
-                                    {% if forloop.counter <= product.avg_rating %}
+                                    {% if forloop.counter <= product.rating %}
                                         <i class="fas fa-star"></i>
                                     {% else %}
                                         <i class="far fa-star"></i>
                                     {% endif %}
                                 {% endfor %}
                             </div>
-                            <span class="rating-text">{{ product.avg_rating|floatformat:1 }} ({{ product.reviews_count|default:0 }})</span>
+                            <span class="rating-text">{{ product.rating|floatformat:1 }} ({{ product.reviews_count|default:0 }})</span>
+                            {% if product.total_sold > 0 %}
+                                <div class="sold-count" style="margin-top: 0.25rem; font-size: 0.875rem; color: #666;">{{ product.total_sold }}+ Sold</div>
+                            {% endif %}
                         </div>
                     </div>
                 </a>

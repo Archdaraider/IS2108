@@ -1,19 +1,9 @@
-{% extends 'storefront/base.html' %}
+{% extends 'storefront/account_base.html' %}
 {% load static %}
 
 {% block title %}Return/Refund Status - AuroraMart{% endblock %}
 
-{% block content %}
-<div class="container" style="padding: 2rem 20px; max-width: 1000px;">
-    <!-- Breadcrumbs -->
-    <nav class="breadcrumbs" style="margin-bottom: 1.5rem;">
-        <a href="{% url 'homepage' %}">Home</a>
-        <span class="breadcrumb-separator">></span>
-        <a href="{% url 'my_orders' %}">My Orders</a>
-        <span class="breadcrumb-separator">></span>
-        <span class="breadcrumb-current">Return/Refund Status</span>
-    </nav>
-
+{% block account_content %}
     <!-- Page Header -->
     <div style="margin-bottom: 2rem;">
         <h1 style="font-size: 2rem; font-weight: 600; color: #1d1d1f; margin: 0 0 0.5rem 0;">Return/Refund Request Status</h1>
@@ -151,6 +141,5 @@
             View All Returns
         </a>
     </div>
-</div>
 {% endblock %}
 

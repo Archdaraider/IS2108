@@ -200,33 +200,6 @@
                         <a href="{% if category %}{% url 'category_products' category.slug %}{% else %}{% url 'product_list' %}{% endif %}{% if request.GET.search %}?search={{ request.GET.search }}{% endif %}" class="btn btn-outline" style="width: 100%; margin-top: 0.5rem; text-align: center; display: block;">Clear Filters</a>
                         {% endif %}
                     </div>
-
-                <!-- Category Filter -->
-                <div class="filter-group">
-                    <h4>Categories</h4>
-                    <div class="category-filters">
-                        <a href="{% url 'product_list' %}" class="category-filter-link">All Products</a>
-                        {% for item in navigation_categories %}
-                        <div class="sidebar-category-item">
-                            <a href="{% url 'category_products' item.category.slug %}" class="category-filter-link category-main-link">
-                                {{ item.category.name }}
-                                {% if item.subcategories %}
-                                <i class="fas fa-chevron-down sidebar-chevron"></i>
-                                {% endif %}
-                            </a>
-                            {% if item.subcategories %}
-                            <div class="sidebar-subcategories">
-                                {% for subcategory in item.subcategories %}
-                                <a href="{% url 'subcategory_products' item.category.slug subcategory.slug %}" class="category-filter-link category-sub-link">
-                                    {{ subcategory.name }}
-                                </a>
-                                {% endfor %}
-                            </div>
-                            {% endif %}
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
             </div>
             </form>
         </aside>
@@ -314,6 +287,9 @@
                                                         {% endwith %}
                                                     </div>
                                                     <span class="rating-text">{{ rec_product.rating|default:0|floatformat:1 }}</span>
+                                                    {% if rec_product.total_sold > 0 %}
+                                                        <div class="sold-count" style="margin-top: 0.25rem; font-size: 0.875rem; color: #666;">{{ rec_product.total_sold }}+ Sold</div>
+                                                    {% endif %}
                                                 </div>
                                             </div>
                                         </a>
@@ -416,16 +392,16 @@
                             <div class="product-rating">
                                 <div class="stars">
                                     {% for i in "12345" %}
-                                        {% if forloop.counter <= product.avg_rating %}
+                                        {% if forloop.counter <= product.rating %}
                                             <i class="fas fa-star"></i>
                                         {% else %}
                                             <i class="far fa-star"></i>
                                         {% endif %}
                                     {% endfor %}
                                 </div>
-                                <span class="rating-text">{{ product.avg_rating|floatformat:1 }} ({{ product.reviews_count|default:0 }})</span>
+                                <span class="rating-text">{{ product.rating|floatformat:1 }} ({{ product.reviews_count|default:0 }})</span>
                                 {% if product.total_sold > 0 %}
-                                    <span class="sold-count">{{ product.total_sold }}+ Sold</span>
+                                    <div class="sold-count" style="margin-top: 0.25rem; font-size: 0.875rem; color: #666;">{{ product.total_sold }}+ Sold</div>
                                 {% endif %}
                             </div>
                         </div>
@@ -582,14 +558,17 @@
                         <div class="product-rating">
                             <div class="stars">
                                 {% for i in "12345" %}
-                                    {% if forloop.counter <= product.avg_rating %}
+                                    {% if forloop.counter <= product.rating %}
                                         <i class="fas fa-star"></i>
                                     {% else %}
                                         <i class="far fa-star"></i>
                                     {% endif %}
                                 {% endfor %}
                             </div>
-                            <span class="rating-text">{{ product.avg_rating|floatformat:1 }} ({{ product.reviews_count|default:0 }})</span>
+                            <span class="rating-text">{{ product.rating|floatformat:1 }} ({{ product.reviews_count|default:0 }})</span>
+                            {% if product.total_sold > 0 %}
+                                <div class="sold-count" style="margin-top: 0.25rem; font-size: 0.875rem; color: #666;">{{ product.total_sold }}+ Sold</div>
+                            {% endif %}
                         </div>
                     </div>
                 </a>

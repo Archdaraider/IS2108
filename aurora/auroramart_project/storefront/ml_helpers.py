@@ -21,18 +21,18 @@ def load_customer_model():
     if _customer_model_cache is not None:
         return _customer_model_cache
     
-    # Load model from adminpanel/mlmodels/ folder as per user specification
+    # Load model 
     app_path = apps.get_app_config('adminpanel').path
     model_path = os.path.join(app_path, 'mlmodels', 'b2c_customers_100.joblib')
     
-    # Also check models/ directory as fallback (where notebooks save files)
+    # Also check models/ directory as fallback 
     from django.conf import settings
     project_root = settings.BASE_DIR.parent.parent
     
     model_paths = [
-        # Primary location: adminpanel/mlmodels/ (as specified by user)
+        # Primary location: adminpanel/mlmodels/ 
         model_path,
-        # Fallback: models/ directory (where notebook saves the file)
+        # Fallback: models/ directory 
         os.path.join(project_root, 'models', 'b2c_customers_100.joblib'),
     ]
     

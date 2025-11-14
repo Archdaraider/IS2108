@@ -150,7 +150,15 @@ def get_recommendations(product_skus, top_n=5):
         for sku in product_skus:
             try:
                 # Find rules where this SKU is in antecedents
-                matched_rules = rules[rules['antecedents'].apply(lambda x: sku in x if hasattr(x, '__iter__') else False)]
+                # Handle frozensets, sets, lists, tuples, and strings
+                def sku_in_antecedents(antecedents):
+                    if not hasattr(antecedents, '__iter__') or isinstance(antecedents, str):
+                        return antecedents == sku
+                    # Convert to set for membership check
+                    antecedents_set = set(antecedents) if isinstance(antecedents, (set, list, tuple, frozenset)) else {antecedents}
+                    return sku in antecedents_set
+                
+                matched_rules = rules[rules['antecedents'].apply(sku_in_antecedents)]
                 if not matched_rules.empty:
                     # Sort by confidence and lift
                     top_rules = matched_rules.sort_values(by=['confidence', 'lift'], ascending=False).head(top_n)

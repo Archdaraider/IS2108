@@ -1,0 +1,156 @@
+{% extends 'storefront/base.html' %}
+{% load static %}
+
+{% block title %}Return/Refund Status - AuroraMart{% endblock %}
+
+{% block content %}
+<div class="container" style="padding: 2rem 20px; max-width: 1000px;">
+    <!-- Breadcrumbs -->
+    <nav class="breadcrumbs" style="margin-bottom: 1.5rem;">
+        <a href="{% url 'homepage' %}">Home</a>
+        <span class="breadcrumb-separator">></span>
+        <a href="{% url 'my_orders' %}">My Orders</a>
+        <span class="breadcrumb-separator">></span>
+        <span class="breadcrumb-current">Return/Refund Status</span>
+    </nav>
+
+    <!-- Page Header -->
+    <div style="margin-bottom: 2rem;">
+        <h1 style="font-size: 2rem; font-weight: 600; color: #1d1d1f; margin: 0 0 0.5rem 0;">Return/Refund Request Status</h1>
+        <p style="color: #6e6e73; font-size: 1rem;">Order ID: {{ return_request.order.oID }}</p>
+    </div>
+
+    <!-- Status Card -->
+    <div style="background: white; border: 1px solid #e8e8ea; border-radius: 12px; padding: 2rem; margin-bottom: 2rem;">
+        <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+            <div style="flex: 1;">
+                <h2 style="font-size: 1.5rem; font-weight: 600; color: #1d1d1f; margin: 0 0 0.5rem 0;">Status</h2>
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <span style="display: inline-block; padding: 0.5rem 1rem; border-radius: 6px; font-weight: 500; font-size: 0.9375rem; background: {% if return_request.status == 'pending' %}#fff3cd{% elif return_request.status == 'approved' %}#d4edda{% elif return_request.status == 'rejected' %}#f8d7da{% elif return_request.status == 'processed' %}#d1ecf1{% endif %}; color: {% if return_request.status == 'pending' %}#856404{% elif return_request.status == 'approved' %}#155724{% elif return_request.status == 'rejected' %}#721c24{% elif return_request.status == 'processed' %}#0c5460{% endif %};">
+                        {{ return_request.get_status_display }}
+                    </span>
+                    {% if return_request.status == 'pending' %}
+                        <i class="fas fa-clock" style="color: #ffa500; font-size: 1.25rem;"></i>
+                    {% elif return_request.status == 'approved' %}
+                        <i class="fas fa-check-circle" style="color: #28a745; font-size: 1.25rem;"></i>
+                    {% elif return_request.status == 'rejected' %}
+                        <i class="fas fa-times-circle" style="color: #dc3545; font-size: 1.25rem;"></i>
+                    {% elif return_request.status == 'processed' %}
+                        <i class="fas fa-check-double" style="color: #17a2b8; font-size: 1.25rem;"></i>
+                    {% endif %}
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <p style="color: #6e6e73; font-size: 0.875rem; margin: 0;">Request Date</p>
+                <p style="color: #1d1d1f; font-size: 1rem; font-weight: 500; margin: 0.25rem 0 0 0;">{{ return_request.created_at|date:"d M Y" }}</p>
+            </div>
+        </div>
+
+        <!-- Status Message -->
+        <div style="background: {% if return_request.status == 'pending' %}#fff3cd{% elif return_request.status == 'approved' %}#d4edda{% elif return_request.status == 'rejected' %}#f8d7da{% elif return_request.status == 'processed' %}#d1ecf1{% endif %}; border-left: 4px solid {% if return_request.status == 'pending' %}#ffa500{% elif return_request.status == 'approved' %}#28a745{% elif return_request.status == 'rejected' %}#dc3545{% elif return_request.status == 'processed' %}#17a2b8{% endif %}; padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem;">
+            {% if return_request.status == 'pending' %}
+                <p style="margin: 0; color: #856404; font-size: 0.9375rem;">
+                    <i class="fas fa-info-circle" style="margin-right: 0.5rem;"></i>
+                    Your return/refund request is being reviewed by our team. We will process your request within 5-7 business days. You will receive an email notification once your request has been reviewed.
+                </p>
+            {% elif return_request.status == 'approved' %}
+                <p style="margin: 0; color: #155724; font-size: 0.9375rem;">
+                    <i class="fas fa-check-circle" style="margin-right: 0.5rem;"></i>
+                    Your return/refund request has been approved! We will process your refund within 5-7 business days. You will receive an email confirmation once the refund has been processed.
+                </p>
+            {% elif return_request.status == 'rejected' %}
+                <p style="margin: 0; color: #721c24; font-size: 0.9375rem;">
+                    <i class="fas fa-times-circle" style="margin-right: 0.5rem;"></i>
+                    Your return/refund request has been rejected. If you have any questions or concerns, please contact our customer service team.
+                </p>
+            {% elif return_request.status == 'processed' %}
+                <p style="margin: 0; color: #0c5460; font-size: 0.9375rem;">
+                    <i class="fas fa-check-double" style="margin-right: 0.5rem;"></i>
+                    Your return/refund has been processed successfully! The refund has been issued to your original payment method. Please allow 5-7 business days for the refund to appear in your account.
+                </p>
+            {% endif %}
+        </div>
+
+        <!-- Return Details -->
+        <div style="border-top: 1px solid #e8e8ea; padding-top: 1.5rem;">
+            <h3 style="font-size: 1.125rem; font-weight: 600; color: #1d1d1f; margin-bottom: 1rem;">Return Details</h3>
+            <div style="display: grid; gap: 1rem;">
+                <div>
+                    <p style="color: #6e6e73; font-size: 0.875rem; margin: 0 0 0.25rem 0;">Return Type</p>
+                    <p style="color: #1d1d1f; font-size: 1rem; margin: 0;">{{ return_request.get_return_type_display }}</p>
+                </div>
+                <div>
+                    <p style="color: #6e6e73; font-size: 0.875rem; margin: 0 0 0.25rem 0;">Reason</p>
+                    <p style="color: #1d1d1f; font-size: 1rem; margin: 0;">{{ return_request.get_refund_reason_display }}</p>
+                </div>
+                {% if return_request.additional_comments %}
+                <div>
+                    <p style="color: #6e6e73; font-size: 0.875rem; margin: 0 0 0.25rem 0;">Additional Comments</p>
+                    <p style="color: #1d1d1f; font-size: 1rem; margin: 0; white-space: pre-wrap;">{{ return_request.additional_comments }}</p>
+                </div>
+                {% endif %}
+                <div>
+                    <p style="color: #6e6e73; font-size: 0.875rem; margin: 0 0 0.25rem 0;">Refund Method</p>
+                    <p style="color: #1d1d1f; font-size: 1rem; margin: 0;">{{ return_request.get_refund_method_display }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Return Items -->
+    <div style="background: white; border: 1px solid #e8e8ea; border-radius: 12px; padding: 2rem;">
+        <h2 style="font-size: 1.5rem; font-weight: 600; color: #1d1d1f; margin: 0 0 1.5rem 0;">Items in Return Request</h2>
+        
+        <div style="display: grid; gap: 1.5rem;">
+            {% for return_item in return_items %}
+            <div style="display: flex; gap: 1.5rem; padding: 1.5rem; border: 1px solid #e8e8ea; border-radius: 8px;">
+                <div style="width: 120px; height: 120px; background: #f5f5f7; border-radius: 8px; overflow: hidden; flex-shrink: 0;">
+                    {% if return_item.order_item.product.image %}
+                        <img src="{{ return_item.order_item.product.image.url }}" alt="{{ return_item.order_item.product.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                    {% else %}
+                        <div style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; color: #6e6e73;">
+                            <i class="fas fa-image" style="font-size: 2rem;"></i>
+                        </div>
+                    {% endif %}
+                </div>
+                <div style="flex: 1;">
+                    <h3 style="font-size: 1.125rem; font-weight: 600; color: #1d1d1f; margin: 0 0 0.5rem 0;">{{ return_item.order_item.product.name }}</h3>
+                    <p style="color: #6e6e73; font-size: 0.875rem; margin: 0 0 0.5rem 0;">SKU: {{ return_item.order_item.product.sku }}</p>
+                    <div style="display: flex; gap: 2rem; margin-top: 0.75rem;">
+                        <div>
+                            <p style="color: #6e6e73; font-size: 0.875rem; margin: 0 0 0.25rem 0;">Quantity</p>
+                            <p style="color: #1d1d1f; font-size: 1rem; font-weight: 500; margin: 0;">{{ return_item.quantity }}</p>
+                        </div>
+                        <div>
+                            <p style="color: #6e6e73; font-size: 0.875rem; margin: 0 0 0.25rem 0;">Unit Price</p>
+                            <p style="color: #1d1d1f; font-size: 1rem; font-weight: 500; margin: 0;">${{ return_item.order_item.unit_price|floatformat:2 }}</p>
+                        </div>
+                        <div>
+                            <p style="color: #6e6e73; font-size: 0.875rem; margin: 0 0 0.25rem 0;">Total</p>
+                            <p style="color: #1d1d1f; font-size: 1rem; font-weight: 500; margin: 0;">${{ return_item.total_price|floatformat:2 }}</p>
+                        </div>
+                    </div>
+                    {% if return_item.image %}
+                    <div style="margin-top: 1rem;">
+                        <p style="color: #6e6e73; font-size: 0.875rem; margin: 0 0 0.5rem 0;">Return Image</p>
+                        <img src="{{ return_item.image.url }}" alt="Return image" style="max-width: 200px; max-height: 200px; border-radius: 6px; border: 1px solid #e8e8ea;">
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: flex-end;">
+        <a href="{% url 'my_orders' %}" style="background: #f5f5f7; color: #1d1d1f; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-size: 0.9375rem; font-weight: 500; cursor: pointer; transition: background 0.2s; text-decoration: none; display: inline-block;">
+            Back to My Orders
+        </a>
+        <a href="{% url 'account_returns' %}" style="background: #007bff; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-size: 0.9375rem; font-weight: 500; cursor: pointer; transition: background 0.2s; text-decoration: none; display: inline-block;">
+            View All Returns
+        </a>
+    </div>
+</div>
+{% endblock %}
+

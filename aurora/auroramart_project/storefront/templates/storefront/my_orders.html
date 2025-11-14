@@ -1,13 +1,12 @@
-{% extends 'storefront/base.html' %}
+{% extends 'storefront/account_base.html' %}
 {% load static %}
 
 {% block title %}My Orders - AuroraMart{% endblock %}
 
-{% block content %}
-<div class="container" style="padding: 2rem 20px;">
+{% block account_content %}
     <!-- Page Header -->
     <div style="margin-bottom: 2rem;">
-        <h1 style="font-size: 2rem; font-weight: 600; color: #1d1d1f; margin: 0;">My Orders</h1>
+        <h1 style="font-size: 1.75rem; font-weight: 600; color: #1d1d1f; margin: 0;">My Orders</h1>
     </div>
 
     <!-- Orders List -->
@@ -80,7 +79,6 @@
             <a href="{% url 'product_list' %}" class="btn btn-primary" style="display: inline-block; width: auto; padding: 0.75rem 2rem;">Browse Products</a>
         </div>
     {% endif %}
-</div>
 
 <style>
     .order-card-link {

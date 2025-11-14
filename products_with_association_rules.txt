@@ -1,0 +1,40 @@
+================================================================================
+ASSOCIATION RULES SUMMARY
+================================================================================
+
+Total number of association rules: 997377
+Total unique products in rules: 24
+Products that can be used as INPUT (antecedents): 24
+Products that can be RECOMMENDED (consequents): 24
+
+================================================================================
+ALL PRODUCTS WITH ASSOCIATION RULES:
+================================================================================
+   1. [✓ Input] [✓ Recommended] ACC-2SZWYMX9
+   2. [✓ Input] [✓ Recommended] ACC-BYGHGK5B
+   3. [✓ Input] [✓ Recommended] ACC-JZ6KF162
+   4. [✓ Input] [✓ Recommended] ACC-N2ATQYYV
+   5. [✓ Input] [✓ Recommended] ACC-N6Q7NC85
+   6. [✓ Input] [✓ Recommended] ACC-PLO1URTT
+   7. [✓ Input] [✓ Recommended] ACC-PRAT0861
+   8. [✓ Input] [✓ Recommended] AEA-BMAE38SR
+   9. [✓ Input] [✓ Recommended] AIA-BIK2U1RS
+  10. [✓ Input] [✓ Recommended] AIA-JM4T8BP6
+  11. [✓ Input] [✓ Recommended] AO&-AZV46ESM
+  12. [✓ Input] [✓ Recommended] AO&-G70S1F53
+  13. [✓ Input] [✓ Recommended] HKB-6A50NOOO
+  14. [✓ Input] [✓ Recommended] HKB-AZCCBLSK
+  15. [✓ Input] [✓ Recommended] HKB-EXDW6LQW
+  16. [✓ Input] [✓ Recommended] HKB-LDALMJEG
+  17. [✓ Input] [✓ Recommended] HKC-1IYM90PK
+  18. [✓ Input] [✓ Recommended] HKC-6FX7XJZ6
+  19. [✓ Input] [✓ Recommended] HKC-MYJ014GV
+  20. [✓ Input] [✓ Recommended] HKC-VKY2REFJ
+  21. [✓ Input] [✓ Recommended] HKHD-7I8SKCH8
+  22. [✓ Input] [✓ Recommended] HKHD-C68AU9DK
+  23. [✓ Input] [✓ Recommended] HKS&-8KCMM7DB
+  24. [✓ Input] [✓ Recommended] HKS&-S03VNA31
+
+================================================================================
+Done!
+PS C:\Users\chloe\OneDrive\Documents\GitHub\IS2108\aurora\auroramart_project> 

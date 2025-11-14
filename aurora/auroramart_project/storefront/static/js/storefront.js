@@ -660,12 +660,38 @@ function initCategorySubcategoryPanels() {
             const itemRect = categoryItem.getBoundingClientRect();
             const sidebarRect = sidebar ? sidebar.getBoundingClientRect() : null;
             
-            // Calculate top position
-            // Position panel to align with the category item
-            const topPosition = itemRect.top;
+            // Measure panel height without showing it (temporarily position off-screen)
+            const originalTop = panel.style.top;
+            const originalVisibility = panel.style.visibility;
+            panel.style.top = '-9999px';
+            panel.style.visibility = 'hidden';
+            panel.style.display = 'block';
+            const panelHeight = panel.scrollHeight;
+            panel.style.top = originalTop;
+            panel.style.visibility = originalVisibility;
             
-            // Make sure panel doesn't go off screen
-            const maxHeight = window.innerHeight - topPosition - 20; // 20px padding from bottom
+            // Calculate ideal top position (align with category item)
+            let topPosition = itemRect.top;
+            
+            // Calculate if panel would extend beyond viewport bottom
+            const viewportHeight = window.innerHeight;
+            const bottomPadding = 20; // Padding from bottom of viewport
+            const maxBottom = viewportHeight - bottomPadding;
+            const estimatedBottom = topPosition + panelHeight;
+            
+            // If panel would extend beyond bottom, push it up
+            if (estimatedBottom > maxBottom) {
+                topPosition = maxBottom - panelHeight;
+            }
+            
+            // Ensure panel doesn't go above viewport top
+            const minTop = 0;
+            if (topPosition < minTop) {
+                topPosition = minTop;
+            }
+            
+            // Set max height to prevent overflow
+            const maxHeight = viewportHeight - topPosition - bottomPadding;
             
             panel.style.top = topPosition + 'px';
             panel.style.maxHeight = Math.max(300, maxHeight) + 'px'; // At least 300px high
@@ -675,7 +701,7 @@ function initCategorySubcategoryPanels() {
             
             currentlyVisiblePanel = panel;
             
-            console.log('Showing panel:', categoryId, 'at top:', topPosition);
+            console.log('Showing panel:', categoryId, 'at top:', topPosition, 'height:', panelHeight);
         };
         
         // Function to hide panel with delay
@@ -723,8 +749,32 @@ function initCategorySubcategoryPanels() {
                         if (categoryItem) {
                             const itemRect = categoryItem.getBoundingClientRect();
                             const sidebarRect = sidebar ? sidebar.getBoundingClientRect() : null;
-                            const topPosition = itemRect.top;
-                            const maxHeight = window.innerHeight - topPosition - 20;
+                            
+                            // Get panel height
+                            const panelHeight = currentlyVisiblePanel.scrollHeight;
+                            
+                            // Calculate ideal top position
+                            let topPosition = itemRect.top;
+                            
+                            // Check if panel would extend beyond viewport bottom
+                            const viewportHeight = window.innerHeight;
+                            const bottomPadding = 20;
+                            const maxBottom = viewportHeight - bottomPadding;
+                            const estimatedBottom = topPosition + panelHeight;
+                            
+                            // If panel would extend beyond bottom, push it up
+                            if (estimatedBottom > maxBottom) {
+                                topPosition = maxBottom - panelHeight;
+                            }
+                            
+                            // Ensure panel doesn't go above viewport top
+                            const minTop = 0;
+                            if (topPosition < minTop) {
+                                topPosition = minTop;
+                            }
+                            
+                            // Set max height
+                            const maxHeight = viewportHeight - topPosition - bottomPadding;
                             
                             currentlyVisiblePanel.style.top = topPosition + 'px';
                             currentlyVisiblePanel.style.maxHeight = Math.max(300, maxHeight) + 'px';

@@ -9,8 +9,41 @@
     
     {% if returns %}
         <div class="returns-list" style="display: grid; gap: 1.5rem;">
-            {% for return_item in returns %}
-            <!-- Return items will be displayed here -->
+            {% for return_request in returns %}
+            <div style="background: white; border: 1px solid #e8e8ea; border-radius: 12px; padding: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+                    <div>
+                        <h3 style="font-size: 1.125rem; font-weight: 600; color: #1d1d1f; margin: 0 0 0.5rem 0;">
+                            Order {{ return_request.order.oID }}
+                        </h3>
+                        <p style="color: #6e6e73; font-size: 0.875rem; margin: 0;">Requested on {{ return_request.created_at|date:"d M Y" }}</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="display: inline-block; padding: 0.5rem 1rem; border-radius: 6px; font-weight: 500; font-size: 0.875rem; background: {% if return_request.status == 'pending' %}#fff3cd{% elif return_request.status == 'approved' %}#d4edda{% elif return_request.status == 'rejected' %}#f8d7da{% elif return_request.status == 'processed' %}#d1ecf1{% endif %}; color: {% if return_request.status == 'pending' %}#856404{% elif return_request.status == 'approved' %}#155724{% elif return_request.status == 'rejected' %}#721c24{% elif return_request.status == 'processed' %}#0c5460{% endif %};">
+                            {{ return_request.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 1rem;">
+                    <p style="color: #6e6e73; font-size: 0.875rem; margin: 0 0 0.25rem 0;">Return Type</p>
+                    <p style="color: #1d1d1f; font-size: 0.9375rem; margin: 0;">{{ return_request.get_return_type_display }}</p>
+                </div>
+                
+                <div style="margin-bottom: 1rem;">
+                    <p style="color: #6e6e73; font-size: 0.875rem; margin: 0 0 0.25rem 0;">Reason</p>
+                    <p style="color: #1d1d1f; font-size: 0.9375rem; margin: 0;">{{ return_request.get_refund_reason_display }}</p>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                    <a href="{% url 'return_request_status' return_request.id %}" style="background: #007bff; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background 0.2s; text-decoration: none; display: inline-block;">
+                        View Details
+                    </a>
+                    <a href="{% url 'order_detail' return_request.order.id %}" style="background: #f5f5f7; color: #1d1d1f; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background 0.2s; text-decoration: none; display: inline-block;">
+                        View Order
+                    </a>
+                </div>
+            </div>
             {% endfor %}
         </div>
     {% else %}

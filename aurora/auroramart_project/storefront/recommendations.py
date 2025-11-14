@@ -63,24 +63,16 @@ def get_recommendations(product_skus, top_n=5):
         top_n: Number of recommendations to return
     
     Returns:
-        List of Product objects
+        List of Product objects. Returns empty list if no association rules match.
     """
     if isinstance(product_skus, str):
         product_skus = [product_skus]
     
     rules = load_association_rules()
     
+    # Return empty list if no rules or no product SKUs provided
     if rules.empty or len(product_skus) == 0:
-        # Fallback: return products from same category
-        try:
-            first_product = Product.objects.filter(sku=product_skus[0]).first()
-            if first_product:
-                return Product.objects.filter(
-                    category=first_product.category
-                ).exclude(sku__in=product_skus).order_by('-rating')[:top_n]
-        except:
-            pass
-        return Product.objects.exclude(sku__in=product_skus).order_by('-rating')[:top_n]
+        return []
     
     product_skus_set = set(product_skus)
     recommendations = set()
@@ -153,8 +145,7 @@ def get_recommendations(product_skus, top_n=5):
         except Exception as e:
             print(f"Error processing multi-item rules: {e}")
     
-    # Strategy 2: Find rules for individual items (fallback - broader recommendations)
-    # This is the original approach, now used as fallback
+    # Strategy 2: Find rules for individual items (broader recommendations)
     if len(recommendations) < top_n:
         for sku in product_skus:
             try:
@@ -188,6 +179,10 @@ def get_recommendations(product_skus, top_n=5):
     # Remove items that are already in the input list
     recommendations.difference_update(product_skus_set)
     
+    # If no recommendations found, return empty list
+    if not recommendations:
+        return []
+    
     # Sort recommendations by score (highest first), then convert to list
     sorted_recommendations = sorted(recommendations, key=lambda x: recommendation_scores.get(x, 0), reverse=True)[:top_n]
     
@@ -197,18 +192,6 @@ def get_recommendations(product_skus, top_n=5):
     # Maintain order based on scores
     product_dict = {p.sku: p for p in recommended_products}
     ordered_products = [product_dict[sku] for sku in sorted_recommendations if sku in product_dict]
-    
-    # If we don't have enough recommendations, fill with similar products
-    if len(ordered_products) < top_n:
-        try:
-            first_product = Product.objects.filter(sku=product_skus[0]).first()
-            if first_product:
-                similar = Product.objects.filter(
-                    category=first_product.category
-                ).exclude(sku__in=product_skus).exclude(id__in=[p.id for p in ordered_products]).order_by('-rating')[:top_n - len(ordered_products)]
-                ordered_products = list(ordered_products) + list(similar)
-        except:
-            pass
     
     return ordered_products[:top_n]
 

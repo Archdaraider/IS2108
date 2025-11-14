@@ -49,10 +49,6 @@
                         <i class="fas fa-undo" style="margin-right: 0.75rem; width: 20px;"></i>
                         My Returns
                     </a>
-                    <a href="{% url 'account_cancellations' %}" class="sidebar-link {% if request.resolver_match.url_name == 'account_cancellations' %}active{% endif %}">
-                        <i class="fas fa-times-circle" style="margin-right: 0.75rem; width: 20px;"></i>
-                        My Cancellations
-                    </a>
                 </nav>
             </div>
 
@@ -73,7 +69,7 @@
                 <nav class="sidebar-nav">
                     <a href="{% url 'wishlist' %}" class="sidebar-link {% if request.resolver_match.url_name == 'wishlist' %}active{% endif %}">
                         <i class="fas fa-heart" style="margin-right: 0.75rem; width: 20px;"></i>
-                        My Wishlist & Followed Stores
+                        My Wishlist
                     </a>
                 </nav>
             </div>

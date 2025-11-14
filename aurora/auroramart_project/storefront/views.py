@@ -85,22 +85,32 @@ def get_or_create_wishlist(request):
 
 def homepage(request):
     """Homepage with featured products and banners."""
-    # Get featured products (you can customize this logic)
-    featured_products = Product.objects.filter(quantity_on_hand__gt=0, is_active=True).order_by('-rating')[:8]
+    # Get featured products - annotate with reviews
+    from django.db.models import Sum, Avg, Count, Value, DecimalField
+    from django.db.models.functions import Coalesce
+    from storefront.models import ProductReview
+    featured_products = Product.objects.filter(quantity_on_hand__gt=0, is_active=True).annotate(
+        avg_rating=Coalesce(Avg('reviews__rating'), 'rating', output_field=DecimalField(max_digits=3, decimal_places=1)),
+        reviews_count=Count('reviews')
+    ).order_by('-avg_rating', '-rating')[:8]
     
     # Get best sellers - products with highest total_sold (actual sales)
-    # Annotate with total_sold from OrderItem aggregation
-    from django.db.models import Sum, F
+    # Annotate with total_sold from OrderItem aggregation and reviews
     best_sellers = Product.objects.filter(
         quantity_on_hand__gt=0, 
         is_active=True
     ).annotate(
-        total_sold_count=Sum('orderitem__quantity')
-    ).order_by('-total_sold_count', '-rating')[:8]
+        total_sold_count=Sum('orderitem__quantity'),
+        avg_rating=Coalesce(Avg('reviews__rating'), 'rating', output_field=DecimalField(max_digits=3, decimal_places=1)),
+        reviews_count=Count('reviews')
+    ).order_by('-total_sold_count', '-avg_rating', '-rating')[:8]
     
     # If no products have sales yet, fallback to highest rated products
     if not best_sellers or all(p.total_sold_count is None or p.total_sold_count == 0 for p in best_sellers):
-        best_sellers = Product.objects.filter(quantity_on_hand__gt=0, is_active=True).order_by('-rating')[:8]
+        best_sellers = Product.objects.filter(quantity_on_hand__gt=0, is_active=True).annotate(
+            avg_rating=Coalesce(Avg('reviews__rating'), 'rating', output_field=DecimalField(max_digits=3, decimal_places=1)),
+            reviews_count=Count('reviews')
+        ).order_by('-avg_rating', '-rating')[:8]
     
     # Get banners from admin panel database
     from adminpanel.models import Banner as AdminBanner
@@ -182,12 +192,17 @@ def homepage(request):
                     #                    'Health', 'Pet Supplies', 'Toys & Games', 'Automotive'
                     product_categories = [predicted_category]  # Direct match - no mapping needed
                     
-                    # Get products from predicted category
+                    # Get products from predicted category - annotate with reviews
+                    from django.db.models.functions import Coalesce
+                    from django.db.models import Value, DecimalField
                     recommended_for_you = list(Product.objects.filter(
                         category__in=product_categories,
                         quantity_on_hand__gt=0,
                         is_active=True
-                    ).order_by('-rating', '-id')[:8])
+                    ).annotate(
+                        avg_rating=Coalesce(Avg('reviews__rating'), 'rating', output_field=DecimalField(max_digits=3, decimal_places=1)),
+                        reviews_count=Count('reviews')
+                    ).order_by('-avg_rating', '-rating', '-id')[:8])
 
                     recommendation_reason = f"We recommended {predicted_category} because of your profile preferences."
                     
@@ -217,12 +232,17 @@ def homepage(request):
                         # These match Product.category values directly from the dataset
                         product_categories = [predicted_category]  # ML model already predicts Product category names from dataset
                         
-                        # Get products from predicted category
+                        # Get products from predicted category - annotate with reviews
+                        from django.db.models.functions import Coalesce
+                        from django.db.models import Value, DecimalField
                         recommended_for_you = list(Product.objects.filter(
                             category__in=product_categories,
                             quantity_on_hand__gt=0,
                             is_active=True
-                        ).order_by('-rating', '-id')[:8])
+                        ).annotate(
+                            avg_rating=Coalesce(Avg('reviews__rating'), 'rating', output_field=DecimalField(max_digits=3, decimal_places=1)),
+                            reviews_count=Count('reviews')
+                        ).order_by('-avg_rating', '-rating', '-id')[:8])
                         
                         recommendation_reason = f"We recommended {predicted_category} because of your profile preferences."
                         
@@ -316,6 +336,16 @@ def product_list(request, category_slug=None, subcategory_slug=None):
         except ValueError:
             pass
     
+    # Annotate products with avg_rating and reviews_count from ProductReview
+    # Use Coalesce to fallback to product.rating if no reviews exist
+    from django.db.models import Avg, Count, Sum, Value, DecimalField
+    from django.db.models.functions import Coalesce
+    from storefront.models import ProductReview
+    products = products.annotate(
+        avg_rating=Coalesce(Avg('reviews__rating'), 'rating', output_field=DecimalField(max_digits=3, decimal_places=1)),
+        reviews_count=Count('reviews')
+    )
+    
     # Sorting
     sort_by = request.GET.get('sort', 'best_match')
     if sort_by == 'price_low':
@@ -323,17 +353,17 @@ def product_list(request, category_slug=None, subcategory_slug=None):
     elif sort_by == 'price_high':
         products = products.order_by('-price')
     elif sort_by == 'rating':
-        products = products.order_by('-rating')
+        # Sort by avg_rating from reviews, fallback to product.rating
+        products = products.order_by('-avg_rating', '-rating')
     elif sort_by == 'bestsellers' or sort_by == 'best_sellers':
         # Sort by total_sold (actual sales) - best sellers
-        from django.db.models import Sum
         products = products.annotate(
             total_sold_count=Sum('orderitem__quantity')
-        ).order_by('-total_sold_count', '-rating')
+        ).order_by('-total_sold_count', '-avg_rating', '-rating')
     elif sort_by == 'newest':
         products = products.order_by('-id')
     else:  # best_match
-        products = products.order_by('-rating', '-id')
+        products = products.order_by('-avg_rating', '-rating', '-id')
     
     # Pagination
     paginator = Paginator(products, 12)
@@ -404,48 +434,24 @@ def product_list(request, category_slug=None, subcategory_slug=None):
                             top_n=4  # Show 4 products in "Next best action"
                         )
                     else:
-                        # Fallback: use category recommendations
-                        recommendations = get_category_recommendations(
-                            category.name,
-                            exclude_skus=list(seen_product_skus),
-                            top_n=4
-                        )
+                        recommendations = []
                     
                     # Filter out already seen products
                     recommendations = [p for p in recommendations if p.id not in seen_product_ids]
                     
-                    # If we don't have enough, fill with category products
-                    if len(recommendations) < 4:
-                        additional = Product.objects.filter(
-                            category=category.name,
-                            quantity_on_hand__gt=0
-                        ).exclude(id__in=seen_product_ids).exclude(
-                            id__in=[p.id for p in recommendations]
-                        ).order_by('-rating')[:4 - len(recommendations)]
-                        recommendations = list(recommendations) + list(additional)
-                    
-                    # Store recommendations at the index after this chunk
-                    next_best_actions_dict[i + chunk_size] = recommendations[:4]
-                    
-                    # Add recommended product IDs to seen set
-                    for rec_product in recommendations[:4]:
-                        seen_product_ids.add(rec_product.id)
-                        if rec_product.sku:
-                            seen_product_skus.add(rec_product.sku)
-                            
-                except Exception as e:
-                    # Fallback: use popular products in category
-                    fallback_recs = Product.objects.filter(
-                        category=category.name,
-                        quantity_on_hand__gt=0
-                    ).exclude(id__in=seen_product_ids).order_by('-rating')[:4]
-                    
-                    if fallback_recs.exists():
-                        next_best_actions_dict[i + chunk_size] = list(fallback_recs)
-                        for rec_product in fallback_recs:
+                    # Store recommendations at the index after this chunk (only if we have recommendations)
+                    if recommendations:
+                        next_best_actions_dict[i + chunk_size] = recommendations[:4]
+                        
+                        # Add recommended product IDs to seen set
+                        for rec_product in recommendations[:4]:
                             seen_product_ids.add(rec_product.id)
                             if rec_product.sku:
                                 seen_product_skus.add(rec_product.sku)
+                            
+                except Exception as e:
+                    # No fallback - just skip if error occurs
+                    pass
     
     # Get "Next Best Action" products for the bottom section (if category exists)
     next_best_action_products = []
@@ -477,17 +483,6 @@ def product_list(request, category_slug=None, subcategory_slug=None):
             except Exception as e:
                 print(f"Error getting Next Best Action recommendations: {e}")
                 next_best_action_products = []
-        
-        # If we don't have enough, fill with other products from same category
-        if len(next_best_action_products) < 4:
-            additional = Product.objects.filter(
-                category=category.name,
-                quantity_on_hand__gt=0,
-                is_active=True
-            ).exclude(
-                id__in=[p.id for p in next_best_action_products]
-            ).exclude(id__in=cart_product_ids).order_by('-rating')[:4 - len(next_best_action_products)]
-            next_best_action_products = list(next_best_action_products) + list(additional)
     
     # Get cart context
     cart_context = get_cart_context(request)
@@ -549,17 +544,6 @@ def next_best_action(request, category_slug):
         except Exception as e:
             print(f"Error getting Next Best Action recommendations: {e}")
             recommended_products = []
-    
-    # If we don't have enough, fill with other products from same category
-    if len(recommended_products) < 100:
-        additional = Product.objects.filter(
-            category=category.name,
-            quantity_on_hand__gt=0,
-            is_active=True
-        ).exclude(
-            id__in=[p.id for p in recommended_products]
-        ).order_by('-rating')[:100 - len(recommended_products)]
-        recommended_products = list(recommended_products) + list(additional)
     
     # Convert to QuerySet if it's a list
     if isinstance(recommended_products, list):
@@ -690,16 +674,8 @@ def product_detail(request, product_id):
     # Get frequently bought together using association rules
     try:
         frequently_bought = get_recommendations([product.sku], top_n=4)
-        if not frequently_bought:
-            frequently_bought = Product.objects.filter(
-                category=product.category,
-                quantity_on_hand__gt=0
-            ).exclude(id=product.id)[:4]
     except:
-        frequently_bought = Product.objects.filter(
-            category=product.category,
-            quantity_on_hand__gt=0
-        ).exclude(id=product.id)[:4]
+        frequently_bought = []
     
     # Get wishlist product IDs for all products (main product + frequently bought)
     wishlist_product_ids = set()
@@ -756,19 +732,9 @@ def frequently_bought_together(request, product_id):
     recommended_products = []
     try:
         recommended_products = get_recommendations([product.sku], top_n=100)  # Get more for pagination
-        if not recommended_products:
-            recommended_products = Product.objects.filter(
-                category=product.category,
-                quantity_on_hand__gt=0,
-                is_active=True
-            ).exclude(id=product.id).order_by('-rating')
     except Exception as e:
         print(f"Error getting frequently bought together: {e}")
-        recommended_products = Product.objects.filter(
-            category=product.category,
-            quantity_on_hand__gt=0,
-            is_active=True
-        ).exclude(id=product.id).order_by('-rating')
+        recommended_products = []
     
     # Convert to QuerySet if it's a list (from get_recommendations)
     if isinstance(recommended_products, list):
@@ -821,34 +787,7 @@ def shopping_cart(request):
                 # Exclude products already in cart
                 recommended_products = [p for p in recommended_products if p.id not in cart_product_ids]
             except:
-                pass
-        
-        # If we don't have enough recommendations, fill with products from same categories
-        if len(recommended_products) < 4:
-            from adminpanel.models import Product
-            categories = set([item.product.category for item in cart_items if item.product.category])
-            if categories:
-                additional = Product.objects.filter(
-                    category__in=categories,
-                    quantity_on_hand__gt=0
-                ).exclude(id__in=cart_product_ids).exclude(
-                    id__in=[p.id for p in recommended_products]
-                ).order_by('-rating')[:4 - len(recommended_products)]
-                recommended_products = list(recommended_products) + list(additional)
-        
-        # If still not enough, get any popular products
-        if len(recommended_products) < 4:
-            from adminpanel.models import Product
-            additional = Product.objects.filter(
-                quantity_on_hand__gt=0
-            ).exclude(id__in=cart_product_ids).exclude(
-                id__in=[p.id for p in recommended_products]
-            ).order_by('-rating')[:4 - len(recommended_products)]
-            recommended_products = list(recommended_products) + list(additional)
-    else:
-        # If cart is empty, show popular products
-        from adminpanel.models import Product
-        recommended_products = Product.objects.filter(quantity_on_hand__gt=0).order_by('-rating')[:4]
+                recommended_products = []
     
     # Limit to 4 products for the cart page
     recommended_products = recommended_products[:4]
@@ -1230,7 +1169,6 @@ def wishlist(request):
 def complete_the_set(request):
     """Complete the Set page showing all recommended products."""
     from .recommendations import get_recommendations
-    from itertools import combinations
     from adminpanel.models import Product
     
     cart = get_or_create_cart(request)
@@ -1242,81 +1180,13 @@ def complete_the_set(request):
         cart_product_ids = [item.product.id for item in cart_items]
         
         if cart_product_skus:
-            # Strategy 1: Query with ALL cart items as input
+            # Query with ALL cart items as input
             try:
                 recommended_products = get_recommendations(cart_product_skus, top_n=100)  # Get more for pagination
                 recommended_products = [p for p in recommended_products if p.id not in cart_product_ids]
             except Exception as e:
                 print(f"Error getting recommendations for all cart items: {e}")
                 recommended_products = []
-            
-            # Strategy 2: If no matching rules found, try combinations (pairs of cart items)
-            if len(recommended_products) < 100 and len(cart_product_skus) > 1:
-                try:
-                    for pair in combinations(cart_product_skus, 2):
-                        if len(recommended_products) >= 100: break
-                        pair_recommendations = get_recommendations(list(pair), top_n=100)
-                        for p in pair_recommendations:
-                            if p.id not in cart_product_ids and p.id not in [rp.id for rp in recommended_products]:
-                                recommended_products.append(p)
-                                if len(recommended_products) >= 100: break
-                except Exception as e:
-                    print(f"Error getting recommendations for pairs: {e}")
-            
-            # Strategy 3: If still not enough, try individual cart items
-            if len(recommended_products) < 100:
-                try:
-                    for sku in cart_product_skus:
-                        if len(recommended_products) >= 100: break
-                        individual_recommendations = get_recommendations([sku], top_n=100)
-                        for p in individual_recommendations:
-                            if p.id not in cart_product_ids and p.id not in [rp.id for rp in recommended_products]:
-                                recommended_products.append(p)
-                                if len(recommended_products) >= 100: break
-                except Exception as e:
-                    print(f"Error getting recommendations for individual items: {e}")
-            
-            # Strategy 4: Use the most recently added item as fallback
-            if len(recommended_products) < 100:
-                try:
-                    most_recent_item = cart_items.order_by('-id').first()
-                    if most_recent_item and most_recent_item.product.sku:
-                        fallback_recommendations = get_recommendations([most_recent_item.product.sku], top_n=100)
-                        for p in fallback_recommendations:
-                            if p.id not in cart_product_ids and p.id not in [rp.id for rp in recommended_products]:
-                                recommended_products.append(p)
-                                if len(recommended_products) >= 100: break
-                except Exception as e:
-                    print(f"Error getting recommendations for most recent item: {e}")
-            
-            # Final fallback: Fill with products from same categories
-            if len(recommended_products) < 100:
-                categories = set([item.product.category for item in cart_items if item.product.category])
-                if categories:
-                    additional = Product.objects.filter(
-                        category__in=categories,
-                        quantity_on_hand__gt=0,
-                        is_active=True
-                    ).exclude(id__in=cart_product_ids).exclude(
-                        id__in=[p.id for p in recommended_products]
-                    ).order_by('-rating')[:100 - len(recommended_products)]
-                    recommended_products = list(recommended_products) + list(additional)
-            
-            # Final final fallback: Get any popular products
-            if len(recommended_products) < 100:
-                additional = Product.objects.filter(
-                    quantity_on_hand__gt=0,
-                    is_active=True
-                ).exclude(id__in=cart_product_ids).exclude(
-                    id__in=[p.id for p in recommended_products]
-                ).order_by('-rating')[:100 - len(recommended_products)]
-                recommended_products = list(recommended_products) + list(additional)
-    else:
-        # If cart is empty, show popular products
-        recommended_products = Product.objects.filter(
-            quantity_on_hand__gt=0,
-            is_active=True
-        ).order_by('-rating')
     
     # Convert to QuerySet if it's a list (from get_recommendations)
     if isinstance(recommended_products, list):
@@ -1352,7 +1222,7 @@ def complete_the_set(request):
 def order_detail(request, order_id):
     """Order detail page showing order items with review buttons."""
     from adminpanel.models import Order, OrderItem
-    from storefront.models import ProductReview
+    from storefront.models import ProductReview, ReturnRequest, ReturnRequestItem
     from datetime import timedelta
     
     # Get order and verify it belongs to the user
@@ -1366,8 +1236,23 @@ def order_detail(request, order_id):
     # Get order items with calculated totals
     order_items = OrderItem.objects.filter(order=order).select_related('product')
     order_items_with_totals = []
+    
+    # Check for existing return requests for each order item
+    # Get all return requests for this order
+    return_requests = ReturnRequest.objects.filter(order=order, user=request.user).prefetch_related('items__order_item')
+    
+    # Create a mapping of order_item_id -> return_request
+    item_return_requests = {}
+    for return_req in return_requests:
+        for return_item in return_req.items.all():
+            order_item_id = return_item.order_item.id
+            if order_item_id not in item_return_requests:
+                item_return_requests[order_item_id] = return_req
+    
     for item in order_items:
         item.total_price = item.unit_price * item.quantity
+        # Attach return request info to each item
+        item.return_request = item_return_requests.get(item.id)
         order_items_with_totals.append(item)
     
     # Calculate delivery time (add 1 day to placed_at, set to 5pm)
@@ -3053,6 +2938,13 @@ def return_type_selection(request, order_id):
     customer = get_object_or_404(Customer, user=request.user)
     order = get_object_or_404(Order, id=order_id, customer=customer)
     
+    # Check if there's already a return request for this order
+    existing_return = ReturnRequest.objects.filter(order=order, user=request.user).first()
+    if existing_return:
+        # Redirect to status page if return request already exists
+        messages.info(request, 'You have already initiated a return/refund request for this order.')
+        return redirect('return_request_status', return_request_id=existing_return.id)
+    
     if request.method == 'POST':
         form = ReturnRequestForm(request.POST)
         if form.is_valid():
@@ -3097,11 +2989,23 @@ def return_request(request, order_id):
         except ReturnRequest.DoesNotExist:
             pass
     
+    # Check which order items already have return requests
+    existing_return_requests = ReturnRequest.objects.filter(order=order, user=request.user).prefetch_related('items__order_item')
+    items_with_returns = set()
+    for return_req in existing_return_requests:
+        for return_item in return_req.items.all():
+            items_with_returns.add(return_item.order_item.id)
+    
     if request.method == 'POST':
         # Handle adding items to return
         if 'add_item' in request.POST:
             order_item_id = int(request.POST.get('order_item_id'))
             order_item = get_object_or_404(OrderItem, id=order_item_id, order=order)
+            
+            # Check if this item already has a return request
+            if order_item_id in items_with_returns:
+                messages.error(request, f'A return/refund request already exists for {order_item.product.name}. Please check the status of your existing return request.')
+                return redirect('return_request', order_id=order_id)
             
             form = ReturnItemForm(request.POST, request.FILES)
             if form.is_valid():
@@ -3137,6 +3041,23 @@ def return_request(request, order_id):
                     messages.error(request, 'Please add at least one item to return.')
                     return redirect('return_request', order_id=order_id)
                 
+                # Validate that all order_item_ids in session belong to this order
+                valid_order_item_ids = set(order_items.values_list('id', flat=True))
+                for item_data in return_items:
+                    try:
+                        order_item_id = int(item_data.get('order_item_id', 0))
+                        if order_item_id not in valid_order_item_ids:
+                            messages.error(request, f'Invalid order item detected. Please add items to return again.')
+                            # Clear invalid session data
+                            del request.session['return_items']
+                            request.session.modified = True
+                            return redirect('return_request', order_id=order_id)
+                    except (ValueError, TypeError):
+                        messages.error(request, f'Invalid order item data. Please try adding items again.')
+                        del request.session['return_items']
+                        request.session.modified = True
+                        return redirect('return_request', order_id=order_id)
+                
                 # Combine additional comments from all items
                 all_comments = []
                 for item_data in return_items:
@@ -3156,7 +3077,22 @@ def return_request(request, order_id):
                 
                 # Create return request items
                 for item_data in return_items:
-                    order_item = get_object_or_404(OrderItem, id=item_data['order_item_id'], order=order)
+                    # Ensure order_item_id is an integer
+                    try:
+                        order_item_id = int(item_data['order_item_id'])
+                    except (ValueError, KeyError, TypeError):
+                        messages.error(request, f'Invalid order item data. Please try adding items again.')
+                        return redirect('return_request', order_id=order_id)
+                    
+                    # Verify the order item exists and belongs to this order
+                    try:
+                        order_item = OrderItem.objects.get(id=order_item_id, order=order)
+                    except OrderItem.DoesNotExist:
+                        messages.error(request, f'Order item not found. It may have been removed. Please try again.')
+                        # Clear invalid session data
+                        del request.session['return_items']
+                        request.session.modified = True
+                        return redirect('return_request', order_id=order_id)
                     
                     return_item = ReturnRequestItem.objects.create(
                         return_request=return_request_obj,
@@ -3194,7 +3130,9 @@ def return_request(request, order_id):
     # Prepare forms for each order item
     item_forms = []
     for item in order_items:
-        # Check if item is already in return request
+        # Check if item already has a return request
+        item_has_return = item.id in items_with_returns
+        # Check if item is already in current session return items
         existing_data = next((i for i in return_items if i['order_item_id'] == item.id), None)
         if existing_data:
             form = ReturnItemForm(initial={
@@ -3208,7 +3146,7 @@ def return_request(request, order_id):
                 'order_item_id': item.id,
                 'quantity': item.quantity,
             })
-        item_forms.append((item, form))
+        item_forms.append((item, form, item_has_return))
     
     submission_form = ReturnRequestSubmissionForm()
     
@@ -3225,6 +3163,33 @@ def return_request(request, order_id):
         **cart_context,
     }
     return render(request, 'storefront/return_request.html', context)
+
+@login_required
+def return_request_status(request, return_request_id):
+    """Show the status of an existing return/refund request."""
+    from storefront.models import ReturnRequest, ReturnRequestItem
+    
+    # Get return request and verify it belongs to the user
+    return_request_obj = get_object_or_404(ReturnRequest, id=return_request_id, user=request.user)
+    
+    # Get return request items with product details
+    return_items = ReturnRequestItem.objects.filter(return_request=return_request_obj).select_related('order_item__product')
+    
+    # Calculate total for each return item
+    return_items_with_totals = []
+    for item in return_items:
+        item.total_price = item.order_item.unit_price * item.quantity
+        return_items_with_totals.append(item)
+    
+    # Get cart context
+    cart_context = get_cart_context(request)
+    
+    context = {
+        'return_request': return_request_obj,
+        'return_items': return_items_with_totals,
+        **cart_context,
+    }
+    return render(request, 'storefront/return_request_status.html', context)
 
 @login_required
 def remove_return_item(request, order_id, item_index):

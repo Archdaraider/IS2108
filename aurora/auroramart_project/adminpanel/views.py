@@ -714,6 +714,9 @@ def customer_list(request):
     if request.method == 'POST':
         form = CustomerForm(request.POST)
         if form.is_valid():
+            # Debug: Print form data to verify all fields are present
+            print("DEBUG: Form cleaned_data:", form.cleaned_data)
+            print("DEBUG: POST data:", request.POST)
             # Create User account first
             username = form.cleaned_data.get('username')
             password = form.cleaned_data.get('password')
@@ -721,15 +724,53 @@ def customer_list(request):
             
             try:
                 # Create the User account
+                # NOTE: A signal in storefront/signals.py will automatically create a Customer
+                # with placeholder values. We'll update that Customer with the real form data.
                 user = User.objects.create_user(
                     username=username,
                     email=email,
                     password=password
                 )
                 
-                # Create customer with reference to user
-                customer = form.save(commit=False)
-                customer.user = user
+                # Check if signal already created a customer (it will have placeholder values)
+                # If it exists, update it; otherwise create a new one
+                customer, created = Customer.objects.get_or_create(
+                    email=email,
+                    defaults={
+                        'user': user,
+                        'name': form.cleaned_data.get('name'),
+                        'age': form.cleaned_data.get('age'),
+                        'gender': form.cleaned_data.get('gender'),
+                        'employment_status': form.cleaned_data.get('employment_status'),
+                        'occupation': form.cleaned_data.get('occupation'),
+                        'education': form.cleaned_data.get('education'),
+                        'household_size': form.cleaned_data.get('household_size'),
+                        'has_children': form.cleaned_data.get('has_children', False),
+                        'monthly_income_sgd': form.cleaned_data.get('monthly_income_sgd'),
+                    }
+                )
+                
+                # If customer already exists (created by signal), update all fields with form data
+                if not created:
+                    # Verify all required fields are present
+                    required_fields = ['email', 'name', 'age', 'gender', 'employment_status', 
+                                      'occupation', 'education', 'household_size', 'monthly_income_sgd']
+                    missing_fields = [field for field in required_fields 
+                                     if form.cleaned_data.get(field) is None]
+                    if missing_fields:
+                        raise ValueError(f"Missing required fields: {missing_fields}. Form data: {form.cleaned_data}")
+                    
+                    customer.user = user
+                    customer.email = form.cleaned_data.get('email')
+                    customer.name = form.cleaned_data.get('name')
+                    customer.age = form.cleaned_data.get('age')
+                    customer.gender = form.cleaned_data.get('gender')
+                    customer.employment_status = form.cleaned_data.get('employment_status')
+                    customer.occupation = form.cleaned_data.get('occupation')
+                    customer.education = form.cleaned_data.get('education')
+                    customer.household_size = form.cleaned_data.get('household_size')
+                    customer.has_children = form.cleaned_data.get('has_children', False)
+                    customer.monthly_income_sgd = form.cleaned_data.get('monthly_income_sgd')
 
                 # --- AI MODEL LOGIC (matching your notebook) ---
                 if customer_model: # Only check for the model
@@ -750,7 +791,7 @@ def customer_list(request):
                         raw_data = {
                             'age': form.cleaned_data.get('age'),
                             'household_size': form.cleaned_data.get('household_size'),
-                            'has_children': form.cleaned_data.get('has_children'),
+                            'has_children': form.cleaned_data.get('has_children', False),
                             'monthly_income_sgd': form.cleaned_data.get('monthly_income_sgd'),
                             'gender': form.cleaned_data.get('gender'),
                             'employment_status': form.cleaned_data.get('employment_status'),
@@ -775,21 +816,31 @@ def customer_list(request):
                         # 7. Make prediction
                         predicted_category = customer_model.predict(features_processed)[0]
 
-                        # 8. Assign prediction and save
+                        # 8. Assign prediction
                         customer.preferred_category = predicted_category
 
                     except Exception as e:
                         # If prediction fails, log it but continue
                         print(f"WARNING: Could not predict category: {e}")
-                        # preferred_category will remain null
+                        # Set a default category if prediction fails
+                        customer.preferred_category = 'Electronics'  # Default fallback
                 
-                # Save the customer
+                # Save the customer with all fields explicitly set
                 customer.save()
                 return redirect('adminpanel:customer_list') # Success!
                 
             except Exception as e:
                 # If user creation fails, show error
+                import traceback
+                print(f"ERROR creating customer: {e}")
+                print(traceback.format_exc())
                 form.add_error(None, f"Could not create user account: {e}")
+        else:
+            # Form is invalid - print errors for debugging
+            print("DEBUG: Form is invalid!")
+            print("DEBUG: Form errors:", form.errors)
+            print("DEBUG: Form non_field_errors:", form.non_field_errors)
+            print("DEBUG: POST data:", request.POST)
             
         # If form is invalid, fall through to render context below
 
@@ -848,8 +899,20 @@ def customer_detail(request, pk):
                         )
                         customer.user = user
             
-            # Save customer
-            form.save()
+            # Explicitly update all customer fields from form data to ensure they're saved
+            customer.email = form.cleaned_data.get('email')
+            customer.name = form.cleaned_data.get('name')
+            customer.age = form.cleaned_data.get('age')
+            customer.gender = form.cleaned_data.get('gender')
+            customer.employment_status = form.cleaned_data.get('employment_status')
+            customer.occupation = form.cleaned_data.get('occupation')
+            customer.education = form.cleaned_data.get('education')
+            customer.household_size = form.cleaned_data.get('household_size')
+            customer.has_children = form.cleaned_data.get('has_children', False)
+            customer.monthly_income_sgd = form.cleaned_data.get('monthly_income_sgd')
+            
+            # Save customer with all fields explicitly set
+            customer.save()
             return redirect('adminpanel:customer_list') # Redirect to list after update
     else: # GET request
         form = CustomerForm(instance=customer)

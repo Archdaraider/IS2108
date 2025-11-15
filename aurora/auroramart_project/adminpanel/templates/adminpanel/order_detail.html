@@ -228,6 +228,13 @@ function addOrderItem() {
         if (field.name) {
             field.name = field.name.replace(/items-\d+-/, `items-${currentFormCount}-`);
             field.id = field.id.replace(/id_items-\d+-/, `id_items-${currentFormCount}-`);
+            
+            // CRITICAL: Clear the id field for new items (this makes it a new item, not an update)
+            if (field.name.includes('-id') && field.type === 'hidden') {
+                field.value = '';
+                console.log('Cleared id field for new form:', field.name);
+            }
+            
             // Clear values for new form
             if (field.type !== 'hidden') {
                 if (field.tagName === 'SELECT') {

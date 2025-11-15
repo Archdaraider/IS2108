@@ -415,7 +415,7 @@ def order_list(request):
 def order_detail(request, pk):
     """
     View to display and update a single order and its items.
-    Completely rewritten with manual DELETE handling.
+    Rewritten to properly handle adding, updating, and deleting order items.
     """
     order = get_object_or_404(Order, pk=pk)
 
@@ -423,76 +423,111 @@ def order_detail(request, pk):
         form = OrderForm(request.POST, instance=order)
         formset = OrderItemFormSet(request.POST, instance=order)
         
-        if form.is_valid() and formset.is_valid():
+        if form.is_valid():
             try:
                 with transaction.atomic():
-                    # Save the order form
+                    # Save the order form first
                     order = form.save()
                     
-                    # Get the total number of forms
+                    # Get total number of forms from POST data
                     total_forms = int(request.POST.get('items-TOTAL_FORMS', 0))
                     
-                    # Track items to delete and items to keep
-                    items_to_delete = []
-                    items_to_save = []
+                    # Debug: Print all POST data related to items
+                    print(f"DEBUG: Total forms: {total_forms}")
+                    for key in sorted(request.POST.keys()):
+                        if 'items-' in key:
+                            print(f"DEBUG: {key} = {request.POST.get(key)}")
                     
-                    # Process each form manually
+                    # Process each form manually to handle new items properly
+                    items_to_delete = []
+                    items_to_update = []
+                    items_to_create = []
+                    
                     for i in range(total_forms):
-                        # Check if this form has DELETE checked
+                        # Check if this form is marked for deletion
                         delete_key = f'items-{i}-DELETE'
-                        is_marked_for_deletion = delete_key in request.POST
+                        is_deleted = request.POST.get(delete_key) == 'on'
                         
-                        # Get the item ID (if it exists)
-                        item_id = request.POST.get(f'items-{i}-id', '')
+                        # Get form data
+                        item_id = request.POST.get(f'items-{i}-id', '').strip()
+                        product_id = request.POST.get(f'items-{i}-product', '').strip()
+                        quantity_str = request.POST.get(f'items-{i}-quantity', '').strip()
                         
-                        # Get product and quantity
-                        product_id = request.POST.get(f'items-{i}-product', '')
-                        quantity = request.POST.get(f'items-{i}-quantity', '')
+                        print(f"DEBUG: Form {i} - item_id: '{item_id}', product_id: '{product_id}', quantity: '{quantity_str}', is_deleted: {is_deleted}")
                         
-                        if is_marked_for_deletion and item_id:
-                            # Mark existing item for deletion
+                        # Skip empty forms (no product selected)
+                        if not product_id:
+                            # If it's an existing item being deleted, mark it
+                            if is_deleted and item_id:
+                                items_to_delete.append(item_id)
+                            continue
+                        
+                        # Validate quantity
+                        try:
+                            quantity = int(quantity_str) if quantity_str else 1
+                            if quantity <= 0:
+                                continue  # Skip invalid quantities
+                        except (ValueError, TypeError):
+                            quantity = 1
+                        
+                        # Get product
+                        try:
+                            product = Product.objects.get(pk=product_id)
+                        except Product.DoesNotExist:
+                            continue  # Skip if product doesn't exist
+                        
+                        # Process based on whether it's existing or new
+                        # CRITICAL: Check if item_id is empty or None to identify new items
+                        if is_deleted and item_id:
+                            # Mark for deletion
                             items_to_delete.append(item_id)
-                        elif product_id and quantity:
-                            # This item should be saved
-                            items_to_save.append({
-                                'id': item_id if item_id else None,
-                                'product_id': product_id,
+                            print(f"DEBUG: Form {i} - Marked for deletion")
+                        elif item_id and item_id != '':
+                            # Update existing item (has a valid ID)
+                            items_to_update.append({
+                                'id': item_id,
+                                'product': product,
                                 'quantity': quantity
                             })
+                            print(f"DEBUG: Form {i} - Will UPDATE existing item {item_id}")
+                        else:
+                            # Create new item (no ID or empty ID)
+                            items_to_create.append({
+                                'product': product,
+                                'quantity': quantity
+                            })
+                            print(f"DEBUG: Form {i} - Will CREATE new item")
                     
                     # Delete marked items
                     for item_id in items_to_delete:
                         try:
-                            item = OrderItem.objects.get(pk=item_id, order=order)
-                            item.delete()
+                            OrderItem.objects.filter(pk=item_id, order=order).delete()
                         except OrderItem.DoesNotExist:
                             pass
                     
-                    # Save/update remaining items
-                    for item_data in items_to_save:
+                    # Update existing items
+                    for item_data in items_to_update:
                         try:
-                            product = Product.objects.get(pk=item_data['product_id'])
-                            quantity = int(item_data['quantity'])
-                            
-                            if item_data['id']:
-                                # Update existing item
-                                item = OrderItem.objects.get(pk=item_data['id'], order=order)
-                                item.product = product
-                                item.quantity = quantity
-                                item.unit_price = product.price
-                                item.save()
-                            else:
-                                # Create new item
-                                OrderItem.objects.create(
-                                    order=order,
-                                    product=product,
-                                    quantity=quantity,
-                                    unit_price=product.price
-                                )
-                        except (Product.DoesNotExist, OrderItem.DoesNotExist):
+                            item = OrderItem.objects.get(pk=item_data['id'], order=order)
+                            item.product = item_data['product']
+                            item.quantity = item_data['quantity']
+                            item.unit_price = item_data['product'].price
+                            item.save()
+                        except OrderItem.DoesNotExist:
                             pass
                     
-                    # Recalculate order total
+                    # Create new items
+                    print(f"DEBUG: Creating {len(items_to_create)} new items")
+                    for item_data in items_to_create:
+                        new_item = OrderItem.objects.create(
+                            order=order,
+                            product=item_data['product'],
+                            quantity=item_data['quantity'],
+                            unit_price=item_data['product'].price
+                        )
+                        print(f"DEBUG: Created new OrderItem: id={new_item.id}, product={new_item.product.name}, quantity={new_item.quantity}")
+                    
+                    # Recalculate order total after all changes
                     total_result = order.items.aggregate(
                         total=Sum(F('unit_price') * F('quantity'), output_field=DecimalField())
                     )
@@ -502,7 +537,13 @@ def order_detail(request, pk):
                     return redirect('adminpanel:order_detail', pk=order.pk)
 
             except Exception as e:
+                import traceback
+                print(f"ERROR in order_detail: {e}")
+                print(traceback.format_exc())
                 form.add_error(None, f"An error occurred while saving: {str(e)}")
+        else:
+            # Debug form errors
+            print("DEBUG: Form errors:", form.errors)
             
     else:
         # GET request - display the form

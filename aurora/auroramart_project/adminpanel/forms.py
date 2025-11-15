@@ -134,16 +134,28 @@ class OrderItemForm(BaseForm):
         product = cleaned_data.get('product')
         quantity = cleaned_data.get('quantity')
         
-        # If both product and quantity are provided, validate
-        if product and quantity:
-            if quantity <= 0:
-                raise forms.ValidationError("Quantity must be greater than 0.")
+        # If product is provided, ensure quantity is set
+        if product:
+            if not quantity or quantity == '':
+                cleaned_data['quantity'] = 1
+            else:
+                quantity = int(quantity) if isinstance(quantity, str) else quantity
+                if quantity <= 0:
+                    raise forms.ValidationError("Quantity must be greater than 0.")
+                cleaned_data['quantity'] = quantity
         
-        # If product is provided but quantity is not, set default quantity
-        if product and not quantity:
-            cleaned_data['quantity'] = 1
+        # If quantity is provided but no product, that's invalid
+        if quantity and not product:
+            raise forms.ValidationError("Please select a product.")
             
         return cleaned_data
+    
+    def has_changed(self):
+        """Override to ensure forms with product selected are considered changed"""
+        # If product is selected, consider the form as changed even if quantity is default
+        if self.cleaned_data and self.cleaned_data.get('product'):
+            return True
+        return super().has_changed()
         
 # Create formset factory with 0 extra empty forms (we'll add dynamically with JS)
 OrderItemFormSet = inlineformset_factory(
@@ -153,7 +165,7 @@ OrderItemFormSet = inlineformset_factory(
     can_delete=True,   
     min_num=1,          # Require at least 1 item
     extra=0,            # No extra empty forms by default (add with button)
-    validate_min=True,  # Require minimum forms
+    validate_min=False,  # Don't validate minimum - we handle this manually
 )
 
 # --- Admin User Management Forms ---

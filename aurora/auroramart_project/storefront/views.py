@@ -879,53 +879,39 @@ def checkout(request):
         messages.warning(request, 'Your cart is empty. Add some items before checkout.')
         return redirect('shopping_cart')
     
-    # Check if customer profile is complete - BLOCK checkout if incomplete
-    profile_complete = False
-    if request.user.is_authenticated:
+    # Get customer profile - redirect to onboarding if not complete
+    # But only if show_onboarding parameter is not already present (to avoid redirect loop)
+    if request.GET.get('show_onboarding') != 'true':
         try:
             customer = Customer.objects.get(user=request.user)
-            # Check if profile has actual values (not just placeholder values)
-            has_required_fields = bool(customer.age and customer.gender and customer.employment_status)
-            
-            # Check if profile has placeholder values (indicates it wasn't completed through onboarding)
-            is_placeholder = (
-                customer.age == 18 and
-                customer.gender == 'Male' and
-                customer.employment_status == 'Student' and
-                customer.occupation == 'Sales' and
-                customer.preferred_category == 'Electronics' and
-                customer.monthly_income_sgd == 0.00
-            )
-            
-            # Profile is complete only if it has required fields AND is not a placeholder
-            profile_complete = has_required_fields and not is_placeholder
+            # Check if profile is properly filled
+            if not customer.age or not customer.gender or not customer.employment_status:
+                # Only show message once per checkout attempt (use session flag)
+                if not request.session.get('checkout_profile_message_shown', False):
+                    messages.info(request, 'Please complete your profile before checkout.')
+                    request.session['checkout_profile_message_shown'] = True
+                # Include next parameter to redirect back to checkout after profile completion
+                return redirect(f"{reverse('checkout')}?show_onboarding=true&next={reverse('checkout')}")
         except Customer.DoesNotExist:
-            profile_complete = False
-    else:
-        # User not authenticated - redirect to login
-        messages.warning(request, 'Please log in to proceed to checkout.')
-        return redirect('login')
-    
-    # If profile is incomplete, show modal and block checkout
-    if not profile_complete:
-        # Block POST requests (order submission) if profile is incomplete
-        if request.method == 'POST':
-            messages.error(request, 'Please complete your profile before placing an order.')
-            return redirect(f"{reverse('checkout')}?show_onboarding=true&next={reverse('checkout')}")
-        
-        # For GET requests, show checkout page with modal
-        # Only show message once per checkout attempt (use session flag)
-        if not request.session.get('checkout_profile_message_shown', False):
-            messages.info(request, 'Please complete your profile before checkout.')
-            request.session['checkout_profile_message_shown'] = True
-        
-        # Redirect to checkout with show_onboarding parameter to trigger modal
-        if request.GET.get('show_onboarding') != 'true':
+            # Redirect to show profile onboarding modal
+            # Only show message once per checkout attempt (use session flag)
+            if not request.session.get('checkout_profile_message_shown', False):
+                messages.info(request, 'Please complete your profile before checkout.')
+                request.session['checkout_profile_message_shown'] = True
+            # Include next parameter to redirect back to checkout after profile completion
             return redirect(f"{reverse('checkout')}?show_onboarding=true&next={reverse('checkout')}")
     else:
-        # Profile is complete, clear the session flag
+        # If show_onboarding is true, clear the session flag so message can be shown again if needed
+        # (This allows the message to be shown again if user comes back to checkout later)
         if request.session.get('checkout_profile_message_shown', False):
-            request.session.pop('checkout_profile_message_shown', None)
+            # Keep the flag if profile is still incomplete, clear it if profile is complete
+            try:
+                customer = Customer.objects.get(user=request.user)
+                if customer.age and customer.gender and customer.employment_status:
+                    # Profile is now complete, clear the flag
+                    request.session.pop('checkout_profile_message_shown', None)
+            except Customer.DoesNotExist:
+                pass
     
     # Get saved addresses and payment methods
     saved_addresses = SavedAddress.objects.filter(user=request.user)
@@ -1049,70 +1035,52 @@ def checkout(request):
             
             # Create order
             try:
-                order = Order.objects.create(
-                    customer=customer,
-                    total_amount=total,
-                    shipping_address=shipping_address,
-                    fulfillment_status='PENDING',
-                    payment_method=payment_method,  # Save payment method
-                    delivery_time=delivery_time      # Save delivery time
-                )
-                
-                # Create order items and update product stock
-                for cart_item in cart_items:
-                    OrderItem.objects.create(
-                        order=order,
-                        product=cart_item.product,
-                        quantity=cart_item.quantity,
-                        unit_price=cart_item.product.price
+                from django.db import transaction
+                with transaction.atomic():
+                    order = Order.objects.create(
+                        customer=customer,
+                        total_amount=total,
+                        shipping_address=shipping_address,
+                        fulfillment_status='PENDING',
+                        payment_method=payment_method,
+                        delivery_time=delivery_time
                     )
                     
-                    # Update product stock (quantity_on_hand)
-                    cart_item.product.quantity_on_hand -= cart_item.quantity
-                    cart_item.product.save()
+                    # Create order items and update product stock
+                    for cart_item in cart_items:
+                        OrderItem.objects.create(
+                            order=order,
+                            product=cart_item.product,
+                            quantity=cart_item.quantity,
+                            unit_price=cart_item.product.price
+                        )
+                        
+                        # Update product stock
+                        cart_item.product.quantity_on_hand -= cart_item.quantity
+                        cart_item.product.quantity_sold += cart_item.quantity
+                        cart_item.product.save()
+                    
+                    # Clear the cart
+                    cart_items.delete()
                 
-                # Clear the cart
-                cart_items.delete()
-                
-                messages.success(request, f'Order placed successfully! Order ID: {order.oID}')
+                messages.success(request, f'Order #{order.oID} placed successfully!')
                 return redirect('my_orders')
                 
             except Exception as e:
                 messages.error(request, f'Error creating order: {str(e)}')
                 return redirect('shopping_cart')
         else:
-            # Form is invalid - show simplified error messages
-            missing_fields = []
-            
-            # Check for address errors
-            address_errors = []
-            if 'full_name' in form.errors or 'phone_number' in form.errors or 'address' in form.errors or 'city' in form.errors or 'postal_code' in form.errors or 'country' in form.errors:
-                address_errors.append('address')
-            if '__all__' in form.errors:
-                for error in form.errors['__all__']:
-                    if 'address' in str(error).lower():
-                        address_errors.append('address')
-            
-            if address_errors:
-                missing_fields.append('address')
-            
-            # Check for payment errors
-            payment_errors = []
-            if 'payment_method' in form.errors:
-                payment_errors.append('payment')
-            if 'card_number' in form.errors or 'card_expiry' in form.errors or 'card_cvv' in form.errors or 'cardholder_name' in form.errors or 'card_type' in form.errors:
-                payment_errors.append('credit card')
-            if '__all__' in form.errors:
-                for error in form.errors['__all__']:
-                    if 'payment' in str(error).lower():
-                        payment_errors.append('payment')
-            
-            if payment_errors:
-                missing_fields.append('credit card')
-            
-            # Show simplified error message
-            if missing_fields:
-                messages.error(request, f"Missing {', '.join(missing_fields)}")
+            # Form is invalid - preserve POST data so user doesn't lose their selections
+            # Show specific form errors for debugging
+            error_messages = []
+            for field, errors in form.errors.items():
+                for error in errors:
+                    if field == '__all__':
+                        error_messages.append(str(error))
+                    else:
+                        error_messages.append(f"{field}: {error}")
+            if error_messages:
+                messages.error(request, f'Please fix the errors: {"; ".join(error_messages)}')
             else:
                 messages.error(request, 'Please fix the errors below and try again.')
     else:
@@ -1123,58 +1091,6 @@ def checkout(request):
     # Calculate initial shipping fee (standard delivery)
     shipping_fee = Decimal('0.00')
     total = subtotal + shipping_fee
-    
-    # Determine checkout progress for progress bar
-    # Step 1: Cart (always completed)
-    # Step 2: Information (address) - check if address is selected/filled
-    # Step 3: Shipping (delivery time) - check if delivery time is selected
-    # Step 4: Payment - check if payment method is selected
-    # Step 5: Complete (only after order is placed)
-    
-    has_address = False
-    has_delivery = False
-    has_payment = False
-    
-    # Check if address is selected (from POST or saved addresses)
-    if request.method == 'POST':
-        saved_address_id = request.POST.get('saved_address_id')
-        use_new_address = request.POST.get('use_new_address', '0')
-        if saved_address_id and saved_address_id != '':
-            has_address = True
-        elif use_new_address == '1':
-            # Check if new address fields are filled
-            if all([request.POST.get('full_name'), request.POST.get('phone_number'), 
-                   request.POST.get('address'), request.POST.get('city'), 
-                   request.POST.get('postal_code'), request.POST.get('country')]):
-                has_address = True
-    elif saved_addresses.exists():
-        # If there are saved addresses, user can select one (not completed yet, but available)
-        has_address = False  # Not selected yet, but available
-    
-    # Check if delivery time is selected
-    if request.method == 'POST':
-        if request.POST.get('delivery_time'):
-            has_delivery = True
-    
-    # Check if payment method is selected
-    if request.method == 'POST':
-        saved_payment_id = request.POST.get('saved_payment_id')
-        use_new_payment = request.POST.get('use_new_payment', '0')
-        payment_method = request.POST.get('payment_method')
-        if saved_payment_id and saved_payment_id != '':
-            has_payment = True
-        elif use_new_payment == '1' and payment_method:
-            if payment_method == 'paynow':
-                has_payment = True
-            elif payment_method == 'card':
-                # Check if card fields are filled
-                if all([request.POST.get('card_number'), request.POST.get('card_expiry'), 
-                       request.POST.get('card_cvv'), request.POST.get('cardholder_name'), 
-                       request.POST.get('card_type')]):
-                    has_payment = True
-    elif saved_payment_methods.exists():
-        # If there are saved payment methods, user can select one (not completed yet, but available)
-        has_payment = False  # Not selected yet, but available
     
     # Get cart context
     cart_context = get_cart_context(request)
@@ -1188,9 +1104,6 @@ def checkout(request):
         'total': total,
         'saved_addresses': saved_addresses,
         'saved_payment_methods': saved_payment_methods,
-        'has_address': has_address,
-        'has_delivery': has_delivery,
-        'has_payment': has_payment,
         **cart_context,  # Add cart info to context
     }
     return render(request, 'storefront/checkout.html', context)

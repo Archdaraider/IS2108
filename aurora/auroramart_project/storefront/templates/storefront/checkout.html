@@ -14,6 +14,55 @@
         <span class="breadcrumb-current">Checkout</span>
     </nav>
 
+    <!-- Checkout Progress Stepper -->
+    <div class="checkout-stepper" style="margin-bottom: 2.5rem;">
+        <div class="stepper-container">
+            <!-- Step 1: Cart -->
+            <div class="stepper-step completed">
+                <div class="step-circle">
+                    <i class="fas fa-check"></i>
+                </div>
+                <div class="step-label">Cart</div>
+            </div>
+            <div class="stepper-line completed"></div>
+            
+            <!-- Step 2: Information (Active) -->
+            <div class="stepper-step active">
+                <div class="step-circle">
+                    <span class="step-number">2</span>
+                </div>
+                <div class="step-label">Information</div>
+            </div>
+            <div class="stepper-line"></div>
+            
+            <!-- Step 3: Shipping -->
+            <div class="stepper-step">
+                <div class="step-circle">
+                    <span class="step-number">3</span>
+                </div>
+                <div class="step-label">Shipping</div>
+            </div>
+            <div class="stepper-line"></div>
+            
+            <!-- Step 4: Payment -->
+            <div class="stepper-step">
+                <div class="step-circle">
+                    <span class="step-number">4</span>
+                </div>
+                <div class="step-label">Payment</div>
+            </div>
+            <div class="stepper-line"></div>
+            
+            <!-- Step 5: Complete -->
+            <div class="stepper-step">
+                <div class="step-circle">
+                    <span class="step-number">5</span>
+                </div>
+                <div class="step-label">Complete</div>
+            </div>
+        </div>
+    </div>
+
     <!-- Page Header -->
     <div style="margin-bottom: 2rem;">
         <h1 style="font-size: 2rem; font-weight: 600; color: #1d1d1f; margin: 0;">Checkout</h1>
@@ -32,8 +81,8 @@
                     <!-- Saved Addresses -->
                     <div id="saved-addresses" class="saved-addresses-section">
                         {% for saved_address in saved_addresses %}
-                        <div class="saved-item" style="border: 1px solid #e8e8ea; border-radius: 6px; padding: 1rem; margin-bottom: 0.75rem; transition: background 0.2s; display: flex; align-items: flex-start; gap: 0.75rem;">
-                            <input type="radio" name="saved_address_id" value="{{ saved_address.id }}" id="address_{{ saved_address.id }}" style="margin-top: 0.25rem; flex-shrink: 0;" {% if request.POST.saved_address_id == saved_address.id|stringformat:"s" %}checked{% endif %} onchange="document.getElementById('new-address-form').style.display='none'; var btn = document.getElementById('add-address-btn'); if(btn) btn.style.display='block'; document.getElementById('use_new_address').value='0'; document.querySelectorAll('input[name=full_name], input[name=phone_number], input[name=address], input[name=city], input[name=postal_code], input[name=country], input[name=floor_unit_number]').forEach(function(inp) { inp.required = false; });">
+                        <div class="saved-item" style="border: 1px solid #e8e8ea; border-radius: 6px; padding: 1rem; margin-bottom: 0.75rem; cursor: pointer; transition: background 0.2s;">
+                            <input type="radio" name="saved_address_id" value="{{ saved_address.id }}" id="address_{{ saved_address.id }}" style="margin-right: 0.75rem;" {% if request.POST.saved_address_id == saved_address.id|stringformat:"s" %}checked{% endif %} onchange="document.getElementById('new-address-form').style.display='none'; var btn = document.getElementById('add-address-btn'); if(btn) btn.style.display='block'; document.getElementById('use_new_address').value='0'; document.querySelectorAll('input[name=full_name], input[name=phone_number], input[name=address], input[name=city], input[name=postal_code], input[name=country], input[name=floor_unit_number]').forEach(function(inp) { inp.required = false; });">
                             <label for="address_{{ saved_address.id }}" style="cursor: pointer; margin: 0; flex: 1;">
                                 <div style="font-weight: 500; margin-bottom: 0.25rem;">{{ saved_address.full_name }}</div>
                                 <div style="font-size: 0.875rem; color: #6e6e73;">
@@ -43,18 +92,6 @@
                                     {{ saved_address.phone_number }}
                                 </div>
                             </label>
-                            <div style="display: flex; gap: 0.5rem; flex-shrink: 0; margin-top: 0.25rem;">
-                                <a href="{% url 'account_address_edit' saved_address.id %}?next={% url 'checkout' %}" class="btn btn-sm" style="padding: 0.5rem 1rem; border: none; color: white; background: #007bff; border-radius: 6px; text-decoration: none; font-size: 0.875rem; width: 90px; min-width: 90px; max-width: 90px; height: 36px; box-sizing: border-box; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.25rem; flex-shrink: 0; margin: 0; line-height: 1;">
-                                    <i class="fas fa-edit"></i> Edit
-                                </a>
-                                <form method="post" action="{% url 'account_address_delete' saved_address.id %}" style="display: inline; margin: 0; padding: 0;" onsubmit="return confirm('Are you sure you want to delete this address?');">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="next" value="{% url 'checkout' %}">
-                                    <button type="submit" class="btn btn-sm" style="padding: 0.5rem 1rem; border: none; color: white; background: #dc3545; border-radius: 6px; cursor: pointer; font-size: 0.875rem; width: 90px; min-width: 90px; max-width: 90px; height: 36px; box-sizing: border-box; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.25rem; flex-shrink: 0; margin: 0; line-height: 1;">
-                                        <i class="fas fa-trash"></i> Delete
-                                    </button>
-                                </form>
-                            </div>
                         </div>
                         {% endfor %}
                     </div>
@@ -214,7 +251,7 @@
                             {% endif %}
                         </div>
                         
-                        <input type="hidden" name="use_new_payment" id="use_new_payment" value="0">
+                        <input type="hidden" name="use_new_payment" id="use_new_payment" value="{% if not saved_payment_methods %}1{% else %}0{% endif %}">
                     
                     <!-- Card Details (shown when Credit/Debit Card is selected) -->
                     <div id="card-details" class="card-details-section" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #e8e8ea; {% if request.POST.payment_method == 'card' or not request.POST.payment_method %}display: block;{% else %}display: none;{% endif %}">
@@ -392,6 +429,139 @@
 </div>
 
 <style>
+    /* Checkout Progress Stepper */
+    .checkout-stepper {
+        background: white;
+        border: 1px solid #e8e8ea;
+        border-radius: 8px;
+        padding: 2rem;
+    }
+    
+    .stepper-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        max-width: 800px;
+        margin: 0 auto;
+        position: relative;
+    }
+    
+    .stepper-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+        position: relative;
+        z-index: 2;
+    }
+    
+    .step-circle {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 1rem;
+        border: 2px solid #d2d2d7;
+        background: white;
+        color: #6e6e73;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+    
+    .step-number {
+        display: block;
+    }
+    
+    .step-circle i {
+        display: none;
+        color: white;
+        font-size: 1.25rem;
+    }
+    
+    .stepper-step.completed .step-circle {
+        background: #20b2aa;
+        border-color: #20b2aa;
+        color: white;
+    }
+    
+    .stepper-step.completed .step-circle .step-number {
+        display: none;
+    }
+    
+    .stepper-step.completed .step-circle i {
+        display: block;
+    }
+    
+    .stepper-step.active .step-circle {
+        background: #20b2aa;
+        border-color: #20b2aa;
+        color: white;
+        box-shadow: 0 0 0 4px rgba(32, 178, 170, 0.2);
+    }
+    
+    .step-label {
+        margin-top: 0.75rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #6e6e73;
+        text-align: center;
+        transition: color 0.3s ease;
+    }
+    
+    .stepper-step.completed .step-label,
+    .stepper-step.active .step-label {
+        color: #20b2aa;
+        font-weight: 600;
+    }
+    
+    .stepper-line {
+        flex: 1;
+        height: 2px;
+        background: #d2d2d7;
+        margin: 0 0.5rem;
+        position: relative;
+        top: -24px;
+        z-index: 1;
+        transition: background 0.3s ease;
+    }
+    
+    .stepper-line.completed {
+        background: #20b2aa;
+    }
+    
+    .stepper-step:last-of-type {
+        flex: 0;
+    }
+    
+    /* Hide line after last step */
+    .stepper-step:last-of-type + .stepper-line {
+        display: none;
+    }
+    
+    @media (max-width: 768px) {
+        .checkout-stepper {
+            padding: 1.5rem 1rem;
+        }
+        
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            font-size: 0.875rem;
+        }
+        
+        .step-label {
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+        }
+        
+        .stepper-line {
+            top: -20px;
+        }
+    }
+
     .form-group {
         margin-bottom: 1.5rem;
     }
@@ -543,4 +713,3 @@
     }
 </script>
 {% endblock %}
-

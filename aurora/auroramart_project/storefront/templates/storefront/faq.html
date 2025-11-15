@@ -25,8 +25,8 @@
                     <span>{{ item.question }}</span>
                     <i class="fas fa-chevron-down faq-icon" style="color: #6e6e73; transition: transform 0.3s;"></i>
                 </button>
-                <div class="faq-answer" style="max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out;">
-                    <div style="padding: 0 1.5rem 1.25rem 1.5rem; color: #6e6e73; font-size: 0.9375rem; line-height: 1.6;">
+                <div class="faq-answer" style="max-height: 0; overflow: hidden; transition: max-height 0.4s ease-out, padding 0.4s ease-out;">
+                    <div class="faq-answer-content" style="padding: 0 1.5rem 0 1.5rem; color: #6e6e73; font-size: 0.9375rem; line-height: 1.6;">
                         {{ item.answer }}
                     </div>
                 </div>
@@ -61,8 +61,18 @@
 }
 
 .faq-item.active .faq-answer {
-    max-height: 1000px;
     padding-top: 0;
+    padding-bottom: 1.25rem;
+}
+
+.faq-answer-content {
+    padding-top: 0;
+    padding-bottom: 1.25rem;
+}
+
+.faq-item:not(.active) .faq-answer-content {
+    padding-top: 0;
+    padding-bottom: 0;
 }
 </style>
 
@@ -70,17 +80,68 @@
 function toggleFaq(button) {
     const faqItem = button.closest('.faq-item');
     const isActive = faqItem.classList.contains('active');
+    const answerDiv = faqItem.querySelector('.faq-answer');
+    const answerContent = faqItem.querySelector('.faq-answer-content');
     
-    // Close all FAQ items
-    document.querySelectorAll('.faq-item').forEach(item => {
-        item.classList.remove('active');
-    });
-    
-    // Open clicked item if it wasn't active
-    if (!isActive) {
+    // If currently active, close it
+    if (isActive) {
+        // Get current height before removing active class
+        const currentHeight = answerContent.scrollHeight;
+        answerDiv.style.maxHeight = currentHeight + 'px';
+        
+        // Force reflow
+        answerDiv.offsetHeight;
+        
+        // Remove active class and collapse
+        faqItem.classList.remove('active');
+        answerDiv.style.maxHeight = '0';
+    } else {
+        // Close all other FAQ items first
+        document.querySelectorAll('.faq-item').forEach(item => {
+            if (item !== faqItem && item.classList.contains('active')) {
+                const otherAnswer = item.querySelector('.faq-answer');
+                const otherContent = item.querySelector('.faq-answer-content');
+                if (otherAnswer && otherContent) {
+                    const otherHeight = otherContent.scrollHeight;
+                    otherAnswer.style.maxHeight = otherHeight + 'px';
+                    otherAnswer.offsetHeight; // Force reflow
+                    item.classList.remove('active');
+                    otherAnswer.style.maxHeight = '0';
+                }
+            }
+        });
+        
+        // Open clicked item
+        // First, set max-height to 0 and add active class
+        answerDiv.style.maxHeight = '0';
         faqItem.classList.add('active');
+        
+        // Get the actual height of the content
+        const contentHeight = answerContent.scrollHeight;
+        
+        // Force reflow
+        answerDiv.offsetHeight;
+        
+        // Then expand to full height
+        answerDiv.style.maxHeight = contentHeight + 'px';
     }
 }
+
+// Handle window resize to adjust max-height if needed
+let resizeTimer;
+window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function() {
+        document.querySelectorAll('.faq-item.active').forEach(faqItem => {
+            const answerDiv = faqItem.querySelector('.faq-answer');
+            const answerContent = faqItem.querySelector('.faq-answer-content');
+            if (answerDiv && answerContent) {
+                answerDiv.style.maxHeight = answerContent.scrollHeight + 'px';
+            }
+        });
+    }, 100);
+});
 </script>
 {% endblock %}
+
 

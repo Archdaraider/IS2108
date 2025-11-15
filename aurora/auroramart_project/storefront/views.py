@@ -177,15 +177,43 @@ def homepage(request):
             customer = Customer.objects.get(user=request.user)
             # Check if customer has completed profile (has age, gender, employment_status)
             if customer.age and customer.gender and customer.employment_status:
-                # Use preferred_category from customer profile (set by Decision Tree during onboarding)
-                if customer.preferred_category:
-                    predicted_category = customer.preferred_category
-                    # Customer.preferred_category now uses PRODUCT_CATEGORY_CHOICES (matches dataset categories)
-                    # So it directly matches Product.category - no mapping needed
-                    # Dataset categories: 'Fashion - Men', 'Fashion - Women', 'Beauty & Personal Care', 'Electronics', 
-                    #                    'Home & Kitchen', 'Groceries & Gourmet', 'Books', 'Sports & Outdoors', 
-                    #                    'Health', 'Pet Supplies', 'Toys & Games', 'Automotive'
-                    product_categories = [predicted_category]  # Direct match - no mapping needed
+                # Always re-predict to ensure we have the latest prediction with corrected model
+                # This ensures the prediction uses the fixed column order
+                from .ml_helpers import predict_preferred_category
+                # Occupation is already capitalized (matches model choices), so no mapping needed
+                ml_occupation = customer.occupation or 'Sales'
+                
+                # Get has_children value - ensure it's a proper boolean/int
+                has_children_value = customer.has_children
+                if has_children_value is None:
+                    has_children_value = False
+                elif isinstance(has_children_value, str):
+                    has_children_value = has_children_value.lower() in ('true', '1', 'yes')
+                elif not isinstance(has_children_value, bool):
+                    has_children_value = bool(has_children_value)
+                
+                predicted_category = predict_preferred_category(
+                    age=customer.age,
+                    gender=customer.gender,
+                    employment_status=customer.employment_status,
+                    occupation=ml_occupation,  # Use mapped occupation value
+                    education=customer.education or 'Bachelor',
+                    household_size=customer.household_size or 1,
+                    has_children=has_children_value,
+                    monthly_income_sgd=float(customer.monthly_income_sgd) if customer.monthly_income_sgd else 0.00
+                )
+                
+                # Update customer's preferred_category if prediction succeeded and is different
+                if predicted_category and predicted_category != customer.preferred_category:
+                    customer.preferred_category = predicted_category
+                    customer.save(update_fields=['preferred_category'])
+                
+                if predicted_category:
+                    # Map ML model category (PRODUCT_CATEGORY_CHOICES) directly to Product.category
+                    # ML model predicts from dataset categories: 'Fashion - Women', 'Fashion - Men', 'Beauty & Personal Care', 
+                    # 'Electronics', 'Home & Kitchen', 'Groceries & Gourmet', 'Books', 'Sports & Outdoors', 'Health', etc.
+                    # These match Product.category values directly from the dataset
+                    product_categories = [predicted_category]  # ML model already predicts Product category names from dataset
                     
                     # Get products from predicted category - annotate with reviews
                     from django.db.models.functions import Coalesce
@@ -197,50 +225,24 @@ def homepage(request):
                     ).annotate(
                         reviews_count=Count('reviews')
                     ).order_by('-rating', '-id')[:8])
-
+                    
                     recommendation_reason = f"We recommended {predicted_category} because of your profile preferences."
                     
                     # Map predicted category to Category slug for "View All" button
                     recommended_category_slug = map_category_to_slug(predicted_category)
-                else:
-                    # If preferred_category not set, predict it using Decision Tree
-                    from .ml_helpers import predict_preferred_category
-                    # Occupation is already capitalized (matches model choices), so no mapping needed
-                    ml_occupation = customer.occupation or 'Sales'
-                    
-                    predicted_category = predict_preferred_category(
-                        age=customer.age,
-                        gender=customer.gender,
-                        employment_status=customer.employment_status,
-                        occupation=ml_occupation,  # Use mapped occupation value
-                        education=customer.education or 'Bachelor',
-                        household_size=customer.household_size or 1,
-                        has_children=customer.has_children or False,
-                        monthly_income_sgd=float(customer.monthly_income_sgd) if customer.monthly_income_sgd else 0.00
-                    )
-                    
-                    if predicted_category:
-                        # Map ML model category (PRODUCT_CATEGORY_CHOICES) directly to Product.category
-                        # ML model predicts from dataset categories: 'Fashion - Women', 'Fashion - Men', 'Beauty & Personal Care', 
-                        # 'Electronics', 'Home & Kitchen', 'Groceries & Gourmet', 'Books', 'Sports & Outdoors', 'Health', etc.
-                        # These match Product.category values directly from the dataset
-                        product_categories = [predicted_category]  # ML model already predicts Product category names from dataset
-                        
-                        # Get products from predicted category - annotate with reviews
-                        from django.db.models.functions import Coalesce
-                        from django.db.models import Value, DecimalField
-                        recommended_for_you = list(Product.objects.filter(
-                            category__in=product_categories,
-                            quantity_on_hand__gt=0,
-                            is_active=True
-                        ).annotate(
-                            reviews_count=Count('reviews')
-                        ).order_by('-rating', '-id')[:8])
-                        
-                        recommendation_reason = f"We recommended {predicted_category} because of your profile preferences."
-                        
-                        # Map predicted category to Category slug for "View All" button
-                        recommended_category_slug = map_category_to_slug(predicted_category)
+                elif customer.preferred_category:
+                    # Fallback to stored preferred_category if prediction fails
+                    predicted_category = customer.preferred_category
+                    product_categories = [predicted_category]
+                    recommended_for_you = list(Product.objects.filter(
+                        category__in=product_categories,
+                        quantity_on_hand__gt=0,
+                        is_active=True
+                    ).annotate(
+                        reviews_count=Count('reviews')
+                    ).order_by('-rating', '-id')[:8])
+                    recommendation_reason = f"We recommended {predicted_category} because of your profile preferences."
+                    recommended_category_slug = map_category_to_slug(predicted_category)
         except Customer.DoesNotExist:
             pass
     
@@ -1987,9 +1989,6 @@ def profile_onboarding(request):
             return redirect('homepage')
     
     if request.method == 'POST':
-        print(f"DEBUG: POST request received for profile onboarding")
-        print(f"DEBUG: POST data keys: {list(request.POST.keys())}")
-        print(f"DEBUG: modal parameter: {request.POST.get('modal')}")
         form = CustomerProfileForm(request.POST)
         if not form.is_valid():
             # Form is invalid - show errors
@@ -2080,11 +2079,8 @@ def profile_onboarding(request):
             preferred_category = 'Electronics'  # Default fallback
         
         # Create or update customer record
-        print(f"DEBUG: About to save customer. Customer exists: {customer is not None}")
         if customer:
             # Update existing customer with actual form data (not placeholder values)
-            print(f"Updating existing customer ID: {customer.id}")
-            print(f"DEBUG: Form data - age: {age}, gender: {data['gender']}, employment: {data['employment_status']}, occupation: {data['occupation']}")
             
             # Use standard save() method to ensure all model logic and signals are executed
             try:
@@ -2194,13 +2190,6 @@ def profile_onboarding(request):
                     **cart_context,
                 }
                 return render(request, 'storefront/profile_onboarding.html', context)
-        
-        # Final verification - get customer from DB one more time to confirm save
-        try:
-            final_customer = Customer.objects.get(id=customer.id)
-            print(f"DEBUG: Final verification - Customer ID: {final_customer.id}, Age: {final_customer.age}, Gender: {final_customer.gender}, Employment: {final_customer.employment_status}, Occupation: {final_customer.occupation}")
-        except Exception as e:
-            print(f"DEBUG: Error in final verification: {e}")
         
         # Clear any session data related to form errors
         request.session.pop('profile_form_data', None)

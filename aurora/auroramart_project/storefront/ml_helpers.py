@@ -54,7 +54,7 @@ def predict_preferred_category(age, gender, employment_status, occupation, educa
                                household_size, has_children, monthly_income_sgd):
     """
     Predict preferred category using Decision Tree model.
-    Uses the corrected approach that doesn't require access to training data.
+    Uses the corrected approach that matches the training notebook exactly.
     
     Args:
         age: Customer age
@@ -74,36 +74,6 @@ def predict_preferred_category(age, gender, employment_status, occupation, educa
         return None
     
     try:
-        # Define the exact column structure and dtypes as per sample code
-        # This avoids needing access to the training data X
-        columns = {
-            'age': 'int64', 
-            'household_size': 'int64', 
-            'has_children': 'int64', 
-            'monthly_income_sgd': 'float64',
-            'gender_Female': 'bool', 
-            'gender_Male': 'bool', 
-            'employment_status_Full-time': 'bool',
-            'employment_status_Part-time': 'bool', 
-            'employment_status_Retired': 'bool',
-            'employment_status_Self-employed': 'bool', 
-            'employment_status_Student': 'bool',
-            'occupation_Admin': 'bool', 
-            'occupation_Education': 'bool', 
-            'occupation_Sales': 'bool',
-            'occupation_Service': 'bool', 
-            'occupation_Skilled Trades': 'bool', 
-            'occupation_Tech': 'bool',
-            'education_Bachelor': 'bool', 
-            'education_Diploma': 'bool', 
-            'education_Doctorate': 'bool',
-            'education_Master': 'bool', 
-            'education_Secondary': 'bool'
-        }
-        
-        # Create template DataFrame with correct structure
-        df = pd.DataFrame({col: pd.Series(dtype=dtype) for col, dtype in columns.items()})
-        
         # Create customer data dictionary
         customer_data = {
             'age': int(age),
@@ -116,28 +86,96 @@ def predict_preferred_category(age, gender, employment_status, occupation, educa
             'education': education
         }
         
-        # Convert to DataFrame and one-hot encode
+        # Convert to DataFrame and one-hot encode (same as training notebook)
+        # IMPORTANT: pandas get_dummies produces columns in this order:
+        # 1. Numeric columns in original order: age, household_size, has_children, monthly_income_sgd
+        # 2. Then one-hot encoded columns in FULL alphabetical order (not by prefix)
         customer_df = pd.DataFrame([customer_data])
         customer_encoded = pd.get_dummies(customer_df, columns=['gender', 'employment_status', 'occupation', 'education'])
         
-        # Populate template DataFrame with encoded data
-        for col in df.columns:
-            if col not in customer_encoded.columns:
-                # Use False for bool columns, 0 for numeric
-                if df[col].dtype == bool:
-                    df[col] = False
+        # Try to get feature names from model (sklearn 1.0+)
+        if hasattr(model, 'feature_names_in_'):
+            expected_columns = list(model.feature_names_in_)
+        else:
+            # CRITICAL: Use the EXACT order from adminpanel/views.py TRAINING_COLUMNS
+            # This is the exact order that was used when training the model
+            # The order is: numeric columns, then gender, employment, occupation, education
+            expected_columns = [
+                'age',
+                'household_size', 
+                'has_children',
+                'monthly_income_sgd',
+                'gender_Female',            
+                'gender_Male',
+                'employment_status_Full-time',
+                'employment_status_Part-time',
+                'employment_status_Retired',
+                'employment_status_Self-employed',
+                'employment_status_Student',
+                'occupation_Admin',
+                'occupation_Education',
+                'occupation_Sales',
+                'occupation_Service',
+                'occupation_Skilled Trades',
+                'occupation_Tech',
+                'education_Bachelor',
+                'education_Diploma',
+                'education_Doctorate',
+                'education_Master',
+                'education_Secondary'
+            ]
+        
+        # Create result DataFrame
+        result_df = pd.DataFrame(index=[0])
+        
+        # Populate with encoded data, ensuring all expected columns exist
+        # Match notebook logic exactly: use False for bool columns, 0 for numeric
+        # The notebook uses: if X[col].dtype == bool: input_encoded[col] = False else: input_encoded[col] = 0
+        for col in expected_columns:
+            if col in customer_encoded.columns:
+                val = customer_encoded[col].iloc[0]
+                # Ensure numeric columns are int/float
+                if col in ['age', 'household_size', 'has_children', 'monthly_income_sgd']:
+                    result_df[col] = int(val) if col != 'monthly_income_sgd' else float(val)
                 else:
-                    df[col] = 0
+                    # One-hot encoded columns - convert to int (0 or 1)
+                    result_df[col] = int(bool(val))
             else:
-                df[col] = customer_encoded[col]
+                # Missing column - match notebook logic: False for bool, 0 for numeric
+                # In pandas, one-hot encoded columns are typically bool dtype
+                # But since we're converting to int anyway, using 0 should be fine
+                # However, let's match the notebook exactly
+                if col in ['age', 'household_size', 'has_children', 'monthly_income_sgd']:
+                    result_df[col] = 0
+                else:
+                    # For one-hot columns, use False (which will be converted to 0 by int())
+                    result_df[col] = False
+        
+        # Reorder columns to match training data exactly (same as notebook: input_encoded[X.columns])
+        result_df = result_df[expected_columns]
+        
+        # CRITICAL: Ensure data types match training data exactly
+        # Convert all columns to match the training data dtypes
+        for col in result_df.columns:
+            if col in ['age', 'household_size', 'has_children']:
+                result_df[col] = result_df[col].astype('int64')
+            elif col == 'monthly_income_sgd':
+                result_df[col] = result_df[col].astype('float64')
+            else:
+                # One-hot encoded columns should be int64 (0 or 1)
+                result_df[col] = result_df[col].astype('int64')
         
         # Make prediction
-        prediction = model.predict(df)
+        prediction = model.predict(result_df)
         
-        return prediction[0] if len(prediction) > 0 else None
+        result = prediction[0] if len(prediction) > 0 else None
+        
+        return result
         
     except Exception as e:
         print(f"Error predicting category: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 

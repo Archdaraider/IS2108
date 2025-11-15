@@ -53,9 +53,33 @@
                     <span class="category-tag">{{ product.subcategory }}</span>
                 </div>
                 <div class="product-actions-header">
-                    <button class="action-btn share-btn">
-                        <i class="fas fa-share"></i>
-                    </button>
+                    <div class="share-menu-container" style="position: relative;">
+                        <button class="action-btn share-btn" id="share-btn" type="button">
+                            <i class="fas fa-share"></i>
+                        </button>
+                        <div class="share-dropdown" id="share-dropdown" style="display: none;">
+                            <div class="share-option" data-share="copy">
+                                <i class="fas fa-link"></i>
+                                <span>Copy Link</span>
+                            </div>
+                            <div class="share-option" data-share="facebook">
+                                <i class="fab fa-facebook-f"></i>
+                                <span>Facebook</span>
+                            </div>
+                            <div class="share-option" data-share="twitter">
+                                <i class="fab fa-twitter"></i>
+                                <span>Twitter</span>
+                            </div>
+                            <div class="share-option" data-share="whatsapp">
+                                <i class="fab fa-whatsapp"></i>
+                                <span>WhatsApp</span>
+                            </div>
+                            <div class="share-option" data-share="email">
+                                <i class="fas fa-envelope"></i>
+                                <span>Email</span>
+                            </div>
+                        </div>
+                    </div>
                     <form method="post" action="{% url 'add_to_wishlist' %}" style="display: inline;">
                         {% csrf_token %}
                         <input type="hidden" name="product_id" value="{{ product.id }}">
@@ -618,6 +642,100 @@
 .btn-danger:hover {
     background: #c82333;
 }
+
+/* Share Dropdown Styles */
+.share-menu-container {
+    position: relative;
+    display: inline-block;
+}
+
+.share-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 0.5rem;
+    background: white;
+    border: 1px solid #e8e8ea;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    min-width: 180px;
+    z-index: 1000;
+    overflow: hidden;
+}
+
+.share-option {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    color: #1d1d1f;
+    font-size: 0.9375rem;
+}
+
+.share-option:hover {
+    background-color: #f5f5f7;
+}
+
+.share-option i {
+    width: 20px;
+    text-align: center;
+    color: #6e6e73;
+}
+
+.share-option[data-share="facebook"] i {
+    color: #1877f2;
+}
+
+.share-option[data-share="twitter"] i {
+    color: #1da1f2;
+}
+
+.share-option[data-share="whatsapp"] i {
+    color: #25d366;
+}
+
+.share-option[data-share="email"] i {
+    color: #007bff;
+}
+
+.share-option[data-share="copy"] i {
+    color: #20b2aa;
+}
+
+/* Toast notification for copy link */
+.share-toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: #1d1d1f;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    z-index: 10000;
+    display: none;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9375rem;
+    animation: slideInUp 0.3s ease-out;
+}
+
+.share-toast.show {
+    display: flex;
+}
+
+@keyframes slideInUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
 </style>
 {% endblock %}
 
@@ -832,6 +950,117 @@ document.addEventListener('DOMContentLoaded', function() {
             document.body.appendChild(form);
             form.submit();
         });
+    }
+    
+    // Share functionality
+    const shareBtn = document.getElementById('share-btn');
+    const shareDropdown = document.getElementById('share-dropdown');
+    const shareOptions = document.querySelectorAll('.share-option');
+    const productUrl = window.location.href;
+    const productName = '{{ product.name|escapejs }}';
+    const productPrice = '${{ product.price|floatformat:2 }}';
+    
+    // Toggle share dropdown
+    if (shareBtn && shareDropdown) {
+        shareBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const isVisible = shareDropdown.style.display === 'block';
+            shareDropdown.style.display = isVisible ? 'none' : 'block';
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.share-menu-container')) {
+                shareDropdown.style.display = 'none';
+            }
+        });
+        
+        // Handle share options
+        shareOptions.forEach(function(option) {
+            option.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const shareType = this.getAttribute('data-share');
+                const shareText = `Check out ${productName} - ${productPrice} on AuroraMart!`;
+                
+                switch(shareType) {
+                    case 'copy':
+                        // Copy to clipboard
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                            navigator.clipboard.writeText(productUrl).then(function() {
+                                showToast('Link copied to clipboard!');
+                                shareDropdown.style.display = 'none';
+                            }).catch(function() {
+                                fallbackCopyToClipboard(productUrl);
+                            });
+                        } else {
+                            fallbackCopyToClipboard(productUrl);
+                        }
+                        break;
+                        
+                    case 'facebook':
+                        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(productUrl)}`, '_blank', 'width=600,height=400');
+                        shareDropdown.style.display = 'none';
+                        break;
+                        
+                    case 'twitter':
+                        window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(productUrl)}&text=${encodeURIComponent(shareText)}`, '_blank', 'width=600,height=400');
+                        shareDropdown.style.display = 'none';
+                        break;
+                        
+                    case 'whatsapp':
+                        window.open(`https://wa.me/?text=${encodeURIComponent(shareText + ' ' + productUrl)}`, '_blank');
+                        shareDropdown.style.display = 'none';
+                        break;
+                        
+                    case 'email':
+                        window.location.href = `mailto:?subject=${encodeURIComponent('Check out ' + productName)}&body=${encodeURIComponent(shareText + '\n\n' + productUrl)}`;
+                        shareDropdown.style.display = 'none';
+                        break;
+                }
+            });
+        });
+    }
+    
+    // Fallback copy to clipboard for older browsers
+    function fallbackCopyToClipboard(text) {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+            document.execCommand('copy');
+            showToast('Link copied to clipboard!');
+            shareDropdown.style.display = 'none';
+        } catch (err) {
+            showToast('Failed to copy link. Please copy manually.');
+        }
+        
+        document.body.removeChild(textArea);
+    }
+    
+    // Show toast notification
+    function showToast(message) {
+        // Remove existing toast if any
+        const existingToast = document.querySelector('.share-toast');
+        if (existingToast) {
+            existingToast.remove();
+        }
+        
+        const toast = document.createElement('div');
+        toast.className = 'share-toast show';
+        toast.innerHTML = '<i class="fas fa-check-circle"></i> ' + message;
+        document.body.appendChild(toast);
+        
+        setTimeout(function() {
+            toast.classList.remove('show');
+            setTimeout(function() {
+                toast.remove();
+            }, 300);
+        }, 2000);
     }
 });
 </script>

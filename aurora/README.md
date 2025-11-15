@@ -44,44 +44,94 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Step 5: Navigate to project directory
+### Ensure that requirements.txt contains the following packages
+```
+Django>=5.2.5
+social-auth-app-django>=5.4.0
+Pillow>=12.0.0
+python-decouple>=3.8
+joblib>=1.3.0
+mlxtend>=0.22.0
+pandas>=2.0.0
+scikit-learn>=1.3.0
+graphviz>=0.20.0
+jupyter>=1.0.0
+```
+
+### Step 5: Generate Machine Learning Models
+
+The application requires two pre-trained ML model files that are too large to include in the repository. You need to generate them from the Jupyter notebooks:
+
+**Required Model Files:**
+- `aurora/models/b2c_customers_100.joblib` - Decision Tree classifier for customer category prediction
+- `aurora/models/b2c_products_500_transactions_50k.joblib` - Association rules model for product recommendations
+
+**To generate the models:**
+
+1. **Generate the Decision Tree model:**
+   
+   **Option A: Using Jupyter Notebook (Interactive):**
+   ```bash
+   cd aurora/models
+   jupyter notebook decision_tree_classifier.ipynb
+   ```
+   Then run all cells in the notebook (Cell → Run All). The model will be saved automatically.
+   
+   **Option B: Using command line (Non-interactive):**
+   ```bash
+   cd aurora/models
+   jupyter nbconvert --to notebook --execute decision_tree_classifier.ipynb
+   ```
+   This will create `b2c_customers_100.joblib` in the `aurora/models/` directory.
+
+2. **Generate the Association Rules model:**
+   
+   **Option A: Using Jupyter Notebook (Interactive):**
+   ```bash
+   jupyter notebook association_rules_mining.ipynb
+   ```
+   Then run all cells in the notebook (Cell → Run All). The model will be saved automatically.
+   
+   **Option B: Using command line (Non-interactive):**
+   ```bash
+   jupyter nbconvert --to notebook --execute association_rules_mining.ipynb
+   ```
+   This will create `b2c_products_500_transactions_50k.joblib` in the `aurora/models/` directory.
+
+3. **Copy models to the Django project:**
+   
+   Navigate back to the `aurora` directory first:
+   ```bash
+   cd ..  # Go back to aurora directory
+   ```
+   
+   **Windows:**
+   ```bash
+   # Copy customer model
+   copy models\b2c_customers_100.joblib auroramart_project\adminpanel\mlmodels\
+   
+   # Copy association rules model
+   copy models\b2c_products_500_transactions_50k.joblib auroramart_project\adminpanel\mlmodels\
+   ```
+   
+   **Mac/Linux:**
+   ```bash
+   # Copy customer model
+   cp models/b2c_customers_100.joblib auroramart_project/adminpanel/mlmodels/
+   
+   # Copy association rules model
+   cp models/b2c_products_500_transactions_50k.joblib auroramart_project/adminpanel/mlmodels/
+   ```
+
+**Note:** The notebooks require the CSV data files in `aurora/data/` directory. Make sure these files are present before running the notebooks.
+
+### Step 6: Navigate to project directory
 
 ```bash
 cd auroramart_project
 ```
 
-### Step 6: Run database migrations
-
-```bash
-python manage.py migrate
-```
-# not sure about this
-### Step 7: Create admin user (optional but recommended)
-
-```bash
-python manage.py createsuperuser
-```
-
-Follow the prompts to create an admin account. You can also use the setup command:
-
-```bash
-python manage.py setup_admin
-```
-
-This will create a default admin user:
-- Username: `admin`
-- Password: `admin123`
-
-# might not be needed?
-### Step 8: Populate categories and subcategories
-
-```bash
-python manage.py populate_categories
-```
-
-This command creates Category and SubCategory entries from existing products in the database.
-
-### Step 10: Run the development server
+### Step 7: Run the development server
 
 ```bash
 python manage.py runserver
@@ -96,6 +146,10 @@ python manage.py runserver
 ### Admin Panel
 - **URL:** http://127.0.0.1:8000/admin
 - Manage products, orders, customers, reviews, and returns
+
+### To Log into Admin panel
+- Username: `admin`
+- Password: `admin`
 
 ## Project Structure
 
@@ -112,14 +166,14 @@ aurora/
 │   └── ...
 ├── models/                        # ML model notebooks
 │   ├── association_rules_mining.ipynb
-│   └── decision_tree_classifier.ipynb
+│   ├── decision_tree_classifier.ipynb
+│   ├── b2c_customers_100.joblib          # Generated model (not in repo)
+│   └── b2c_products_500_transactions_50k.joblib  # Generated model (not in repo)
+├── auroramart_project/
+│   └── adminpanel/
+│       └── mlmodels/              # ML model storage (generated models go here)
+│           ├── b2c_customers_100.joblib
+│           └── b2c_products_500_transactions_50k.joblib
 ├── requirements.txt               # Python dependencies
 └── README.md                      # This file
-```
-
-### Creating Migrations
-After modifying models:
-```bash
-python manage.py makemigrations
-python manage.py migrate
 ```

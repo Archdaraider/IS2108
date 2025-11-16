@@ -627,11 +627,14 @@ def product_detail(request, product_id):
     # Filter by rating
     if filter_rating:
         try:
-            filter_rating = int(filter_rating)
-            if 1 <= filter_rating <= 5:
-                reviews = reviews.filter(rating=filter_rating)
+            filter_rating_int = int(filter_rating)
+            if 1 <= filter_rating_int <= 5:
+                reviews = reviews.filter(rating=filter_rating_int)
+                filter_rating = filter_rating_int  # Use converted int for context
+            else:
+                filter_rating = None  # Invalid range, reset to None
         except ValueError:
-            pass
+            filter_rating = None  # Invalid value, reset to None
     
     # Annotate reviews with helpful count and not helpful count for sorting
     from django.db.models import Count, Case, When, IntegerField, Q
@@ -1156,12 +1159,16 @@ def complete_the_set(request):
     
     # Convert to QuerySet if it's a list (from get_recommendations) and annotate with reviews
     if isinstance(recommended_products, list):
-        product_ids = [p.id for p in recommended_products]
-        from django.db.models import Count
-        from storefront.models import ProductReview
-        recommended_products = Product.objects.filter(id__in=product_ids).annotate(
-            reviews_count=Count('reviews')
-        ).order_by('-rating')
+        if recommended_products:  # Only convert if list is not empty
+            product_ids = [p.id for p in recommended_products]
+            from django.db.models import Count
+            from storefront.models import ProductReview
+            recommended_products = Product.objects.filter(id__in=product_ids).annotate(
+                reviews_count=Count('reviews')
+            ).order_by('-rating')
+        else:
+            # Return empty QuerySet
+            recommended_products = Product.objects.none()
     
     # Pagination
     paginator = Paginator(recommended_products, 12)
@@ -1572,19 +1579,40 @@ def update_cart_item(request):
 
 @require_POST
 def remove_from_cart(request):
-    """Remove item from cart via form submission."""
+    """Remove item from cart via form submission or AJAX."""
     try:
         item_id = request.POST.get('item_id')
         redirect_url = request.POST.get('next', request.META.get('HTTP_REFERER', '/cart/'))
         
         if not item_id:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'message': 'Item ID is required'}, status=400)
             messages.error(request, 'Item ID is required')
             return redirect(redirect_url)
         
         success, message = remove_from_cart_logic(request, item_id)
+        
+        # If AJAX request, return JSON response
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            cart = get_or_create_cart(request)
+            return JsonResponse({
+                'success': success,
+                'message': message,
+                'removed': True,
+                'cart_count': cart.total_items,
+                'cart_total': float(cart.total_price)
+            })
+        
+        if success:
+            messages.success(request, message)
+        else:
+            messages.error(request, message)
+        
         return redirect(redirect_url)
     
     except Exception as e:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'message': 'Error removing item from cart'}, status=500)
         messages.error(request, 'Error removing item from cart')
         return redirect(request.META.get('HTTP_REFERER', '/cart/'))
 

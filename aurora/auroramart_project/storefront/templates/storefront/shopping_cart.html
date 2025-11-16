@@ -253,4 +253,191 @@
 {% endblock %}
 
 {% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Ensure delete buttons work properly
+    // Handle delete form submissions
+    document.querySelectorAll('form[action*="remove_from_cart"]').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            // Confirm deletion before submitting
+            if (!confirm('Are you sure you want to remove this item from your cart?')) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+            // Form will submit normally
+        });
+        
+        // Also handle button clicks to ensure they work
+        const deleteBtn = form.querySelector('.remove-btn');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', function(e) {
+                // Don't prevent default - let form submit
+                // The form's submit handler will show the confirmation
+            });
+        }
+    });
+    
+    const selectAllCheckbox = document.getElementById('select-all');
+    const itemSelectCheckboxes = document.querySelectorAll('.item-select');
+    const deleteSelectedBtn = document.getElementById('delete-selected');
+    
+    // Handle "Select All" checkbox
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            const isChecked = this.checked;
+            itemSelectCheckboxes.forEach(function(checkbox) {
+                checkbox.checked = isChecked;
+            });
+        });
+    }
+    
+    // Handle individual item checkboxes - update "Select All" state
+    itemSelectCheckboxes.forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+            if (selectAllCheckbox) {
+                // Check if all items are selected
+                const allChecked = Array.from(itemSelectCheckboxes).every(function(cb) {
+                    return cb.checked;
+                });
+                // Check if any items are selected
+                const anyChecked = Array.from(itemSelectCheckboxes).some(function(cb) {
+                    return cb.checked;
+                });
+                
+                // Update "Select All" checkbox state
+                // If all are checked, check "Select All"
+                // If none are checked, uncheck "Select All"
+                // If some are checked, set "Select All" to indeterminate (if supported) or uncheck
+                if (allChecked) {
+                    selectAllCheckbox.checked = true;
+                    selectAllCheckbox.indeterminate = false;
+                } else if (!anyChecked) {
+                    selectAllCheckbox.checked = false;
+                    selectAllCheckbox.indeterminate = false;
+                } else {
+                    // Some but not all are checked
+                    selectAllCheckbox.checked = false;
+                    selectAllCheckbox.indeterminate = true;
+                }
+            }
+        });
+    });
+    
+    // Handle "Delete Selected" button
+    if (deleteSelectedBtn) {
+        deleteSelectedBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Get all checked item checkboxes
+            const checkedCheckboxes = Array.from(itemSelectCheckboxes).filter(function(cb) {
+                return cb.checked;
+            });
+            
+            if (checkedCheckboxes.length === 0) {
+                alert('Please select at least one item to delete.');
+                return;
+            }
+            
+            // Confirm deletion
+            if (!confirm('Are you sure you want to delete ' + checkedCheckboxes.length + ' item(s) from your cart?')) {
+                return;
+            }
+            
+            // Get the cart item IDs from the parent cart-item elements
+            const itemIds = checkedCheckboxes.map(function(checkbox) {
+                const cartItem = checkbox.closest('.cart-item');
+                return cartItem ? cartItem.getAttribute('data-item-id') : null;
+            }).filter(function(id) {
+                return id !== null;
+            });
+            
+            if (itemIds.length === 0) {
+                alert('Error: Could not find item IDs.');
+                return;
+            }
+            
+            // Disable button during deletion
+            deleteSelectedBtn.disabled = true;
+            const originalText = deleteSelectedBtn.innerHTML;
+            deleteSelectedBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+            
+            // Delete items using fetch API
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (!csrfToken) {
+                alert('Error: CSRF token not found. Please refresh the page and try again.');
+                deleteSelectedBtn.disabled = false;
+                deleteSelectedBtn.innerHTML = originalText;
+                return;
+            }
+            
+            const csrfValue = csrfToken.value;
+            const deleteUrl = '{% url "remove_from_cart" %}';
+            let deletedCount = 0;
+            const totalItems = itemIds.length;
+            let hasError = false;
+            
+            // Delete items sequentially
+            function deleteNextItem() {
+                if (deletedCount >= totalItems) {
+                    // All items processed, reload page
+                    if (hasError) {
+                        alert('Some items could not be deleted. The page will reload.');
+                    }
+                    window.location.reload();
+                    return;
+                }
+                
+                const itemId = itemIds[deletedCount];
+                
+                // Create form data
+                const formData = new FormData();
+                formData.append('item_id', itemId);
+                formData.append('next', window.location.href);
+                formData.append('csrfmiddlewaretoken', csrfValue);
+                
+                // Delete item using fetch
+                fetch(deleteUrl, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': csrfValue
+                    },
+                    credentials: 'same-origin'
+                }).then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('Failed to delete item');
+                    }
+                    return response.json();
+                }).then(function(data) {
+                    if (data.success) {
+                        deletedCount++;
+                        // Update cart count if provided
+                        if (data.cart_count !== undefined) {
+                            const cartCountElement = document.getElementById('cart-count');
+                            if (cartCountElement) {
+                                cartCountElement.textContent = data.cart_count;
+                            }
+                        }
+                        // Continue with next item
+                        setTimeout(deleteNextItem, 100);
+                    } else {
+                        throw new Error(data.message || 'Failed to delete item');
+                    }
+                }).catch(function(error) {
+                    console.error('Error deleting item:', error);
+                    hasError = true;
+                    deletedCount++;
+                    // Continue with next item even if one fails
+                    setTimeout(deleteNextItem, 100);
+                });
+            }
+            
+            // Start deleting items
+            deleteNextItem();
+        });
+    }
+});
+</script>
 {% endblock %}

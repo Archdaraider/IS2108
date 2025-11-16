@@ -53,9 +53,33 @@
                     <span class="category-tag">{{ product.subcategory }}</span>
                 </div>
                 <div class="product-actions-header">
-                    <button class="action-btn share-btn">
-                        <i class="fas fa-share"></i>
-                    </button>
+                    <div class="share-menu-container" style="position: relative;">
+                        <button class="action-btn share-btn" id="share-btn">
+                            <i class="fas fa-share"></i>
+                        </button>
+                        <div class="share-dropdown" id="share-dropdown" style="display: none;">
+                            <button class="share-option" data-action="copy-link">
+                                <i class="fas fa-link"></i>
+                                <span>Copy Link</span>
+                            </button>
+                            <a href="#" class="share-option" data-action="facebook" target="_blank" rel="noopener noreferrer">
+                                <i class="fab fa-facebook"></i>
+                                <span>Facebook</span>
+                            </a>
+                            <a href="#" class="share-option" data-action="twitter" target="_blank" rel="noopener noreferrer">
+                                <i class="fab fa-twitter"></i>
+                                <span>Twitter</span>
+                            </a>
+                            <a href="#" class="share-option" data-action="whatsapp" target="_blank" rel="noopener noreferrer">
+                                <i class="fab fa-whatsapp"></i>
+                                <span>WhatsApp</span>
+                            </a>
+                            <a href="#" class="share-option" data-action="email" target="_blank" rel="noopener noreferrer">
+                                <i class="fas fa-envelope"></i>
+                                <span>Email</span>
+                            </a>
+                        </div>
+                    </div>
                     <form method="post" action="{% url 'add_to_wishlist' %}" style="display: inline;">
                         {% csrf_token %}
                         <input type="hidden" name="product_id" value="{{ product.id }}">
@@ -618,12 +642,236 @@
 .btn-danger:hover {
     background: #c82333;
 }
+
+/* Share Dropdown Styles */
+.share-menu-container {
+    position: relative;
+}
+
+.share-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 0.5rem;
+    background: white;
+    border: 1px solid #e8e8ea;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 180px;
+    z-index: 1000;
+    overflow: hidden;
+}
+
+.share-option {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #1d1d1f;
+    text-decoration: none;
+    font-size: 0.9375rem;
+    transition: background-color 0.2s;
+}
+
+.share-option:hover {
+    background-color: #f5f5f7;
+}
+
+.share-option i {
+    width: 20px;
+    text-align: center;
+    color: #6e6e73;
+}
+
+.share-option:hover i {
+    color: #1d1d1f;
+}
+
+/* Toast Notification */
+.toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: #1d1d1f;
+    color: white;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 10000;
+    display: none;
+    align-items: center;
+    gap: 0.75rem;
+    animation: slideIn 0.3s ease-out;
+}
+
+.toast.show {
+    display: flex;
+}
+
+.toast i {
+    font-size: 1.25rem;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
 </style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Share button functionality
+    const shareBtn = document.getElementById('share-btn');
+    const shareDropdown = document.getElementById('share-dropdown');
+    const productUrl = window.location.href;
+    const productName = '{{ product.name|escapejs }}';
+    const productDescription = '{{ product.description|truncatewords:20|escapejs }}';
+    
+    if (shareBtn && shareDropdown) {
+        // Toggle dropdown
+        shareBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const isVisible = shareDropdown.style.display === 'block';
+            shareDropdown.style.display = isVisible ? 'none' : 'block';
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.share-menu-container')) {
+                shareDropdown.style.display = 'none';
+            }
+        });
+        
+        // Share options
+        const shareOptions = shareDropdown.querySelectorAll('.share-option');
+        shareOptions.forEach(function(option) {
+            option.addEventListener('click', function(e) {
+                e.preventDefault();
+                const action = this.getAttribute('data-action');
+                let shareUrl = '';
+                
+                switch(action) {
+                    case 'copy-link':
+                        // Copy to clipboard
+                        navigator.clipboard.writeText(productUrl).then(function() {
+                            showToast('Link copied to clipboard!');
+                        }).catch(function() {
+                            // Fallback for older browsers
+                            const textArea = document.createElement('textarea');
+                            textArea.value = productUrl;
+                            document.body.appendChild(textArea);
+                            textArea.select();
+                            try {
+                                document.execCommand('copy');
+                                showToast('Link copied to clipboard!');
+                            } catch (err) {
+                                showToast('Failed to copy link');
+                            }
+                            document.body.removeChild(textArea);
+                        });
+                        shareDropdown.style.display = 'none';
+                        break;
+                    case 'facebook':
+                        shareUrl = 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(productUrl);
+                        window.open(shareUrl, '_blank', 'width=600,height=400');
+                        shareDropdown.style.display = 'none';
+                        break;
+                    case 'twitter':
+                        shareUrl = 'https://twitter.com/intent/tweet?url=' + encodeURIComponent(productUrl) + 
+                                   '&text=' + encodeURIComponent(productName);
+                        window.open(shareUrl, '_blank', 'width=600,height=400');
+                        shareDropdown.style.display = 'none';
+                        break;
+                    case 'whatsapp':
+                        shareUrl = 'https://wa.me/?text=' + encodeURIComponent(productName + ' - ' + productUrl);
+                        window.open(shareUrl, '_blank');
+                        shareDropdown.style.display = 'none';
+                        break;
+                    case 'email':
+                        shareUrl = 'mailto:?subject=' + encodeURIComponent(productName) + 
+                                  '&body=' + encodeURIComponent(productDescription + '\n\n' + productUrl);
+                        window.location.href = shareUrl;
+                        shareDropdown.style.display = 'none';
+                        break;
+                }
+            });
+        });
+    }
+    
+    // Toast notification function
+    function showToast(message) {
+        // Remove existing toast if any
+        const existingToast = document.querySelector('.toast');
+        if (existingToast) {
+            existingToast.remove();
+        }
+        
+        // Create toast
+        const toast = document.createElement('div');
+        toast.className = 'toast show';
+        toast.innerHTML = '<i class="fas fa-check-circle"></i><span>' + message + '</span>';
+        document.body.appendChild(toast);
+        
+        // Remove toast after 3 seconds
+        setTimeout(function() {
+            toast.classList.remove('show');
+            setTimeout(function() {
+                toast.remove();
+            }, 300);
+        }, 3000);
+    }
+    
+    // Review sort and filter functionality
+    const reviewSortSelect = document.getElementById('review-sort');
+    const reviewFilterSelect = document.getElementById('review-filter');
+    
+    function updateReviewFilters() {
+        const sortValue = reviewSortSelect ? reviewSortSelect.value : '';
+        const filterValue = reviewFilterSelect ? reviewFilterSelect.value : '';
+        
+        // Get current URL without query parameters
+        const url = new URL(window.location.href);
+        
+        // Update or remove sort parameter
+        if (sortValue && sortValue !== 'default') {
+            url.searchParams.set('sort', sortValue);
+        } else {
+            url.searchParams.delete('sort');
+        }
+        
+        // Update or remove filter_rating parameter
+        if (filterValue) {
+            url.searchParams.set('filter_rating', filterValue);
+        } else {
+            url.searchParams.delete('filter_rating');
+        }
+        
+        // Reload page with new parameters
+        window.location.href = url.toString();
+    }
+    
+    // Add event listeners for sort and filter
+    if (reviewSortSelect) {
+        reviewSortSelect.addEventListener('change', updateReviewFilters);
+    }
+    
+    if (reviewFilterSelect) {
+        reviewFilterSelect.addEventListener('change', updateReviewFilters);
+    }
+    
     // Mark review as helpful button
     document.querySelectorAll('.review-helpful-btn').forEach(function(btn) {
         if (!btn.disabled) {

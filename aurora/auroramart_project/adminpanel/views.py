@@ -364,7 +364,6 @@ def order_list(request):
                     # NOTE: item.product is guaranteed to be non-None if formset.is_valid() passed and the row was filled
                     if item.product and item.quantity:
                         item.order = order
-                        # 🔑 CRITICAL FIX: Ensure unit_price is explicitly set from the Product before saving
                         item.unit_price = item.product.price
                         
                         # Add to the total (ensure Decimal calculation)
@@ -408,9 +407,6 @@ def order_list(request):
     }
     return render(request, 'adminpanel/order_list.html', context)
 
-# ---
-# FIXED `order_detail` VIEW
-# ---
 @login_required(login_url='adminpanel:admin_login')
 def order_detail(request, pk):
     """
@@ -432,7 +428,6 @@ def order_detail(request, pk):
                     # Get total number of forms from POST data
                     total_forms = int(request.POST.get('items-TOTAL_FORMS', 0))
                     
-                    # Debug: Print all POST data related to items
                     print(f"DEBUG: Total forms: {total_forms}")
                     for key in sorted(request.POST.keys()):
                         if 'items-' in key:
@@ -477,7 +472,6 @@ def order_detail(request, pk):
                             continue  # Skip if product doesn't exist
                         
                         # Process based on whether it's existing or new
-                        # CRITICAL: Check if item_id is empty or None to identify new items
                         if is_deleted and item_id:
                             # Mark for deletion
                             items_to_delete.append(item_id)
@@ -557,9 +551,6 @@ def order_detail(request, pk):
         'order': order
     }
     return render(request, 'adminpanel/order_detail.html', context)
-# ---
-# END OF FIXED VIEW
-# ---
 
 @login_required(login_url='adminpanel:admin_login')
 def order_delete(request, pk):
@@ -693,7 +684,7 @@ def catalogue_bulk_update(request):
         }, status=400)
 
 
-# --- Customer Views (Unchanged) ---
+# --- Customer Views ---
 @login_required(login_url='adminpanel:admin_login')
 def customer_list(request):
     """
@@ -765,8 +756,6 @@ def customer_list(request):
             
             try:
                 # Create the User account
-                # NOTE: A signal in storefront/signals.py will automatically create a Customer
-                # with placeholder values. We'll update that Customer with the real form data.
                 user = User.objects.create_user(
                     username=username,
                     email=email,
@@ -1294,9 +1283,6 @@ def customer_get_messages(request, chat_id):
                 from .models import Customer
                 customer = Customer.objects.get(user=request.user)
                 if chat.customer.id != customer.id:
-                    # This is expected when localStorage has a chat ID from another user
-                    # Return 200 with reset flag instead of 403 to avoid log noise
-                    # The JavaScript will handle this gracefully
                     return JsonResponse({
                         'success': False, 
                         'error': 'Unauthorized',

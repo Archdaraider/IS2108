@@ -38,8 +38,6 @@ def oauth_redirect_handler(request):
         try:
             customer = Customer.objects.get(user=request.user)
             # Check if profile was completed through onboarding
-            # Use profile_completed field instead of checking placeholder values
-            # This avoids false positives for users who legitimately have those values
             profile_complete = customer.profile_completed
         except Customer.DoesNotExist:
             profile_complete = False
@@ -73,7 +71,7 @@ def get_or_create_wishlist(request):
 
 def homepage(request):
     """Homepage with featured products and banners."""
-    # Get featured products - use product.rating directly
+    # Get featured products - use product.rating 
     from django.db.models import Sum, Count
     from storefront.models import ProductReview
     featured_products = Product.objects.filter(quantity_on_hand__gt=0, is_active=True).annotate(
@@ -173,14 +171,9 @@ def homepage(request):
                 # Use preferred_category from customer profile (set by Decision Tree during onboarding)
                 if customer.preferred_category:
                     predicted_category = customer.preferred_category
-                    # Customer.preferred_category now uses PRODUCT_CATEGORY_CHOICES (matches dataset categories)
-                    # So it directly matches Product.category - no mapping needed
-                    # Dataset categories: 'Fashion - Men', 'Fashion - Women', 'Beauty & Personal Care', 'Electronics', 
-                    #                    'Home & Kitchen', 'Groceries & Gourmet', 'Books', 'Sports & Outdoors', 
-                    #                    'Health', 'Pet Supplies', 'Toys & Games', 'Automotive'
-                    product_categories = [predicted_category]  # Direct match - no mapping needed
+                    product_categories = [predicted_category]  
                     
-                    # Get products from predicted category - annotate with reviews
+                    # Get products from predicted category 
                     from django.db.models.functions import Coalesce
                     from django.db.models import Value, DecimalField
                     recommended_for_you = list(Product.objects.filter(
@@ -213,11 +206,7 @@ def homepage(request):
                     )
                     
                     if predicted_category:
-                        # Map ML model category (PRODUCT_CATEGORY_CHOICES) directly to Product.category
-                        # ML model predicts from dataset categories: 'Fashion - Women', 'Fashion - Men', 'Beauty & Personal Care', 
-                        # 'Electronics', 'Home & Kitchen', 'Groceries & Gourmet', 'Books', 'Sports & Outdoors', 'Health', etc.
-                        # These match Product.category values directly from the dataset
-                        product_categories = [predicted_category]  # ML model already predicts Product category names from dataset
+                        product_categories = [predicted_category] 
                         
                         # Get products from predicted category - annotate with reviews
                         from django.db.models.functions import Coalesce
@@ -237,7 +226,6 @@ def homepage(request):
         except Customer.DoesNotExist:
             pass
     
-    # Fallback: If no personalized recommendations, use featured products
     if not recommended_for_you or len(recommended_for_you) == 0:
         recommended_for_you = list(featured_products[:8])
         recommendation_reason = "Discover our featured products"
@@ -245,17 +233,17 @@ def homepage(request):
     context = {
         'featured_products': featured_products,
         'best_sellers': best_sellers,
-        'recommended_for_you': recommended_for_you,  # Decision Tree personalized recommendations
-        'recommendation_reason': recommendation_reason,  # Explanation for recommendations
-        'recommended_category_slug': recommended_category_slug,  # Category slug for "View All" button
+        'recommended_for_you': recommended_for_you, 
+        'recommendation_reason': recommendation_reason,  
+        'recommended_category_slug': recommended_category_slug,  
         'banners': banners,
         'categories': categories,
         'cart_product_ids': cart_product_ids,
         'wishlist_product_ids': wishlist_product_ids,
         'cart': cart,
-        'show_profile_modal': show_profile_modal,  # For modal display
-        'profile_form': profile_form,  # For modal form
-        **cart_context,  # Add cart info to context
+        'show_profile_modal': show_profile_modal,  
+        'profile_form': profile_form,  
+        **cart_context,  
     }
     return render(request, 'storefront/homepage.html', context)
 
@@ -337,10 +325,8 @@ def product_list(request, category_slug=None, subcategory_slug=None):
     elif sort_by == 'price_high':
         products = products.order_by('-price')
     elif sort_by == 'rating':
-        # Sort by product.rating directly
         products = products.order_by('-rating')
     elif sort_by == 'bestsellers' or sort_by == 'best_sellers':
-        # Sort by quantity_sold (from transaction data) - best sellers
         products = products.order_by('-quantity_sold', '-rating')
     elif sort_by == 'newest':
         products = products.order_by('-id')
@@ -386,9 +372,8 @@ def product_list(request, category_slug=None, subcategory_slug=None):
             })
     
     # Prepare products with "Next best action" sections every 8 products
-    # Group products into chunks of 8 and generate recommendations for each chunk
     products_list = list(page_obj)
-    next_best_actions_dict = {}  # Dictionary mapping index to recommendations
+    next_best_actions_dict = {} 
     
     if category:
         # Process products in chunks of 8
@@ -446,7 +431,6 @@ def product_list(request, category_slug=None, subcategory_slug=None):
                                 seen_product_skus.add(rec_product.sku)
                             
                 except Exception as e:
-                    # No fallback - just skip if error occurs
                     pass
     
     # Get "Next Best Action" products for the bottom section (if category exists)
@@ -510,8 +494,8 @@ def product_list(request, category_slug=None, subcategory_slug=None):
         'cart_product_ids': cart_product_ids,
         'wishlist_product_ids': wishlist_product_ids,
         'cart': cart,
-        'page_obj': page_obj,  # Keep for pagination
-        **cart_context,  # Add cart info to context
+        'page_obj': page_obj, 
+        **cart_context, 
     }
     return render(request, 'storefront/product_list.html', context)
 
@@ -709,10 +693,8 @@ def product_detail(request, product_id):
     if request.user.is_authenticated:
         wishlist = get_or_create_wishlist(request)
         if wishlist:
-            # Get wishlist IDs for all products shown on the page
             all_product_ids = [product.id]
             if frequently_bought:
-                # frequently_bought is a list, not a QuerySet
                 all_product_ids.extend([p.id for p in frequently_bought])
             wishlist_product_ids = set(
                 wishlist.items.filter(product_id__in=all_product_ids).values_list('product_id', flat=True)
@@ -722,7 +704,6 @@ def product_detail(request, product_id):
     product_images = []
     if product.image:
         product_images.append(product.image)
-    # You can add more images here if you have multiple images per product
     
     # Get cart context
     cart_context = get_cart_context(request)
@@ -876,7 +857,6 @@ def checkout(request):
         return redirect('shopping_cart')
     
     # Get customer profile - redirect to onboarding if not complete
-    # But only if show_onboarding parameter is not already present (to avoid redirect loop)
     if request.GET.get('show_onboarding') != 'true':
         try:
             customer = Customer.objects.get(user=request.user)
@@ -983,7 +963,7 @@ def checkout(request):
                         is_default=not saved_addresses.exists()  # First address is default
                     )
             
-            # Get payment method - check raw POST data first
+            # Get payment method 
             saved_payment_id = request.POST.get('saved_payment_id')
             if saved_payment_id and saved_payment_id != '':
                 # Use saved payment method
@@ -1152,7 +1132,7 @@ def complete_the_set(request):
     
     # Convert to QuerySet if it's a list (from get_recommendations) and annotate with reviews
     if isinstance(recommended_products, list):
-        if recommended_products:  # Only convert if list is not empty
+        if recommended_products:  
             product_ids = [p.id for p in recommended_products]
             from django.db.models import Count
             from storefront.models import ProductReview
@@ -1228,9 +1208,7 @@ def order_detail(request, order_id):
     # Calculate delivery time (add 1 day to placed_at, set to 5pm)
     delivery_datetime = order.placed_at + timedelta(days=1)
     delivery_datetime = delivery_datetime.replace(hour=17, minute=0, second=0, microsecond=0)
-    # Format delivery time as "Mon 10 Nov, 5pm" (capitalize first letter of day and month)
     delivery_time_formatted = delivery_datetime.strftime("%a %d %b, %I%p").lower()
-    # Capitalize first letter of day and month
     parts = delivery_time_formatted.split()
     if len(parts) >= 3:
         parts[0] = parts[0].capitalize()  # Day
@@ -1411,10 +1389,8 @@ def my_orders(request):
         # Prepare order data with delivery time and item counts
         orders_data = []
         for order in orders:
-            # Calculate delivery time (add 1 day to placed_at, set to 5pm)
             delivery_datetime = order.placed_at + timedelta(days=1)
             delivery_datetime = delivery_datetime.replace(hour=17, minute=0, second=0, microsecond=0)
-            # Format delivery time as "Mon 10 Nov, 5pm" (capitalize first letter of day and month)
             delivery_time_formatted = delivery_datetime.strftime("%a %d %b, %I%p").lower()
             # Capitalize first letter of day and month
             parts = delivery_time_formatted.split()
@@ -1950,8 +1926,6 @@ def profile_onboarding(request):
             return render(request, 'storefront/profile_onboarding.html', context)
         
         # Form is valid - proceed with saving
-        # Debug: Print form data to verify it's being received
-        print(f"Profile onboarding form is valid. Data: {form.cleaned_data}")
         data = form.cleaned_data
         # Calculate age from date of birth
         from datetime import date
@@ -1959,7 +1933,6 @@ def profile_onboarding(request):
         today = date.today()
         age = today.year - date_of_birth.year - ((today.month, today.day) < (date_of_birth.month, date_of_birth.day))
         
-        # Additional age validation (double-check)
         if age < 14:
             messages.error(request, 'You must be at least 14 years old to register for an account.')
             form = CustomerProfileForm(request.POST)
@@ -1977,13 +1950,10 @@ def profile_onboarding(request):
             return render(request, 'storefront/profile_onboarding.html', context)
         
         # --- ML MODEL PREDICTION: Decision Tree Classification for Cold-Start Personalization ---
-        # Form now uses capitalized values (matching model), so no mapping needed
-        # Occupation values: 'Admin', 'Education', 'Sales', 'Service', 'Skilled Trades', 'Tech'
         ml_occupation = data['occupation'] if data['occupation'] else 'Sales'
         
         # Get has_children value - ensure it's a proper boolean
         has_children_value = data.get('has_children')
-        # Convert to boolean if it's a string
         if isinstance(has_children_value, str):
             has_children_value = has_children_value.lower() in ('true', '1', 'yes')
         elif not isinstance(has_children_value, bool):
@@ -2003,12 +1973,6 @@ def profile_onboarding(request):
         
         # Map predicted category to a valid category choice (fallback to Electronics if prediction fails)
         if predicted_category:
-            # ML model predicts PRODUCT_CATEGORY_CHOICES directly (matches dataset categories)
-            # Customer.preferred_category now also uses PRODUCT_CATEGORY_CHOICES, so no mapping needed
-            # Dataset categories: 'Fashion - Women', 'Fashion - Men', 'Beauty & Personal Care', 'Electronics', 
-            #                    'Home & Kitchen', 'Groceries & Gourmet', 'Books', 'Sports & Outdoors', 'Health', 
-            #                    'Pet Supplies', 'Toys & Games', 'Automotive'
-            # Use prediction directly (it's already in PRODUCT_CATEGORY_CHOICES format)
             preferred_category = predicted_category
         else:
             preferred_category = 'Electronics'  # Default fallback
@@ -2020,24 +1984,22 @@ def profile_onboarding(request):
             print(f"Updating existing customer ID: {customer.id}")
             print(f"DEBUG: Form data - age: {age}, gender: {data['gender']}, employment: {data['employment_status']}, occupation: {data['occupation']}")
             
-            # Use standard save() method to ensure all model logic and signals are executed
             try:
                 # Update all fields on the customer instance
                 customer.user = request.user
                 customer.email = request.user.email
                 customer.name = (f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username)
                 customer.age = age
-                customer.date_of_birth = date_of_birth  # Save actual date of birth
+                customer.date_of_birth = date_of_birth 
                 customer.gender = data['gender']
                 customer.employment_status = data['employment_status']
-                customer.occupation = data['occupation']  # Already capitalized, matches model choices
+                customer.occupation = data['occupation'] 
                 customer.education = data['education']
                 customer.household_size = data['household_size']
                 customer.has_children = data['has_children']
                 customer.monthly_income_sgd = data['monthly_income_sgd']
                 customer.preferred_category = preferred_category
-                customer.profile_completed = True  # Mark profile as completed through onboarding
-                
+                customer.profile_completed = True 
                 # Save the customer instance
                 customer.save()
                 
@@ -2074,14 +2036,13 @@ def profile_onboarding(request):
                 # Check if customer already exists by email (shouldn't happen, but handle it)
                 try:
                     existing_customer = Customer.objects.get(email=request.user.email)
-                    # Customer exists but wasn't linked to user - update it
                     print(f"Customer exists by email but not linked, updating...")
                     customer = existing_customer
                     customer.user = request.user
                     customer.email = request.user.email
                     customer.name = (f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username)
                     customer.age = age
-                    customer.date_of_birth = date_of_birth  # Save actual date of birth
+                    customer.date_of_birth = date_of_birth 
                     customer.gender = data['gender']
                     customer.employment_status = data['employment_status']
                     customer.occupation = data['occupation']
@@ -2090,7 +2051,7 @@ def profile_onboarding(request):
                     customer.has_children = data['has_children']
                     customer.monthly_income_sgd = data['monthly_income_sgd']
                     customer.preferred_category = preferred_category
-                    customer.profile_completed = True  # Mark profile as completed through onboarding
+                    customer.profile_completed = True  
                     customer.save()
                     customer.refresh_from_db()
                     print(f"Existing customer updated - ID: {customer.id}")
@@ -2365,21 +2326,16 @@ def account_profile(request):
                 
                 # Refresh customer instance to get latest data
                 customer.refresh_from_db()
-                
-                # --- RE-PREDICT PREFERRED CATEGORY: Update recommendations based on new profile data ---
+
                 # Re-run Decision Tree prediction with updated profile data
                 from .ml_helpers import predict_preferred_category
                 data = customer_form.cleaned_data
                 
-                # Form now uses capitalized values (matching model), so no mapping needed
-                # Occupation values: 'Admin', 'Education', 'Sales', 'Service', 'Skilled Trades', 'Tech'
                 ml_occupation = data.get('occupation', customer.occupation) or 'Sales'
                 
-                # Get has_children value - ensure it's a proper boolean
                 has_children_value = data.get('has_children')
                 if has_children_value is None:
                     has_children_value = customer.has_children if customer.has_children is not None else False
-                # Convert to boolean if it's a string
                 if isinstance(has_children_value, str):
                     has_children_value = has_children_value.lower() in ('true', '1', 'yes')
                 elif not isinstance(has_children_value, bool):
@@ -2398,10 +2354,7 @@ def account_profile(request):
                 )
                 
                 # Map predicted category to Customer model category choices
-                # ML model predicts PRODUCT_CATEGORY_CHOICES directly (matches dataset categories)
-                # Customer.preferred_category now also uses PRODUCT_CATEGORY_CHOICES, so no mapping needed
                 if predicted_category:
-                    # Use prediction directly (it's already in PRODUCT_CATEGORY_CHOICES format)
                     preferred_category = predicted_category
                 else:
                     preferred_category = 'Electronics'  # Default fallback
@@ -2443,14 +2396,9 @@ def account_profile(request):
                 'date_of_birth': approximate_dob,
             }
         
-        # Occupation is now stored in capitalized format (matches model choices)
-        # Form also uses capitalized values, so no mapping needed
-        # Valid values: 'Admin', 'Education', 'Sales', 'Service', 'Skilled Trades', 'Tech'
         occupation_value = customer.occupation if customer.occupation else 'Sales'
         
         # Build complete initial data dictionary with all customer fields
-        # IMPORTANT: Read values directly from the fresh customer instance to ensure latest data
-        # Get a completely fresh customer instance to avoid any caching issues
         fresh_customer = Customer.objects.get(id=customer.id)
         
         initial_data.update({
@@ -2485,12 +2433,8 @@ def account_profile(request):
             })
         
         # Create form with fresh instance and initial values
-        # For unbound forms, initial values should override instance values
         customer_form = CustomerProfileForm(instance=fresh_customer, initial=initial_data)
         
-        # CRITICAL FIX: Manually set form field initial values to ensure they override instance values
-        # This is necessary because Django ModelForm's initial parameter doesn't always override instance values
-        # for fields that are in the model, especially for ChoiceFields
         for field_name, field_value in initial_data.items():
             if field_name in customer_form.fields:
                 # Set both the field's initial and the form's initial dict

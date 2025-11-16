@@ -205,7 +205,7 @@ if SOCIAL_AUTH_ENABLED:
             'social_core.pipeline.user.user_details',
             'storefront.pipeline.create_customer_profile',  # Custom pipeline to create Customer
         )
-        print("✓ Google OAuth backend configured with credentials")
+        print("[OK] Google OAuth backend configured with credentials")
     else:
         print("Warning: Google OAuth credentials not set. Set GOOGLE_OAUTH2_CLIENT_ID and GOOGLE_OAUTH2_CLIENT_SECRET environment variables.")
         print("Google OAuth buttons will appear but authentication will fail until credentials are configured.")

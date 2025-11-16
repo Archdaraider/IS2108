@@ -129,6 +129,7 @@ class Customer(models.Model):
     email = models.EmailField(unique=True, help_text="Used as the unique identifier and for login.")
     name = models.CharField(max_length=255)
     age = models.IntegerField()
+    date_of_birth = models.DateField(null=True, blank=True, help_text="Actual date of birth to preserve month and day")
     
     # --- UPDATED with choices ---
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES)
@@ -143,6 +144,9 @@ class Customer(models.Model):
     # --- UPDATED: Use PRODUCT_CATEGORY_CHOICES to match dataset categories ---
     # Changed from CATEGORY_CHOICES to PRODUCT_CATEGORY_CHOICES to match actual dataset categories
     preferred_category = models.CharField(max_length=100, choices=PRODUCT_CATEGORY_CHOICES)
+    
+    # Track if profile was completed through onboarding (not just placeholder values)
+    profile_completed = models.BooleanField(default=False, help_text="True if user completed onboarding form")
 
     def __str__(self):
         return self.email

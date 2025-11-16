@@ -37,22 +37,10 @@ def oauth_redirect_handler(request):
         profile_complete = False
         try:
             customer = Customer.objects.get(user=request.user)
-            # Check if profile has actual values (not just placeholder values)
-            # Placeholder values: age=18, gender='Male', employment_status='Student', occupation='Sales', preferred_category='Electronics'
-            has_required_fields = bool(customer.age and customer.gender and customer.employment_status)
-            
-            # Check if profile has placeholder values (indicates it wasn't completed through onboarding)
-            is_placeholder = (
-                customer.age == 18 and
-                customer.gender == 'Male' and
-                customer.employment_status == 'Student' and
-                customer.occupation == 'Sales' and
-                customer.preferred_category == 'Electronics' and
-                customer.monthly_income_sgd == 0.00
-            )
-            
-            # Profile is complete only if it has required fields AND is not a placeholder
-            profile_complete = has_required_fields and not is_placeholder
+            # Check if profile was completed through onboarding
+            # Use profile_completed field instead of checking placeholder values
+            # This avoids false positives for users who legitimately have those values
+            profile_complete = customer.profile_completed
         except Customer.DoesNotExist:
             profile_complete = False
         
@@ -163,7 +151,12 @@ def homepage(request):
     profile_form = None
     if request.user.is_authenticated and request.GET.get('show_onboarding') == 'true':
         show_profile_modal = True
-        profile_form = CustomerProfileForm()
+        # Check if there's session data to repopulate form (from previous failed submission)
+        session_data = request.session.get('profile_form_data', {})
+        if session_data:
+            profile_form = CustomerProfileForm(data=session_data)
+        else:
+            profile_form = CustomerProfileForm()
     
     # --- DECISION TREE CLASSIFICATION: Recommended For You Section ---
     # Get personalized recommendations based on user's profile (cold-start personalization)
@@ -2034,6 +2027,7 @@ def profile_onboarding(request):
                 customer.email = request.user.email
                 customer.name = (f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username)
                 customer.age = age
+                customer.date_of_birth = date_of_birth  # Save actual date of birth
                 customer.gender = data['gender']
                 customer.employment_status = data['employment_status']
                 customer.occupation = data['occupation']  # Already capitalized, matches model choices
@@ -2042,6 +2036,7 @@ def profile_onboarding(request):
                 customer.has_children = data['has_children']
                 customer.monthly_income_sgd = data['monthly_income_sgd']
                 customer.preferred_category = preferred_category
+                customer.profile_completed = True  # Mark profile as completed through onboarding
                 
                 # Save the customer instance
                 customer.save()
@@ -2086,6 +2081,7 @@ def profile_onboarding(request):
                     customer.email = request.user.email
                     customer.name = (f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username)
                     customer.age = age
+                    customer.date_of_birth = date_of_birth  # Save actual date of birth
                     customer.gender = data['gender']
                     customer.employment_status = data['employment_status']
                     customer.occupation = data['occupation']
@@ -2094,6 +2090,7 @@ def profile_onboarding(request):
                     customer.has_children = data['has_children']
                     customer.monthly_income_sgd = data['monthly_income_sgd']
                     customer.preferred_category = preferred_category
+                    customer.profile_completed = True  # Mark profile as completed through onboarding
                     customer.save()
                     customer.refresh_from_db()
                     print(f"Existing customer updated - ID: {customer.id}")
@@ -2104,6 +2101,7 @@ def profile_onboarding(request):
                         email=request.user.email,
                         name=(f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username),
                         age=age,
+                        date_of_birth=date_of_birth,  # Save actual date of birth
                         gender=data['gender'],
                         employment_status=data['employment_status'],
                         occupation=data['occupation'],
@@ -2111,7 +2109,8 @@ def profile_onboarding(request):
                         household_size=data['household_size'],
                         has_children=data['has_children'],
                         monthly_income_sgd=data['monthly_income_sgd'],
-                        preferred_category=preferred_category
+                        preferred_category=preferred_category,
+                        profile_completed=True  # Mark profile as completed through onboarding
                     )
                     print(f"New customer created successfully - ID: {customer.id}, age: {customer.age}, gender: {customer.gender}")
             except Exception as e:
@@ -2166,28 +2165,33 @@ def profile_onboarding(request):
         # Fallback to homepage if category mapping fails
         return redirect('homepage')
     else:
-        form = CustomerProfileForm()
-        # Pre-fill form if customer exists (for updates)
-        if customer:
-            # Calculate approximate date of birth from age (use Jan 1st of the year)
-            from datetime import date
-            today = date.today()
-            # Approximate DOB: assume birthday is Jan 1st of the year they were born
-            approximate_dob = date(today.year - customer.age, 1, 1)
-            
-            form = CustomerProfileForm(initial={
-                'birth_month': str(approximate_dob.month),
-                'birth_day': str(approximate_dob.day),
-                'birth_year': approximate_dob.year,
-                'date_of_birth': approximate_dob,
-                'gender': customer.gender,
-                'employment_status': customer.employment_status,
-                'occupation': customer.occupation,
-                'education': customer.education,
-                'household_size': customer.household_size,
-                'has_children': customer.has_children,
-                'monthly_income_sgd': customer.monthly_income_sgd,
-            })
+        # Check if there's session data to repopulate form (from previous failed submission)
+        session_data = request.session.get('profile_form_data', {})
+        if session_data:
+            form = CustomerProfileForm(data=session_data)
+        else:
+            form = CustomerProfileForm()
+            # Pre-fill form if customer exists (for updates)
+            if customer:
+                # Calculate approximate date of birth from age (use Jan 1st of the year)
+                from datetime import date
+                today = date.today()
+                # Approximate DOB: assume birthday is Jan 1st of the year they were born
+                approximate_dob = date(today.year - customer.age, 1, 1)
+                
+                form = CustomerProfileForm(initial={
+                    'birth_month': str(approximate_dob.month),
+                    'birth_day': str(approximate_dob.day),
+                    'birth_year': approximate_dob.year,
+                    'date_of_birth': approximate_dob,
+                    'gender': customer.gender,
+                    'employment_status': customer.employment_status,
+                    'occupation': customer.occupation,
+                    'education': customer.education,
+                    'household_size': customer.household_size,
+                    'has_children': customer.has_children,
+                    'monthly_income_sgd': customer.monthly_income_sgd,
+                })
     
     # Get cart context
     cart_context = get_cart_context(request)
@@ -2338,19 +2342,8 @@ def account_profile(request):
                     if age < 14:
                         messages.error(request, 'You must be at least 14 years old. Your profile cannot be updated to an age below 14.')
                         user_form = UserProfileForm(instance=request.user)
-                        # Recalculate date of birth from age for the form
-                        from datetime import date, timedelta
-                        if customer.age:
-                            birth_year = date.today().year - customer.age
-                            approximate_dob = date(birth_year, 1, 1)
-                            customer_form = CustomerProfileForm(instance=customer, initial={
-                                'birth_month': str(approximate_dob.month),
-                                'birth_day': str(approximate_dob.day),
-                                'birth_year': approximate_dob.year,
-                                'date_of_birth': approximate_dob,
-                            })
-                        else:
-                            customer_form = CustomerProfileForm(instance=customer)
+                        # Recreate form with POST data to preserve submitted values
+                        customer_form = CustomerProfileForm(request.POST, instance=customer)
                         cart_context = get_cart_context(request)
                         context = {
                             'user_form': user_form,
@@ -2361,13 +2354,14 @@ def account_profile(request):
                         return render(request, 'storefront/account_profile.html', context)
                     
                     customer.age = age
+                    customer.date_of_birth = date_of_birth  # Save actual date of birth
                 
-                # Save form data first (this saves all form fields except age)
+                # Save form data first (this saves all form fields except age and date_of_birth)
                 customer_form.save()
                 
-                # Save age separately since it's not in the form fields
+                # Save age and date_of_birth separately since they're not in the form fields
                 if date_of_birth:
-                    customer.save(update_fields=['age'])
+                    customer.save(update_fields=['age', 'date_of_birth'])
                 
                 # Refresh customer instance to get latest data
                 customer.refresh_from_db()
@@ -2418,14 +2412,28 @@ def account_profile(request):
                 
                 messages.success(request, 'Customer profile updated successfully! Your recommendations have been updated based on your new profile.')
                 return redirect('account_profile')
+            else:
+                # Form is invalid - preserve submitted values
+                user_form = UserProfileForm(instance=request.user)
+                messages.error(request, 'Please fix the errors below and submit again.')
     else:
         user_form = UserProfileForm(instance=request.user)
-        # Calculate date of birth from age for the form
+        # Calculate date of birth from stored date_of_birth or age for the form
         from datetime import date
         # Initialize form with customer instance to pre-fill all fields
-        # Then add initial values for date fields calculated from age
+        # Use actual date_of_birth if available, otherwise approximate from age
         initial_data = {}
-        if customer.age:
+        if customer.date_of_birth:
+            # Use actual stored date of birth
+            dob = customer.date_of_birth
+            initial_data = {
+                'birth_month': str(dob.month),
+                'birth_day': str(dob.day),
+                'birth_year': dob.year,
+                'date_of_birth': dob,
+            }
+        elif customer.age:
+            # Fallback: approximate from age (use Jan 1st)
             birth_year = date.today().year - customer.age
             approximate_dob = date(birth_year, 1, 1)
             initial_data = {
@@ -2455,8 +2463,18 @@ def account_profile(request):
             'monthly_income_sgd': float(fresh_customer.monthly_income_sgd) if fresh_customer.monthly_income_sgd else 0.00,
         })
         
-        # Update date fields from fresh customer age
-        if fresh_customer.age:
+        # Update date fields from fresh customer date_of_birth or age
+        if fresh_customer.date_of_birth:
+            # Use actual stored date of birth
+            dob = fresh_customer.date_of_birth
+            initial_data.update({
+                'birth_month': str(dob.month),
+                'birth_day': str(dob.day),
+                'birth_year': dob.year,
+                'date_of_birth': dob,
+            })
+        elif fresh_customer.age:
+            # Fallback: approximate from age (use Jan 1st)
             birth_year = date.today().year - fresh_customer.age
             approximate_dob = date(birth_year, 1, 1)
             initial_data.update({

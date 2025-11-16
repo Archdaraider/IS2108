@@ -866,10 +866,20 @@ function initDateInputRestrictions() {
         const month = parseInt(monthSelect.value);
         const year = parseInt(yearInput ? yearInput.value : new Date().getFullYear());
         
+        // Get current selected day BEFORE updating the dropdown
+        const currentDay = daySelect.value;
+        
         if (!month) {
-            // Reset to all days if no month selected
+            // Reset to all days if no month selected, but preserve current day if it exists
             daySelect.innerHTML = '<option value="">Day</option>' + 
-                Array.from({length: 31}, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('');
+                Array.from({length: 31}, (_, i) => {
+                    const day = i + 1;
+                    return `<option value="${day}" ${currentDay == day ? 'selected' : ''}>${day}</option>`;
+                }).join('');
+            // Restore the selected day if it was set
+            if (currentDay) {
+                daySelect.value = currentDay;
+            }
             return;
         }
         
@@ -887,18 +897,18 @@ function initDateInputRestrictions() {
             daysInMonth = 30;
         }
         
-        // Get current selected day
-        const currentDay = daySelect.value;
-        
-        // Update day dropdown
+        // Update day dropdown, preserving the selected day if it's valid
         daySelect.innerHTML = '<option value="">Day</option>' + 
             Array.from({length: daysInMonth}, (_, i) => {
                 const day = i + 1;
                 return `<option value="${day}" ${currentDay == day ? 'selected' : ''}>${day}</option>`;
             }).join('');
         
-        // If current day is invalid for the month, reset it
-        if (currentDay && parseInt(currentDay) > daysInMonth) {
+        // Restore the selected day if it's valid for this month
+        if (currentDay && parseInt(currentDay) <= daysInMonth) {
+            daySelect.value = currentDay;
+        } else if (currentDay && parseInt(currentDay) > daysInMonth) {
+            // If current day is invalid for the month, reset it
             daySelect.value = '';
         }
     }
@@ -913,7 +923,10 @@ function initDateInputRestrictions() {
     }
     
     // Initialize day dropdown on page load
-    updateDayDropdown();
+    // Use setTimeout to ensure form values are set before updating dropdown
+    setTimeout(function() {
+        updateDayDropdown();
+    }, 0);
     
     // Restrict year input to 4 digits
     if (yearInput) {

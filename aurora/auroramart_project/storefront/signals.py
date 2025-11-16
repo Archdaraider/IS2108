@@ -29,7 +29,8 @@ def create_customer_profile(sender, instance, created, **kwargs):
                 household_size=1,  # Placeholder
                 has_children=False,  # Placeholder
                 monthly_income_sgd=0.00,  # Placeholder
-                preferred_category='Electronics'  # Placeholder
+                preferred_category='Electronics',  # Placeholder
+                profile_completed=False  # Profile not completed yet - user needs to go through onboarding
             )
         else:
             # Customer with email exists, link the user to it

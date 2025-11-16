@@ -13,17 +13,10 @@ def create_customer_profile(strategy, details, backend, user=None, is_new=False,
         customer = None
         try:
             customer = Customer.objects.get(user=user)
-            # Check if this is a placeholder profile (not completed through onboarding)
-            is_placeholder = (
-                customer.age == 18 and
-                customer.gender == 'Male' and
-                customer.employment_status == 'Student' and
-                customer.occupation == 'Sales' and
-                customer.preferred_category == 'Electronics' and
-                customer.monthly_income_sgd == 0.00
-            )
-            # If it's a placeholder, don't link it - let onboarding create a new one
-            if is_placeholder:
+            # Check if profile was completed through onboarding
+            # Use profile_completed field instead of checking placeholder values
+            if not customer.profile_completed:
+                # Profile not completed, don't link it - let onboarding create/update it
                 customer = None
         except Customer.DoesNotExist:
             # Don't try to link by email - if Customer was deleted, it should stay deleted
